@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TAILWIND v4 THEME — replaces the old tailwind.config script.
+   Everything here compiles at build time; nothing is fetched
+   from cdn.tailwindcss.com at runtime.
+
+   @theme inline is used because most values below reference
+   *other* CSS variables (semantic tokens, next/font variables)
+   rather than literal values — the documented v4 pattern for
+   that case.
+============================================================ */
+@theme inline {
+  --font-display: var(--font-sora);
+  --font-sans: var(--font-inter);
+  --font-hand: var(--font-caveat);
+
+  --shadow-soft: 0 1px 2px rgba(12, 34, 72, 0.04), 0 8px 24px -8px rgba(12, 34, 72, 0.1);
+  --shadow-lift: 0 2px 4px rgba(12, 34, 72, 0.06), 0 16px 32px -12px rgba(12, 34, 72, 0.18);
+  --radius-xl2: 1.25rem;
+
+  /* Brand hues — literal, constant in every theme */
+  --color-navy-50: #F3F5FA;
+  --color-navy-100: #E7EBF3;
+  --color-navy-300: #8C99B8;
+  --color-navy-500: #3A5480;
+  --color-navy-700: #1B355F;
+  --color-navy-900: #0C2248;
+
+  --color-coral-100: #FFE3D6;
+  --color-coral-300: #FF9A73;
+  --color-coral-500: #FE6336;
+  --color-coral-600: #E14F22;
+  --color-coral-700: #B93C15;
+
+  --color-yellow-300: #FDD584;
+  --color-yellow-500: #FDBD43;
+
+  --color-teal-300: #8FDACE;
+  --color-teal-500: #38BBAC;
+
+  --color-purple-500: #6934D0;
+  --color-purple-600: #5A2AB0;
+
+  /* Semantic roles — resolve to the plain CSS variables below,
+     which flip value with the theme. Same class names as the
+     CDN prototype (bg-surface, text-ink, text-muted, ...). */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-ink: var(--text-primary);
+  --color-strong: var(--text-strong);
+  --color-muted: var(--text-secondary);
+  --color-faint: var(--text-faint);
+  --color-hair: var(--border);
+  --color-wash: var(--wash);
+  --color-chip: var(--neutral-tint);
+  --color-fieldbg: var(--input-bg);
+  --color-activebg: var(--active-bg);
+  --color-activetext: var(--active-text);
+
+  /* Accent tint/text pairs used by badges & alerts — theme-aware */
+  --color-tealx-100: var(--teal-tint);
+  --color-tealx-600: var(--teal-accent);
+  --color-coralx-100: var(--coral-tint);
+  --color-coralx-600: var(--coral-accent);
+  --color-yellowx-100: var(--yellow-tint);
+  --color-yellowx-600: var(--yellow-accent);
+  --color-purplex-100: var(--purple-tint);
+  --color-purplex-600: var(--purple-accent);
+
+  --color-danger-50: var(--danger-tint);
+  --color-danger-100: var(--danger-tint);
+  --color-danger-200: var(--danger-border);
+  --color-danger-400: var(--danger-border);
+  --color-danger-600: var(--danger-text);
+  --color-danger-700: var(--danger-text);
+}
+
+/* ============================================================
+   SEMANTIC DESIGN TOKENS — Light (default) + Dark
+   Identical values to the Phase 1 prototype. A role (e.g.
+   "primary text") maps to a different literal colour per
+   theme; the brand hues above never move.
+============================================================ */
+:root {
+  color-scheme: light;
+  --canvas: #F6F7FB;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --input-bg: #FFFFFF;
+  --text-primary: #0C2248;
+  --text-strong: #1B355F;
+  --text-secondary: #5B6478;
+  --text-faint: #8C99B8;
+  --border: #E4E7EF;
+  --wash: #F3F5FA;
+  --neutral-tint: #E7EBF3;
+  --header-bg: rgba(255, 255, 255, .95);
+  --active-bg: #0C2248;
+  --active-text: #FFFFFF;
+  --teal-tint: #DFF5F1;   --teal-accent: #2C9C8F;
+  --coral-tint: #FFE3D6;  --coral-accent: #E14F22;
+  --yellow-tint: #FFF2D9; --yellow-accent: #B9791A;
+  --purple-tint: #EDE4FB; --purple-accent: #6934D0;
+  --danger-tint: #FEE2E2; --danger-border: #FECACA; --danger-text: #B42318;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0A1830;
+  --surface: #101F3A;
+  --surface-raised: #16294A;
+  --input-bg: #101F3A;
+  --text-primary: #F4F6FB;
+  --text-strong: #C7CFE3;
+  --text-secondary: #A9B4CC;
+  --text-faint: #5A6B8C;
+  --border: #223257;
+  --wash: #16294A;
+  --neutral-tint: #1A2A4A;
+  --header-bg: rgba(10, 24, 48, .85);
+  --active-bg: #F4F6FB;
+  --active-text: #0C2248;
+  --teal-tint: #103B36;   --teal-accent: #4CD9C6;
+  --coral-tint: #3A2318;  --coral-accent: #FF8F68;
+  --yellow-tint: #3A2C0C; --yellow-accent: #FFC864;
+  --purple-tint: #241541; --purple-accent: #A177EA;
+  --danger-tint: #3A1616; --danger-border: #5A2323; --danger-text: #FF8A80;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --canvas: #0A1830; --surface: #101F3A; --surface-raised: #16294A; --input-bg: #101F3A;
+    --text-primary: #F4F6FB; --text-strong: #C7CFE3; --text-secondary: #A9B4CC; --text-faint: #5A6B8C;
+    --border: #223257; --wash: #16294A; --neutral-tint: #1A2A4A; --header-bg: rgba(10, 24, 48, .85);
+    --active-bg: #F4F6FB; --active-text: #0C2248;
+    --teal-tint: #103B36; --teal-accent: #4CD9C6; --coral-tint: #3A2318; --coral-accent: #FF8F68;
+    --yellow-tint: #3A2C0C; --yellow-accent: #FFC864; --purple-tint: #241541; --purple-accent: #A177EA;
+    --danger-tint: #3A1616; --danger-border: #5A2323; --danger-text: #FF8A80;
+  }
+}
+
+/* ============================================================
+   Small component CSS that doesn't belong as utility classes —
+   ported verbatim from the prototype's <style> block.
+============================================================ */
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--canvas);
+  color: var(--text-primary);
+  transition: background-color .15s ease, color .15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+.skip-link { position: absolute; left: -9999px; top: 0; background: #0C2248; color: #fff; padding: .5rem 1rem; border-radius: 0 0 .5rem 0; z-index: 100; }
+.skip-link:focus { left: 0; }
+
+::selection { background: #FDBD43; color: #0C2248; }
+
+.site-header { background: var(--header-bg); }
+
+.dropzone.drag-over { border-color: #FE6336; background: var(--coral-tint); }
+
+.accordion-trigger[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+#toast-region { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; gap: .5rem; width: calc(100% - 2rem); max-width: 26rem; }
+@media (min-width: 640px) { #toast-region { left: auto; right: 1.5rem; transform: none; } }
+
+.copy-flash { opacity: 0; transition: opacity .15s ease; }
+.copy-flash.show { opacity: 1; }
+
+.qr-field-group { display: none; }
+.qr-field-group.active { display: block; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.filter-chip[aria-pressed="true"] { background: var(--active-bg); color: var(--active-text); border-color: var(--active-bg); }
+.theme-btn[aria-pressed="true"] { background: var(--active-bg); color: var(--active-text); }
+
+.sidebar-app { transition: transform .2s ease; }
+@media (max-width: 1023px) {
+  .sidebar-app { position: fixed; inset: 0 25% 0 0; transform: translateX(-100%); z-index: 60; }
+  .sidebar-app.open { transform: translateX(0); }
+}
+
+/* QR preview intentionally stays a fixed light "paper" swatch in both
+   themes — real-world scan/print fidelity takes priority over theme
+   matching here. */
+.qr-paper { background: #FFFFFF; }
