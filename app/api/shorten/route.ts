@@ -124,8 +124,24 @@ export async function POST(req: Request) {
   }
 }
 
-const errorDetail = (err: unknown): string =>
-  err instanceof Error ? (err.stack ?? `${err.name}: ${err.message}`) : String(err);
+/**
+ * Flatten an error and its `cause` chain into one loggable string.
+ *
+ * Drizzle wraps a driver failure in a generic `Failed query: …` error and puts
+ * the part that actually explains it — the Postgres code and message — on
+ * `cause`. Logging only the top-level stack tells you a query failed but never
+ * why (e.g. `42P01 relation "links" does not exist`, i.e. an unmigrated
+ * database). Depth-bounded so a cyclic chain can't spin.
+ */
+function errorDetail(err: unknown, depth = 0): string {
+  if (!(err instanceof Error)) return String(err);
+
+  const code = (err as { code?: unknown }).code;
+  const lines = [`${err.name}: ${err.message}${code == null ? '' : ` [code ${String(code)}]`}`];
+  if (depth === 0 && err.stack) lines.push(err.stack);
+  if (depth < 4 && err.cause != null) lines.push(`caused by → ${errorDetail(err.cause, depth + 1)}`);
+  return lines.join('\n');
+}
 
 /**
  * A driver error can quote the connection string it failed to parse, password
