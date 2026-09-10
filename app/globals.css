@@ -195,3 +195,67 @@ body {
    themes — real-world scan/print fidelity takes priority over theme
    matching here. */
 .qr-paper { background: #FFFFFF; }
+
+/* ============================================================
+   HOMEPAGE (Phase 2 candidate) — layout primitives and the few
+   effects that don't read well as utility soup. Everything here
+   uses the semantic tokens above, so it themes for free.
+============================================================ */
+
+/* One container width for the whole page — keeps every section's
+   left/right edge on the same vertical line. */
+.kk-container {
+  width: 100%;
+  max-width: 75rem;        /* 1200px */
+  margin-inline: auto;
+  padding-inline: 1.25rem; /* 20px */
+}
+@media (min-width: 640px) { .kk-container { padding-inline: 1.5rem; } }
+@media (min-width: 1024px) { .kk-container { padding-inline: 2rem; } }
+
+/* Hero backdrop: a faint dot grid that fades out downward. Purely
+   decorative, sits behind content, never intercepts pointer events. */
+.kk-dotgrid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--text-faint);
+  opacity: 0.18;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 78%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 78%);
+}
+
+/* Search combobox popover */
+.kk-pop {
+  box-shadow: var(--shadow-lift);
+}
+
+/* Entrance: applied once, on the hero only. Fully removed for anyone
+   who asked for less motion — the static layout already stands on
+   its own. */
+@keyframes kk-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kk-rise {
+  animation: kk-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.kk-rise-2 { animation-delay: 0.06s; }
+.kk-rise-3 { animation-delay: 0.12s; }
+.kk-rise-4 { animation-delay: 0.18s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-rise, .kk-rise-2, .kk-rise-3, .kk-rise-4 { animation: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* Marquee-free "task word" ticker in the hero — a static list on
+   mobile, a gentle cross-fade on larger screens. */
+.kk-underline-coral {
+  text-decoration: underline;
+  text-decoration-color: var(--coral-accent);
+  text-underline-offset: 6px;
+  text-decoration-thickness: 3px;
+}
