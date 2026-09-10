@@ -1,93 +1,73 @@
-# KaamKit — Phase 1 design system (production build)
+# KaamKit
 
-This replaces the CDN-based prototype (`kaamkit-design-system.html`) with a real
-Next.js project where **Tailwind CSS is installed and compiled at build time**.
-Nothing in this app calls `cdn.tailwindcss.com`, and fonts are self-hosted via
-`next/font` instead of a runtime request to `fonts.googleapis.com`. No visual
-design changed — every token, class name, and component behaves the same as
-the prototype approved in Phase 1.
+**A digital toolbox for everyday problems.** Small, useful web tools that solve
+one thing quickly. Live at **[kaamkit.com](https://kaamkit.com)**.
+
+Product & brand brief: [`KAAMKIT-BRIEF.md`](KAAMKIT-BRIEF.md).
+
+---
+
+## Status
+
+| Piece | State |
+|---|---|
+| Design system | Built — standards in [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) |
+| Homepage | **Live in production** at `kaamkit.com` |
+| URL Shortener | **Phase 1** (tool page + mock API) on the `url-shortener` branch — not yet merged, not yet listed. See [`products/url-shortener.md`](products/url-shortener.md) |
+| Everything else in the catalogue | Planned — [`kaamkit-tool-catalogue.md`](kaamkit-tool-catalogue.md) |
 
 ## Stack
 
-- **Next.js 16** (App Router)
-- **Tailwind CSS v4**, wired in as a PostCSS plugin (`@tailwindcss/postcss`) —
-  this is the current recommended setup for new projects; v4 replaced the old
-  `tailwind.config.js` approach with CSS-first configuration.
-- **React 19**
-- **TypeScript**
+- **Next.js 16** (App Router) · **React 19** · **TypeScript**
+- **Tailwind CSS v4**, compiled at build time (PostCSS plugin, CSS-first `@theme`).
+  No `cdn.tailwindcss.com`. Fonts self-hosted via `next/font` — no runtime call to
+  `fonts.googleapis.com`.
+- **Neon Postgres** for persistent data (added in URL Shortener Phase 2a).
+  **PGlite** for local/test.
+- Deployed on **Vercel** (project `Kaamkit`); **Cloudflare** is authoritative for
+  DNS (DNS-only today — not proxied).
 
-## Project structure
+Hosting, domain, environments, deploy procedure: [`infra/deployment.md`](infra/deployment.md).
 
-```
-kaamkit-app/
-├── package.json
-├── postcss.config.mjs        ← wires Tailwind into the build, no CDN
-├── next.config.mjs
-├── tsconfig.json
-└── app/
-    ├── layout.tsx             ← self-hosted Sora + Inter via next/font
-    ├── globals.css            ← @import "tailwindcss" + all design tokens
-    └── page.tsx                ← the Phase 1 design system, ported to JSX
-```
+## Repository & branches
 
-## Running it
+- Repo: **`github.com/kaamkitdigital/Website`**.
+- **`main` is the production branch** — a push to `main` deploys to
+  `kaamkit.com`. Do not commit to `main` directly; branch, open a PR, review,
+  merge.
+- Every non-`main` branch gets a **Vercel Preview Deployment** — that URL is the
+  staging environment.
+
+## Running it locally
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+npm run dev        # http://localhost:3000
 ```
 
 ```bash
-npm run build     # produces a static compiled CSS file — no runtime CDN call
-npm run start      # production server
+npm run typecheck  # tsc --noEmit
+npm test           # zero-dependency node --test suite (.mts files under test/)
+npm run build      # production build
 ```
 
-Open the Network tab while running `npm run build && npm run start`: there is
-no request to `cdn.tailwindcss.com` or `fonts.googleapis.com`. All CSS ships
-as one compiled, minified file from your own domain.
+Local development needs **no** database configured — the absence of
+`DATABASE_URL` selects the PGlite driver.
 
-## What changed vs. the CDN prototype — and what didn't
+## Documentation
 
-**Changed (tooling only):**
-- Tailwind config moved from an inline `<script>tailwind.config = {...}</script>`
-  to `app/globals.css`'s `@theme inline { ... }` block. Same token names, same
-  values.
-- Google Fonts `<link>` tags replaced by `next/font/google` in `app/layout.tsx`
-  (same two families, same weights — now self-hosted).
-- The prototype's `<style>` block moved into `app/globals.css`, below the
-  theme block — same rules, same selectors.
-- The prototype's `<script>` (vanilla DOM logic for theming, tabs, modal,
-  toasts, drag-and-drop, the QR type picker, etc.) moved into a single
-  `useEffect` in `app/page.tsx`, unchanged in behavior — it's the same
-  `document.getElementById` / `addEventListener` code, just running inside a
-  React component's lifecycle instead of a raw `<script>` tag.
-- One pre-existing bug fixed in passing: the example modal used the Tailwind
-  class `z-70`, which isn't a real utility (Tailwind's default scale stops at
-  `z-50`) — it compiled to nothing in both the old CDN build and this one.
-  Changed to `z-[70]` so the modal actually stacks above the sticky header.
-  This is a correctness fix, not a design change — the intent was always for
-  the modal to sit on top.
+| File | What it is |
+|---|---|
+| [`KAAMKIT-BRIEF.md`](KAAMKIT-BRIEF.md) | Master product / brand / engineering brief (input) |
+| [`kaamkit-phase0-architecture.md`](kaamkit-phase0-architecture.md) | Platform architecture rationale + resolved decisions |
+| [`infra/deployment.md`](infra/deployment.md) | Hosting, domain, DNS, environments, deploy & migration procedure |
+| [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) | Production design-system standards (tokens, theming, components) |
+| [`kaamkit-tool-catalogue.md`](kaamkit-tool-catalogue.md) | The 60-tool catalogue, locked categories, build order |
+| [`products/url-shortener.md`](products/url-shortener.md) | URL Shortener product spec + architecture + phase log |
+| [`kaamkit-design-system.html`](kaamkit-design-system.html) | Original visual reference prototype (not production code) |
 
-**Not changed:**
-- Every color token, hex value, spacing scale, radius, shadow, and font choice.
-- Every component's markup, classes, and interactive behavior.
-- The light/dark/system theme mechanism (still CSS-variable-driven via
-  `data-theme` on `<html>`, not Tailwind's `dark:` variant — this app never
-  used `dark:` classes, so there was nothing to migrate there).
+## Development process
 
-## Still open from Phase 1
-
-This message only covered the build-tooling swap. Two decisions from the
-last Phase 1 report are still awaiting your call and are unrelated to this
-change:
-1. Approve the `/documents/` and `/writing/` route segments in the tool
-   catalogue.
-2. Resolve whether "Salary Calculator" vs. "Salary/CTC Calculator" and
-   "Resume Generator" vs. "Resume Builder" are the same tool or genuinely
-   different ones.
-
-## Next step
-
-Once you're happy this renders identically to the CDN prototype, this is
-ready to sit under Phase 2 (Website Shell) as the actual codebase, rather
-than a throwaway reference file.
+Phase by phase, per the brief: `Plan → Inspect → Implement → Test → Document →
+Report → Approve → Commit → Next`. Each phase stops for approval before the next.
+Detailed roadmap in `kaamkit-phase0-architecture.md` §14.

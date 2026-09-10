@@ -1,12 +1,22 @@
 # KaamKit URL Shortener — Product & Architecture
 
-**Status:** In development. Phase 1 (tool page + UX) complete; backend and edge
-redirect not built. **Draft — updated each phase.**
+**Status:** In development on the `url-shortener` branch (not merged, not
+`live`). Phase 1 (tool page + mock API) complete; persistence and the redirect
+are Phase 2a. **Draft — updated each phase.**
 
-This is the single source of truth for the URL Shortener. Cross-KaamKit
-decisions also land in `docs/kaamkit-phase0-architecture.md`; this document does
-not duplicate the platform architecture, it records what is specific to this
-product.
+This is the single source of truth for the URL Shortener. Platform-wide
+decisions live in [`../kaamkit-phase0-architecture.md`](../kaamkit-phase0-architecture.md);
+hosting / domain / deploy in [`../infra/deployment.md`](../infra/deployment.md).
+This document records what is specific to this product.
+
+> **Infrastructure decisions locked for V1 (2026-09-11):**
+> - `kaamkit.com` is live on **Vercel**; **Cloudflare is DNS-only** (not proxied).
+> - The short-link redirect for V1 is a **Vercel Edge Route Handler**, **not** a
+>   Cloudflare Worker. The Worker is **deferred for later evaluation** (it needs
+>   the apex flipped to Cloudflare Proxied — a deliberate later DNS change).
+> - Database: **Neon Postgres** (production), **PGlite** (local/test).
+> - The tool stays **unlisted and `status: planned`** until Phase 2b security
+>   hardening is complete.
 
 ---
 
@@ -17,10 +27,13 @@ Turn a long URL into a short, shareable `kaamkit.com/{shortCode}` link.
 - Public tool page: **`/url-shortener`**
 - Short link: **`kaamkit.com/{shortCode}`** (e.g. `kaamkit.com/x7Kp2`)
 - Core promise: **paste → shorten → copy → done**, no account required.
-- First live KaamKit tool (Work category).
+- First KaamKit tool with a backend (Work category). Not yet listed publicly.
 
-The tool page and the redirect path are **separate concerns** and, from Phase 2b,
-run on separate infrastructure (see §6).
+The tool page and the redirect path are **separate concerns**: the tool page is
+a normal static Next.js route; the redirect is a dedicated Edge Route Handler at
+the domain root with its own runtime and no dependency on the marketing app's
+render tree (see §6). Moving the redirect to a Cloudflare Worker later does not
+change this contract.
 
 ---
 
@@ -29,15 +42,19 @@ run on separate infrastructure (see §6).
 | Route | Type | Where it runs | Phase |
 |---|---|---|---|
 | `/url-shortener` | static page + client island | Vercel | 1 |
-| `POST /api/shorten` | route handler (JSON) | Vercel | 1 (mock) → 2a (real) |
-| `/{shortCode}` | 302 redirect | **Cloudflare Worker** (2b); Vercel dev/preview adapter | 2a / 2b |
+| `POST /api/shorten` | route handler (JSON) | Vercel (Node) | 1 (mock) → 2a (real) |
+| `/{shortCode}` | 302 redirect | **Vercel Edge Route Handler** (`app/[shortCode]/route.ts`, `runtime = 'edge'`) | 2a |
 | `/link-unavailable` | static page | Vercel | 2a |
 | `/report-link`, `POST /api/report` | abuse report | Vercel | 2a |
 
+Next.js static routes take precedence over the dynamic `[shortCode]` segment, so
+a real page (`/url-shortener`, `/about`, …) is never shadowed by a short code.
+
 **Reserved routes.** `app/lib/reserved-routes.ts` lists every top-level app path
 segment plus framework/asset paths and impersonation-risk words. Generated codes
-are checked against it (and regenerated on a hit); the Cloudflare Worker uses it
-to decide pass-through vs. redirect. **Rule: add every new top-level route here.**
+are checked against it (and regenerated on a hit); it is the second guard for the
+redirect handler and is written framework-free so a future Cloudflare Worker can
+reuse it. **Rule: add every new top-level route here.**
 
 ---
 
@@ -64,7 +81,8 @@ later, behind progressive disclosure, without competing with Copy.
 
 ## 4. URL validation (`app/lib/url-validation.ts`)
 
-Framework-free; moves to `packages/link-core` in Phase 2a.
+Framework-free (no `next/*`, no DOM). Stays in `app/lib/` for V1; extract to a
+shared `packages/link-core` only if/when a Cloudflare Worker needs to import it.
 
 - Scheme allow-list: `http:` / `https:` only.
 - Adds `https://` **only** to a scheme-less bare domain (`example.com/path`) —
@@ -100,30 +118,46 @@ Framework-free; moves to `packages/link-core` in Phase 2a.
 
 ---
 
-## 6. Redirect architecture (Cloudflare + Vercel + Neon)
+## 6. Redirect architecture
 
-*Design; built in Phase 2b. Documented before deployment per the decision log.*
+### V1 — Vercel Edge (built in Phase 2a)
 
 ```
-kaamkit.com  →  Cloudflare (DNS · proxy · WAF · DDoS · rate-limit rules)
-                Worker route  kaamkit.com/*
-                  ├─ pass-through (default, fast path)  → Vercel origin (Next.js app)
-                  └─ single-segment, non-reserved  →  resolve short code
-                       Cloudflare Cache API  ─hit→ 302
-                                    └─miss→ Neon SELECT → 302 → cache.put (s-maxage≈60)
-                       not found / disabled / expired → 302 /link-unavailable
-                       ctx.waitUntil( best-effort click_count++ )  ← never blocks
+kaamkit.com  →  Cloudflare DNS (grey cloud, resolve only)  →  Vercel
+                app/[shortCode]/route.ts   (runtime = 'edge')
+                  1. shape / reserved-word guard   → not a code → 404 (let Next 404 render)
+                  2. Neon SELECT destination,status,expires_at  WHERE short_code = $1
+                  3. active & not expired  → 302 Location: destination
+                                             + X-Robots-Tag: noindex
+                                             + Cache-Control: no-cache
+                     disabled / expired / missing → 302 /link-unavailable?reason=…
+                  4. after(() => links.click_count++ , last_clicked_at = now())  ← best-effort
 ```
 
 - **302** (not 301) — keeps KaamKit in control (disable, edit destination, count).
-- Redirect responses carry `X-Robots-Tag: noindex` and are not CDN-cached beyond
-  a short TTL, so a disabled link stops resolving within ~60 s (immediate via a
-  Cloudflare cache purge for urgent takedowns).
-- Worker reads Neon directly in V1 (no Workers KV) via `@neondatabase/serverless`
-  through a scoped `kk_edge` role (`SELECT` + `click_count` `UPDATE` only).
-- Local / Vercel-preview: `app/[shortCode]/route.ts` is a thin adapter over the
-  shared resolver, **guarded to non-production**. Production redirects are the
-  Worker only.
+- `Cache-Control: no-cache` for V1: a disabled link stops resolving immediately.
+  (A short `s-maxage` is a later optimisation and pairs with a purge mechanism.)
+- `X-Robots-Tag: noindex` on every redirect so short URLs don't get indexed.
+- Neon reads use `@neondatabase/serverless` (HTTP; edge-safe). Neon is sited in
+  Vercel's function region; a small per-isolate cache absorbs repeat hits.
+- The click count is written via `after()` so a slow or failing DB write **never**
+  delays or breaks the redirect.
+
+### Deferred — Cloudflare Worker (later evaluation)
+
+The long-term home for this path is a **Cloudflare Worker** on a Cloudflare-
+**proxied** `kaamkit.com` — for an edge cache (Cloudflare Cache API / Workers
+KV), true isolation from the Vercel app, and Cloudflare WAF / Bot Fight / rate-
+limiting on the redirect. It is **not** part of V1 because:
+
+1. `kaamkit.com` is DNS-only today; a Worker route only runs on proxied traffic.
+2. Flipping the apex to Proxied is a deliberate production DNS change on a live
+   domain (needs SSL "Full (strict)", subdomain testing, a rollback plan).
+
+When it lands: the Worker imports the same resolver logic (extracted to
+`packages/link-core`), reads Neon through a scoped `kk_edge` role
+(`SELECT` + `click_count` `UPDATE` only), and `app/[shortCode]/route.ts` is
+removed from production (kept for local / preview).
 
 ---
 
@@ -137,12 +171,18 @@ minimal "Report this link" flow, safe redirect handling (302, `noindex`,
 non-informative 404 for unknown codes), and structured logging (destination
 **host only**, hashed IP, outcome).
 
-Cloudflare adds WAF managed rules, Bot Fight Mode, DDoS protection, and
-rate-limiting rules for `/api/shorten` and short-path enumeration.
+**Not available for V1 (needs a Cloudflare-proxied apex — deferred):** Cloudflare
+WAF managed rules, Bot Fight Mode, L7 DDoS mitigation, and CF rate-limiting rules
+on `/api/shorten` and short-path enumeration. Until then, protection is
+app-level: validation, the DB rate limiter, the reserved-word keyspace, the
+disable path, and reporting.
 
 **Reputation screening** (`app/lib/url-reputation.ts`, `screenUrl()` interface):
 V1 stub; Google Safe Browsing or equivalent is evaluated and wired in Phase 2a.
-**KaamKit does not launch an unrestricted anonymous redirect service.**
+
+**Because the network-layer controls are deferred, the tool stays unlisted and
+`status: planned` until Phase 2b.** KaamKit does not point real users at an
+anonymous redirect service before the fuller security posture is in place.
 
 ---
 
@@ -167,8 +207,9 @@ boundary. **No billing without explicit approval.**
 ## 9. Analytics — boundary
 
 V1: best-effort, non-blocking `links.click_count` increment from the redirect
-path (`ctx.waitUntil` / `after()`). No PII, no cookies on the redirect path, no
-third-party scripts. Analytics failure never blocks a redirect.
+path via Next's `after()` (Vercel); `ctx.waitUntil()` if/when the redirect moves
+to a Cloudflare Worker. No PII, no cookies on the redirect path, no third-party
+scripts. Analytics failure never blocks a redirect.
 
 Deferred: `click_events` table (timestamp, referrer host, coarse country, device
 class) and the shared KaamKit analytics engine that URL + QR both feed.
@@ -191,9 +232,9 @@ Deferred additive migrations: `campaign_id`, `click_events`, `accounts` /
 
 | Phase | Delivered |
 |---|---|
-| **1 — Tool page + UX** | `/url-shortener` static page (SEO, breadcrumb, JSON-LD `WebApplication` + `BreadcrumbList`, FAQ, related tools, house AdSlot); `ShortenForm` client island with every state; shared `CopyButton` + `Breadcrumb`; `app/lib/{url-validation,short-code,reserved-routes}.ts`; `POST /api/shorten` **mock** (real validation + code-gen, no persistence, in-memory rate limiter, `?simulate=` for QA); zero-dep `node --test` suite. |
-| 2a — Persistence + shorten API | *pending* |
-| 2b — Cloudflare edge redirect | *pending* |
+| **1 — Tool page + UX** ✅ | `/url-shortener` static page (SEO, breadcrumb, JSON-LD `WebApplication` + `BreadcrumbList`, FAQ, related tools, house AdSlot); `ShortenForm` client island with every state; shared `CopyButton` + `Breadcrumb`; `app/lib/{url-validation,short-code,reserved-routes}.ts`; `POST /api/shorten` **mock** (real validation + code-gen, no persistence, in-memory rate limiter, `?simulate=` for QA); zero-dep `node --test` suite. Commit `3ce516f` on `url-shortener`. |
+| **2a — Persistence + shorten API + redirect** | Neon + Drizzle schema/migrations; real `POST /api/shorten` (persist, DB rate limit, collision-retry, `screenUrl()` stub / Safe Browsing, `kk_sid` cookie); **`app/[shortCode]/route.ts` Vercel Edge redirect** + `after()` click count; `/link-unavailable`; abuse report; `robots.ts` + `sitemap.ts`; `.env.example`; unit tests. *pending* |
+| **2b — Security hardening + go-live** | Cloudflare-native protection where possible without proxying; wire remaining screening; load-check the redirect; **flip catalogue `status` → `live` + surface on the production homepage** (existing design, no redesign). Optionally begin the Cloudflare Worker evaluation. *pending* |
 | 3 — Account integration | *pending (shared platform)* |
 | 4 — Analytics | *pending* |
 | 5 — Monetisation | *pending* |
@@ -204,5 +245,9 @@ Deferred additive migrations: `campaign_id`, `click_events`, `accounts` /
 - The in-memory rate limiter resets on reload and is not shared across instances.
 - `?simulate=` (API) and `?sim=` (page) force response states for QA — both
   removed in Phase 2a.
-- Catalogue `status` stays `planned` and the homepage does not feature the tool
-  yet (flip + surface at the end of Phase 2a, per the decision log).
+- Catalogue `status` stays `planned` and the homepage does not feature the tool.
+  **Revised:** the flip + homepage surfacing happens at the **end of Phase 2b**
+  (after security hardening), not Phase 2a — the domain is live and public, so
+  the tool is not exposed to real users until the fuller posture is in place.
+- The `url-shortener` branch is **not merged to `main`**. It should be pushed to
+  `origin` so Vercel builds a **Preview Deployment** for review.

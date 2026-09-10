@@ -1,6 +1,15 @@
 # KaamKit — Phase 0: Product & Technical Architecture Document
 
-**Status:** Draft for approval · **Phase:** 0 of 10 · **Scope:** Architecture only — no UI, no code, no products built yet.
+**Status:** Phase 0 approved. Phase 1 (design system + homepage) shipped to
+production. URL Shortener Phase 1 (tool page + mock API) built on the
+`url-shortener` branch. · **Phase:** 0 of 10 · **Original scope:** architecture only.
+
+> **This document holds the architecture _rationale_. For what is actually
+> deployed — repo, branches, Vercel, domain, DNS, database — see
+> [`infra/deployment.md`](infra/deployment.md), which supersedes every hosting
+> detail below.** "Infrastructure — current state" (immediately after §0) is the
+> reconciled snapshot; older sections carry dated **`Update (Phase 2)`** notes
+> where reality moved on.
 
 ---
 
@@ -22,6 +31,35 @@ Layer B is a reasonable spec *for a static tools demo*. It is not compatible wit
 **Recommendation:** Treat protocols #1, #3, #4, #5 (Tailwind dark-mode styling, JSON-LD schema, mobile QA, query-param-driven SEO metadata) as valid *frontend presentation-layer standards* — they're genuinely good practice and I'll apply them from Phase 1 onward. Treat #2 ("no backend, ever") as **overridden by the product requirements** — KaamKit needs a thin backend for redirects, tracking, auth, and billing, even if most tool *logic* (image conversion math, QR rendering, calculator formulas) runs client-side for speed. Treat #6 (GSTIN/VPA/INR-USD) as a **noted future requirement**, scheduled into Phase 6 (GST Calculator) and Phase 9 (Billing), not built now.
 
 This is listed again as **Decision #1** at the end of this document. Nothing below assumes it's settled — I've designed around the real product need and I'm asking you to confirm.
+
+*(Resolved — see the next section.)*
+
+---
+
+## Infrastructure — current state (updated 2026-09-11)
+
+This section reconciles the aspirational stack below (§5, §12) with what is
+actually running. Full detail: [`infra/deployment.md`](infra/deployment.md).
+
+| Concern | Decision as of 2026-09-11 |
+|---|---|
+| Repo | `github.com/kaamkitdigital/Website`; **`main` = production** |
+| Hosting | **Vercel**, project `Kaamkit`; `main` → production, other branches → **Preview Deployments (= staging)** |
+| Domain | **`kaamkit.com`** live (apex, canonical) + `www.kaamkit.com` |
+| DNS | **Cloudflare** authoritative; **DNS-only (grey cloud)** for the Vercel web records — Cloudflare is *not* in the request path |
+| TLS | terminated at Vercel |
+| Database | **Neon Postgres** for production data (provisioned in URL Shortener Phase 2a); **PGlite** for local/test |
+| Backend | Next.js Route Handlers / Server Actions on Vercel. No separate service. |
+| URL Shortener redirect (`kaamkit.com/{shortCode}`) | **Vercel Edge Route Handler** for V1 — **not** a Cloudflare Worker |
+| Cloudflare Worker | **deferred, later evaluation** — needs the apex on Cloudflare **Proxied**, a deliberate later change |
+| Cloudflare proxy / WAF / Bot Fight / rate-limit rules | **deferred** — not reachable while DNS-only |
+| Redis / Upstash | **deferred from V1** — rate-limiting is DB-backed behind a swappable interface |
+| S3-compatible object storage | **deferred until Image Tools (Phase 5)** |
+| ClickHouse / column store | **deferred** — Postgres table first |
+| URL Shortener public status | **unlisted / not `live`** until Phase 2b security hardening is complete |
+
+The **Decisions Requiring Approval** at the end of this document (§16) are all
+resolved; outcomes are noted inline there.
 
 ---
 
@@ -100,6 +138,15 @@ The brief's proposed IA (Section 6) is close to right. Two refinements, with rea
 
 **b) Give the redirect path its own top-level namespace, not a subpath of the marketing site.**
 Short links must resolve fast and shouldn't share a route tree with SSR marketing pages (different caching rules, different scaling profile — a viral link can spike traffic in a way that shouldn't touch homepage infra). Recommend short links resolve at the bare domain root (`kaamkit.com/x7Kp2`) but are served by a **distinct routing rule** at the edge (CDN/edge function) that checks "is this a known short-code?" before falling through to the marketing app. This preserves the clean, brandable short URL the brief wants while keeping it architecturally isolated.
+
+> **Update (Phase 2, 2026-09-11):** V1 serves `kaamkit.com/{shortCode}` from a
+> **Vercel Edge Route Handler** (`app/[shortCode]/route.ts`, `runtime = 'edge'`),
+> isolated by its own route segment + a shared reserved-word guard
+> (`app/lib/reserved-routes.ts`). The **Cloudflare Worker** version described in
+> `products/url-shortener.md` is **deferred** — it needs the apex flipped to
+> Cloudflare Proxied, which is a later, deliberate DNS change on a now-live
+> domain. Static Next.js routes take precedence over `[shortCode]`, so the
+> "distinct routing rule" is Next's own route precedence for V1.
 
 ```
 /                              → homepage (search-first)
@@ -207,6 +254,17 @@ Organized by **capability**, per the brief's instruction, not by page:
 
 Nothing here is exotic; the goal is boring, maintainable, and cheap to run, matching §38's evaluation criteria.
 
+> **Update (Phase 2, 2026-09-11) — what this row means in practice:**
+> | Row | Actual choice |
+> |---|---|
+> | Frontend / Backend | Next.js 16 on **Vercel**. Backend = Route Handlers / Server Actions in the same app. |
+> | Database | **Neon Postgres** (serverless), **Drizzle ORM** + `@neondatabase/serverless`. Local/test: **PGlite**. |
+> | Cache / rate limiting / queues (**Redis**) | **Deferred from V1.** Rate-limiting is **DB-backed** (fixed-window table) behind a swappable interface; no queues needed yet. |
+> | Object storage (**S3**) | **Deferred until Image Tools (Phase 5).** |
+> | Analytics event storage / ClickHouse | **Deferred.** V1 = a denormalised `click_count` on `links`; the `click_events` table + shared engine come later. |
+> | CDN / edge (**Cloudflare in front of everything**) | **Not yet.** Cloudflare is **DNS-only** today; it is not in the request path. V1 edge behaviour (the redirect) runs on **Vercel Edge**. A Cloudflare Worker + proxy + WAF is a deferred, later decision. |
+> | Auth | **No auth built.** `links.account_id` is a reserved nullable FK for the future shared KaamKit account; `kk_sid` is a convenience cookie only, never authorization. |
+
 ---
 
 ## 6. Shared Analytics Engine
@@ -295,31 +353,42 @@ These aren't reconcilable as-is — one is a warm, multi-hue, brand-driven syste
 - **Monitoring:** uptime + latency on the redirect path specifically (it's the one piece of infrastructure where downtime is publicly visible as broken shared links), plus error tracking across services.
 - **Backups:** daily Postgres backups; object storage lifecycle rules handle file expiry automatically rather than relying on manual cleanup.
 
+> **Update (Phase 2, 2026-09-11):** concrete mapping —
+> - **Environments:** `local` (PGlite) → **Vercel Preview Deployment** per branch
+>   (Neon dev branch) → **Vercel Production** on `main` (Neon primary). There is
+>   no separate "staging" host; a Preview URL is staging.
+> - **CI/CD:** Vercel builds every push and blocks a deploy on a failed build. A
+>   GitHub Action running `typecheck` + `test` + `build` on PRs is recommended
+>   and **not yet set up**.
+> - **Backups:** Neon provides point-in-time restore / branching; no separate
+>   backup job needed for V1. Object storage N/A until Phase 5.
+> - **Monitoring:** Vercel's built-in analytics + logs for V1; dedicated
+>   redirect-path monitoring lands with the Cloudflare Worker.
+>
+> Full procedure: [`infra/deployment.md`](infra/deployment.md).
+
 ---
 
 ## 13. Documentation Map
 
+**Proposed structure** (fill in as products are built — do not create empty dirs):
+
 ```
 /docs
-├── product/
-├── architecture/         ← this document lives here, updated after each phase
-├── design-system/
-├── ux/
-├── database/
-├── api/
-├── analytics/
-├── security/
-├── seo/
-├── billing/
+├── kaamkit-phase0-architecture.md   ← this file — architecture rationale
+├── infra/deployment.md              ← hosting, domain, DNS, deploy procedure
+├── DESIGN-SYSTEM.md                 ← production design-system standards
+├── kaamkit-tool-catalogue.md        ← 60-tool catalogue + category lock
+├── KAAMKIT-BRIEF.md                 ← master product/brand/eng brief (input)
+├── README.md                        ← project overview + how to run
 └── products/
-    ├── url-shortener/
-    ├── qr/
-    ├── campaigns/
-    ├── image-tools/
-    ├── calculators/
-    ├── generators/
-    └── templates/
+    └── url-shortener.md             ← per-product spec + phase log
 ```
+
+> **Update (Phase 2, 2026-09-11):** the deep tree above (`product/`,
+> `architecture/`, `ux/`, `database/`, …) was speculative. Actual layout is
+> flat with a `products/` folder and an `infra/` folder. Add subfolders only
+> when a product actually needs several files.
 
 ---
 
@@ -331,6 +400,13 @@ Phase 0 (this doc) → Phase 1 Design System → Phase 2 Website Shell → Phase
 
 ## 15. Risks
 
+> **Update (Phase 2, 2026-09-11):** on risk 1 — with the Cloudflare Worker
+> deferred, V1 redirect latency depends on **Vercel Edge + Neon lookup**. A tiny
+> in-function cache and Neon in Vercel's function region keep this acceptable at
+> launch scale; edge caching / a Worker is the documented scale path. Risk 1's
+> mitigation ("edge caching") is therefore **partly deferred** — worth a light
+> load test before the tool is flipped `live` in Phase 2b.
+
 1. **Redirect latency at scale** — if short-link traffic spikes (a viral QR/link), the redirect path must stay fast; mitigated by edge caching, but worth load-testing before Phase 3 ships.
 2. **File processing cost creep** — image conversion at scale is a real infra cost; client-side Canvas-based conversion for common formats keeps this cheap, but HEIC decoding typically needs a server-side library, so it won't be 100% client-only.
 3. **Scope creep into "SaaS dashboard" territory** — §39 explicitly warns against this; the `/app` shell must stay minimal even as more products land in it.
@@ -338,15 +414,32 @@ Phase 0 (this doc) → Phase 1 Design System → Phase 2 Website Shell → Phase
 
 ---
 
-## 16. Decisions Requiring Approval
+## 16. Decisions Requiring Approval — RESOLVED
 
-1. **Backend vs. "client-only" constraint (§0 above).** Confirm the platform includes a real backend (redirects, auth, billing, analytics ingestion) while individual tool *computations* stay client-side where practical. This is blocking — Phase 3 (URL Shortener) cannot be built as a pure static/localStorage page.
-2. **Design palette: brand navy/coral/teal/purple system vs. protocol #1's slate/cyan dark-mode system.** Which governs Phase 1?
-3. **Short-link routing:** confirm bare-root short codes (`kaamkit.com/x7Kp2`) resolved via edge routing, isolated from the marketing SSR app, as described in §2.
-4. **SEO metadata source of truth:** server-rendered per canonical `Tool` slug (recommended) vs. client-side `URLSearchParams`-driven title/description swapping (protocol #5) — these can coexist for supplementary on-page copy, but the crawlable `<title>`/meta tags should not depend on client-side JS alone.
-5. **GSTIN/VPA/INR-USD localization (protocol #6):** confirmed deferred to Phase 6 (GST Calculator) and Phase 9 (Billing) rather than built now — please confirm this scheduling is acceptable.
-6. **Technology stack (§5):** approve Next.js + Node + Postgres + Redis + S3-compatible storage, or flag a preferred alternative before Phase 1 tooling is set up.
+*All six are settled. Outcomes below; infrastructure specifics live in
+[`infra/deployment.md`](infra/deployment.md).*
+
+1. **Backend vs. "client-only" constraint.** ✅ **Resolved — real backend.** The
+   platform has a thin backend (Next.js Route Handlers on Vercel); tool
+   *computations* stay client-side where practical.
+2. **Design palette.** ✅ **Resolved — the KaamKit brand system** (navy / coral /
+   yellow / teal / purple, Sora + Inter). Built and shipped; standards in
+   `DESIGN-SYSTEM.md`. Protocol #1's slate/cyan system is dropped.
+3. **Short-link routing.** ✅ **Resolved.** Bare-root `kaamkit.com/{shortCode}`,
+   isolated by route segment + reserved-word guard. **V1 = Vercel Edge Route
+   Handler** (Cloudflare Worker deferred — needs a proxied apex). See §2b update.
+4. **SEO metadata source of truth.** ✅ **Resolved — server-rendered.** All
+   crawlable `<title>` / meta / canonical / JSON-LD are server-rendered per
+   route. No `URLSearchParams`-driven title swapping.
+5. **GSTIN/VPA/INR-USD localization.** ✅ **Resolved — deferred** to Phase 6 (GST
+   Calculator) and Phase 9 (Billing).
+6. **Technology stack.** ✅ **Resolved:** Next.js 16 + Vercel + **Neon Postgres**
+   + **Drizzle ORM**. **Redis deferred from V1** (DB-backed rate limiting).
+   **S3-compatible storage deferred to Phase 5.** **Cloudflare = DNS-only** today;
+   proxy / Worker / WAF deferred.
 
 ---
 
-*End of Phase 0 document. No UI, code, or artifacts have been built. Awaiting approval before Phase 1.*
+*Phase 0 approved. Phase 1 (design system + homepage) is in production at
+`kaamkit.com`. URL Shortener Phase 1 (tool page + mock API) is on the
+`url-shortener` branch.*
