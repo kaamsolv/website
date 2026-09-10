@@ -22,7 +22,15 @@ type IconName =
   | 'smile'
   | 'sparkle'
   | 'lock'
-  | 'toolbox';
+  | 'toolbox'
+  | 'link'
+  | 'copy'
+  | 'check'
+  | 'external-link'
+  | 'chevron-right'
+  | 'alert-triangle'
+  | 'flag'
+  | 'scissors';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   money: (
@@ -130,6 +138,40 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <rect x="2.5" y="9" width="19" height="11" rx="1.5" />
       <path d="M8 9V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3M2.5 13.5h19" />
       <path d="M11 12.5h2v2h-2z" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
+      <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+    </>
+  ),
+  check: <path d="M20 6 9 17l-5-5" />,
+  'external-link': (
+    <>
+      <path d="M14 4h6v6M20 4l-9 9" />
+      <path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" />
+    </>
+  ),
+  'chevron-right': <path d="m9 6 6 6-6 6" />,
+  'alert-triangle': (
+    <>
+      <path d="M12 3 2.5 20h19L12 3Z" />
+      <path d="M12 10v4M12 17.5h.01" />
+    </>
+  ),
+  flag: <path d="M4 21V4h13l-2 4 2 4H4" />,
+  scissors: (
+    <>
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M8.5 8.5 21 21M21 3 8.5 15.5" />
     </>
   ),
 };
