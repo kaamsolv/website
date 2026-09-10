@@ -8,7 +8,11 @@
  *                            is fine on both the Node and (legacy) Edge runtime.
  *   - `DATABASE_URL` unset → PGlite (real Postgres in WASM), persisted to
  *                            `.pglite/` so links survive `next dev` restarts.
- *                            Local development only.
+ *                            **Local development only** — on Vercel a missing
+ *                            `DATABASE_URL` throws with an actionable message
+ *                            instead, because PGlite cannot write to a
+ *                            read-only filesystem and a silent fallback turns a
+ *                            config mistake into an unreadable 500.
  *
  * `DATABASE_URL` is a server secret. This module is server-only — it must never
  * be imported from a Client Component. Nothing here reads `NEXT_PUBLIC_*`.
@@ -28,14 +32,35 @@ const PGLITE_DIR = '.pglite';
 const globalForDb = globalThis as unknown as { __kkDb?: Promise<Db> };
 
 async function createClient(): Promise<Db> {
-  const url = process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL?.trim();
 
   if (url) {
+    // Catch a truncated or quote-wrapped paste here, with a message that says
+    // what to look at — rather than letting the driver fail obscurely later.
+    if (!/^postgres(ql)?:\/\//i.test(url)) {
+      throw new Error(
+        'DATABASE_URL is set but is not a postgres:// connection string. ' +
+          'Check the environment settings for a truncated or quoted value.',
+      );
+    }
     return drizzleNeon(url, { schema }) as unknown as Db;
   }
 
-  // Local dev fallback. Imported dynamically so the production bundle (which
-  // always has DATABASE_URL) never needs the PGlite WASM payload.
+  // No DATABASE_URL. On a deployed environment that is always a
+  // misconfiguration, and the PGlite fallback below cannot work there anyway
+  // (read-only filesystem) — so fail loudly instead of failing obscurely.
+  if (process.env.VERCEL) {
+    throw new Error(
+      `DATABASE_URL is not set for this deployment (VERCEL_ENV=${
+        process.env.VERCEL_ENV ?? 'unknown'
+      }). Set it on the matching Vercel environment and REDEPLOY — Vercel binds ` +
+        'environment variables when a deployment is created, so editing the ' +
+        'variable does not affect deployments that already exist.',
+    );
+  }
+
+  // Genuine local development. Imported dynamically so a deployed bundle
+  // (which always has DATABASE_URL) never needs the PGlite WASM payload.
   const [{ PGlite }, { drizzle: drizzlePglite }] = await Promise.all([
     import('@electric-sql/pglite'),
     import('drizzle-orm/pglite'),
@@ -47,6 +72,12 @@ async function createClient(): Promise<Db> {
 
 /** The shared Drizzle instance. `await` it — the PGlite path is async. */
 export function getDb(): Promise<Db> {
-  globalForDb.__kkDb ??= createClient();
+  globalForDb.__kkDb ??= createClient().catch((err: unknown) => {
+    // Never cache a failed connection: without this one transient failure
+    // wedges the whole instance, since every later request awaits the same
+    // rejected promise. Clearing it lets the next request try again.
+    globalForDb.__kkDb = undefined;
+    throw err;
+  });
   return globalForDb.__kkDb;
 }

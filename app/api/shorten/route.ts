@@ -115,10 +115,24 @@ export async function POST(req: Request) {
       destination: row.destination,
     };
     return NextResponse.json(payload, { status: 200, headers: noStore });
-  } catch {
+  } catch (err) {
+    // Log the cause server-side — the client only ever sees the friendly line.
+    // Without this, a misconfigured DATABASE_URL shows up in the platform logs
+    // as a bare 500 with no stack and there is nothing to debug from.
+    console.error('[api/shorten] server_error:', redactSecrets(errorDetail(err)));
     return fail({ error: 'server_error', message: serverErrorMsg() }, 500);
   }
 }
+
+const errorDetail = (err: unknown): string =>
+  err instanceof Error ? (err.stack ?? `${err.name}: ${err.message}`) : String(err);
+
+/**
+ * A driver error can quote the connection string it failed to parse, password
+ * and all. Scrub it before anything reaches the logs.
+ */
+const redactSecrets = (value: string): string =>
+  value.replace(/postgres(ql)?:\/\/\S*/gi, 'postgresql://[redacted]');
 
 function fail(f: Omit<ShortenFailure, 'ok'>, status: number) {
   const headers: Record<string, string> = { ...noStore };
