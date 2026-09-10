@@ -8,19 +8,25 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"test/**/*.test.mts\""
+    "test": "node --test \"test/**/*.test.mts\"",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node db/migrate.mts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
     "next": "^16.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.0.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.5.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.5.0"
   }
 }

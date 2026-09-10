@@ -21,14 +21,14 @@ lives in `../kaamkit-phase0-architecture.md`; product specifics in
 | Cloudflare proxy | **DNS-only (grey cloud)** for the Vercel web records — Cloudflare answers DNS only; requests go straight to Vercel |
 | TLS | Terminated at **Vercel** |
 | Apex record | Cloudflare CNAME (flattened) → the **Vercel-provided target** |
-| Production database | **Neon Postgres** — *not yet provisioned; added in URL Shortener Phase 2a* |
-| Local / test database | **PGlite** (`@electric-sql/pglite`, dev dependency) — real Postgres in WASM, exact schema parity with Neon |
+| Production database | **Neon Postgres** — **provisioned (URL Shortener Phase 2a)**. `DATABASE_URL` set on Vercel **Production + Preview**. Drizzle ORM + `@neondatabase/serverless` (HTTP). |
+| Local / test database | **PGlite** (`@electric-sql/pglite`, dev dependency) — real Postgres in WASM, exact schema parity with Neon. Selected automatically when `DATABASE_URL` is unset; local store at `.pglite/` (git-ignored). |
 
 ### Deferred infrastructure (not in V1)
 
 | Item | Status | Notes |
 |---|---|---|
-| Cloudflare Worker (edge redirect) | **Deferred — later evaluation** | Would require flipping the apex to Cloudflare **Proxied**. V1 short-link redirects run on **Vercel Edge** instead (see §5). |
+| Cloudflare Worker (edge redirect) | **Deferred — later evaluation** | Would require flipping the apex to Cloudflare **Proxied**. V1 short-link redirects run on a **Vercel Route Handler (Node runtime)** instead (see §5). |
 | Cloudflare proxy / WAF / Bot Fight / rate-limiting rules | **Deferred** | Not in the request path while records are DNS-only. Revisit with the Worker. |
 | Redis (Upstash or self-hosted) | **Deferred from V1** | Rate-limiting is DB-backed for V1 behind a swappable interface. |
 | S3-compatible object storage | **Deferred until Image Tools (Phase 5)** | Not needed by the homepage or URL Shortener. |
@@ -68,7 +68,7 @@ Vercel builds every push. A preview URL is posted on the commit / PR.
 ```
 kaamkit.com        Cloudflare DNS (grey cloud)  →  Vercel  →  Next.js app
 www.kaamkit.com    Cloudflare DNS (grey cloud)  →  Vercel  →  redirect to apex
-kaamkit.com/{code} Cloudflare DNS (grey cloud)  →  Vercel Edge Route Handler  →  302 to destination
+kaamkit.com/{code} Cloudflare DNS (grey cloud)  →  Vercel Route Handler (Node)  →  302 to destination
 ```
 
 - **Canonical host: `kaamkit.com` (apex).** `www` redirects to it (configured in
@@ -87,17 +87,25 @@ kaamkit.com/{code} Cloudflare DNS (grey cloud)  →  Vercel Edge Route Handler  
 
 ## 5. URL Shortener redirect — V1
 
-`kaamkit.com/{shortCode}` is served by a **Vercel Edge Route Handler**
-(`app/[shortCode]/route.ts`, `runtime = 'edge'`) — **not** a Cloudflare Worker
-in V1.
+`kaamkit.com/{shortCode}` is served by a **Vercel Route Handler**
+(`app/[shortCode]/route.ts`) — **not** a Cloudflare Worker in V1.
 
+- **Runtime: Node, not Edge.** It was specced as `runtime = 'edge'`; Next.js 16
+  deprecates the Edge runtime and instructs removing the `runtime` export
+  (`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/runtime.md`).
+  `@neondatabase/serverless` talks to Neon over HTTP, so the lookup stays a
+  single fast round trip on Vercel Fluid compute. The route is still isolated by
+  its own segment; the Node-vs-Edge choice only matters while the redirect lives
+  on Vercel.
 - Next.js static routes (`/url-shortener`, `/about`, …) take precedence over the
   dynamic `[shortCode]` segment; a reserved-segment list
   (`app/lib/reserved-routes.ts`) is the second guard and is shared with the
   future Worker.
-- The handler looks the code up in Neon, returns `302` for an active link,
-  redirects to `/link-unavailable` otherwise, and records the click
-  **best-effort** via `after()` so analytics never block the redirect.
+- The handler looks the code up in Neon (`db/links.ts`), returns `302` for an
+  active link, `notFound()` (404) for an unknown or reserved code, redirects to
+  `/link-unavailable?reason=disabled|expired` for a link that exists but can't be
+  followed, and records the click **best-effort** via `after()` so analytics
+  never block the redirect.
 - The Cloudflare Worker remains the intended long-term home for this path (edge
   cache, isolation from the marketing app, CF WAF). It is deferred until (a)
   there is a reason to move it and (b) the apex is proxied through Cloudflare.
@@ -110,28 +118,35 @@ Set in the Vercel project (`Kaamkit`) → Settings → Environment Variables, sc
 per environment. `.env.local` (git-ignored) mirrors them for local dev; a
 committed `.env.example` documents the full set (added in Phase 2a).
 
-| Variable | Environments | Added | Purpose |
+| Variable | Environments | Status | Purpose |
 |---|---|---|---|
-| `DATABASE_URL` | preview, production | Phase 2a | Neon pooled connection string (per-env: dev branch vs primary) |
-| `KK_ANON_COOKIE_SECRET` | preview, production | Phase 2a | HMAC key for the signed `kk_sid` recent-links cookie |
-| `KK_IP_HASH_SALT` | preview, production | Phase 2a | salt for hashed-IP rate-limit keys / abuse forensics |
-| `NEXT_PUBLIC_SITE_URL` | (optional) all | Phase 2a | canonical base override; defaults to `https://kaamkit.com` |
-| `SAFE_BROWSING_API_KEY` | production (optional) | Phase 2a | enables reputation screening; stub passes through if unset |
+| `DATABASE_URL` | preview, production | **wired (2a)** | Neon pooled connection string (per-env: dev branch vs primary). Its **absence** selects the PGlite driver. Server-only — never exposed to the client. |
+| `KK_IP_HASH_SALT` | preview, production | **read (2a)** | salt for the hashed creator IP on new links (`SHA-256(ip + salt)`). If unset, `created_ip_hash` is null. |
+| `NEXT_PUBLIC_SITE_URL` | (optional) all | read (1) | canonical base for generated short links; defaults to `https://kaamkit.com` |
+| `KK_ANON_COOKIE_SECRET` | preview, production | reserved | HMAC key for the signed `kk_sid` recent-links cookie — not read yet |
+| `SAFE_BROWSING_API_KEY` | production (optional) | reserved | enables reputation screening — not read yet |
 
-Local dev needs **no** `DATABASE_URL` — its absence selects the PGlite driver.
+Local dev needs **nothing** — no `DATABASE_URL` selects PGlite (`.pglite/`), and
+`db/migrate.mts` hand-loads `.env.local` / `.env` for standalone runs. A
+committed [`.env.example`](../../.env.example) documents the full set.
 
 ---
 
 ## 7. Database migrations (Phase 2a onward)
 
-- Schema: Drizzle ORM (`db/schema.ts`). Migrations generated with
-  `drizzle-kit` into `db/migrations/`.
-- `npm run db:generate` — create a migration from a schema change.
-- `npm run db:migrate` — apply pending migrations to the DB named by
-  `DATABASE_URL` (or PGlite locally).
+- Schema: Drizzle ORM ([`db/schema.ts`](../../db/schema.ts)), dialect
+  `postgresql`. Config: [`drizzle.config.ts`](../../drizzle.config.ts).
+  Migrations live in `db/migrations/` (SQL + `meta/`), committed.
+- `npm run db:generate` — `drizzle-kit generate`; diffs `db/schema.ts` against
+  the last snapshot and writes a new SQL migration. **No DB connection needed.**
+- `npm run db:migrate` — runs [`db/migrate.mts`](../../db/migrate.mts): applies
+  pending migrations to Neon when `DATABASE_URL` is set, else to local PGlite
+  (`.pglite/`). Uses the Drizzle migrator (`__drizzle_migrations` bookkeeping).
 - **Production migrations are a manual, deliberate step** run against the Neon
   primary before or during the deploy that needs them — not part of the Vercel
-  build.
+  build. For a Preview, apply to the Neon **dev branch** first.
+- Phase 2a shipped one migration: `0000_powerful_masque.sql` — creates the
+  `link_status` enum and the `links` table (see `products/url-shortener.md` §10).
 
 ---
 
@@ -162,8 +177,9 @@ adds the type-check and unit tests as a gate before merge.
 
 ## 10. What is NOT automated / manual today
 
-- Neon provisioning and connection strings.
+- Neon branch creation and connection strings (base DB provisioned; `DATABASE_URL`
+  set on Production + Preview).
 - Setting Vercel environment variables.
-- Production database migrations.
+- Production database migrations (`npm run db:migrate` against the Neon primary).
 - Any DNS or Cloudflare change.
 - Cache purges (none needed while DNS-only / no CDN in path).

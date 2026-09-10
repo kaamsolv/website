@@ -50,7 +50,7 @@ actually running. Full detail: [`infra/deployment.md`](infra/deployment.md).
 | TLS | terminated at Vercel |
 | Database | **Neon Postgres** for production data (provisioned in URL Shortener Phase 2a); **PGlite** for local/test |
 | Backend | Next.js Route Handlers / Server Actions on Vercel. No separate service. |
-| URL Shortener redirect (`kaamkit.com/{shortCode}`) | **Vercel Edge Route Handler** for V1 — **not** a Cloudflare Worker |
+| URL Shortener redirect (`kaamkit.com/{shortCode}`) | **Vercel Route Handler (Node runtime)** for V1 — **not** a Cloudflare Worker, and not the Edge runtime (deprecated in Next 16) |
 | Cloudflare Worker | **deferred, later evaluation** — needs the apex on Cloudflare **Proxied**, a deliberate later change |
 | Cloudflare proxy / WAF / Bot Fight / rate-limit rules | **deferred** — not reachable while DNS-only |
 | Redis / Upstash | **deferred from V1** — rate-limiting is DB-backed behind a swappable interface |
@@ -140,13 +140,17 @@ The brief's proposed IA (Section 6) is close to right. Two refinements, with rea
 Short links must resolve fast and shouldn't share a route tree with SSR marketing pages (different caching rules, different scaling profile — a viral link can spike traffic in a way that shouldn't touch homepage infra). Recommend short links resolve at the bare domain root (`kaamkit.com/x7Kp2`) but are served by a **distinct routing rule** at the edge (CDN/edge function) that checks "is this a known short-code?" before falling through to the marketing app. This preserves the clean, brandable short URL the brief wants while keeping it architecturally isolated.
 
 > **Update (Phase 2, 2026-09-11):** V1 serves `kaamkit.com/{shortCode}` from a
-> **Vercel Edge Route Handler** (`app/[shortCode]/route.ts`, `runtime = 'edge'`),
-> isolated by its own route segment + a shared reserved-word guard
-> (`app/lib/reserved-routes.ts`). The **Cloudflare Worker** version described in
-> `products/url-shortener.md` is **deferred** — it needs the apex flipped to
-> Cloudflare Proxied, which is a later, deliberate DNS change on a now-live
-> domain. Static Next.js routes take precedence over `[shortCode]`, so the
-> "distinct routing rule" is Next's own route precedence for V1.
+> **Vercel Route Handler** (`app/[shortCode]/route.ts`), isolated by its own
+> route segment + a shared reserved-word guard (`app/lib/reserved-routes.ts`).
+> Static Next.js routes take precedence over `[shortCode]`, so the "distinct
+> routing rule" is Next's own route precedence for V1.
+>
+> **Update (Phase 2a, implemented):** the handler runs on the **Node runtime**,
+> not Edge — Next.js 16 deprecated the Edge runtime. Neon is reached over HTTP
+> (`@neondatabase/serverless`), so this does not change latency meaningfully. The
+> **Cloudflare Worker** version described in `products/url-shortener.md` is still
+> **deferred** — it needs the apex flipped to Cloudflare Proxied, a later,
+> deliberate DNS change on a now-live domain.
 
 ```
 /                              → homepage (search-first)
@@ -262,7 +266,7 @@ Nothing here is exotic; the goal is boring, maintainable, and cheap to run, matc
 > | Cache / rate limiting / queues (**Redis**) | **Deferred from V1.** Rate-limiting is **DB-backed** (fixed-window table) behind a swappable interface; no queues needed yet. |
 > | Object storage (**S3**) | **Deferred until Image Tools (Phase 5).** |
 > | Analytics event storage / ClickHouse | **Deferred.** V1 = a denormalised `click_count` on `links`; the `click_events` table + shared engine come later. |
-> | CDN / edge (**Cloudflare in front of everything**) | **Not yet.** Cloudflare is **DNS-only** today; it is not in the request path. V1 edge behaviour (the redirect) runs on **Vercel Edge**. A Cloudflare Worker + proxy + WAF is a deferred, later decision. |
+> | CDN / edge (**Cloudflare in front of everything**) | **Not yet.** Cloudflare is **DNS-only** today; it is not in the request path. V1's redirect runs on a **Vercel Route Handler (Node runtime)**. A Cloudflare Worker + proxy + WAF is a deferred, later decision. |
 > | Auth | **No auth built.** `links.account_id` is a reserved nullable FK for the future shared KaamKit account; `kk_sid` is a convenience cookie only, never authorization. |
 
 ---
@@ -401,11 +405,13 @@ Phase 0 (this doc) → Phase 1 Design System → Phase 2 Website Shell → Phase
 ## 15. Risks
 
 > **Update (Phase 2, 2026-09-11):** on risk 1 — with the Cloudflare Worker
-> deferred, V1 redirect latency depends on **Vercel Edge + Neon lookup**. A tiny
-> in-function cache and Neon in Vercel's function region keep this acceptable at
-> launch scale; edge caching / a Worker is the documented scale path. Risk 1's
-> mitigation ("edge caching") is therefore **partly deferred** — worth a light
-> load test before the tool is flipped `live` in Phase 2b.
+> deferred, V1 redirect latency depends on the **Vercel Route Handler (Node) +
+> Neon HTTP lookup**. Neon in Vercel's function region keeps this acceptable at
+> launch scale; an in-function cache, edge caching, or the Worker is the
+> documented scale path. Risk 1's mitigation ("edge caching") is therefore
+> **partly deferred** — worth a light load test before the tool is flipped `live`
+> in Phase 2b. (Phase 2a ships no redirect-side cache: `Cache-Control: no-store`,
+> so a disabled link stops resolving immediately.)
 
 1. **Redirect latency at scale** — if short-link traffic spikes (a viral QR/link), the redirect path must stay fast; mitigated by edge caching, but worth load-testing before Phase 3 ships.
 2. **File processing cost creep** — image conversion at scale is a real infra cost; client-side Canvas-based conversion for common formats keeps this cheap, but HEIC decoding typically needs a server-side library, so it won't be 100% client-only.
@@ -426,8 +432,9 @@ Phase 0 (this doc) → Phase 1 Design System → Phase 2 Website Shell → Phase
    yellow / teal / purple, Sora + Inter). Built and shipped; standards in
    `DESIGN-SYSTEM.md`. Protocol #1's slate/cyan system is dropped.
 3. **Short-link routing.** ✅ **Resolved.** Bare-root `kaamkit.com/{shortCode}`,
-   isolated by route segment + reserved-word guard. **V1 = Vercel Edge Route
-   Handler** (Cloudflare Worker deferred — needs a proxied apex). See §2b update.
+   isolated by route segment + reserved-word guard. **V1 = Vercel Route Handler**
+   on the **Node runtime** (Edge runtime deprecated in Next 16; Cloudflare Worker
+   deferred — needs a proxied apex). See §2b update.
 4. **SEO metadata source of truth.** ✅ **Resolved — server-rendered.** All
    crawlable `<title>` / meta / canonical / JSON-LD are server-rendered per
    route. No `URLSearchParams`-driven title swapping.

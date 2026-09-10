@@ -1,19 +1,13 @@
 /**
- * POST /api/shorten  —  PHASE 1: MOCK IMPLEMENTATION
+ * POST /api/shorten  —  create and persist a short link.
  *
- * This validates the URL and generates a real short code, but DOES NOT
- * persist anything and DOES NOT create a working redirect. It exists so the
- * full tool UX (every state) can be built and QA'd before the database and
- * the Cloudflare edge redirect land.
+ * Phase 2a: real persistence (Drizzle → Neon in prod, PGlite locally). The
+ * request/response contract is unchanged from the Phase 1 mock except that the
+ * Phase-1-only `mock: true` flag and the `?simulate=` QA hook are gone.
  *
- * Phase 2a replaces the body of `handleShorten` with:
- *   - DB persistence (Drizzle → Neon), collision-retry on the unique index
- *   - `screenUrl()` reputation check
- *   - the shared IP rate-limit boundary backed by the DB
- *   - the signed `kk_sid` anonymous-session cookie
- *
- * The request/response contract below is intended to be stable across that
- * change so the client component does not need to be rewritten.
+ * Request:  { "url": "<destination>" }
+ * Success:  200 { ok: true, shortUrl, shortCode, destination }
+ * Failure:  4xx/5xx { ok: false, error, message, retryAfter? }
  */
 
 import { NextResponse } from 'next/server';
@@ -22,16 +16,18 @@ import {
   messageForReason,
   validateDestinationUrl,
 } from '@/app/lib/url-validation';
-import { generateShortCode } from '@/app/lib/short-code';
-import { isReservedCode } from '@/app/lib/reserved-routes';
+import { getDb } from '@/db/client';
+import { createShortLink } from '@/db/links';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamkit.com';
 
-// ---- Mock rate limiter (in-memory; resets on redeploy, not shared across
-//      instances). Phase 2a swaps in the real DB-backed limiter. ----
+// ---- IP rate limiter (in-memory fixed window). Unchanged from Phase 1: the
+//      existing security boundary. It resets on redeploy and is not shared
+//      across instances — documented as swappable (docs/products/url-shortener.md
+//      §7). Moving it to a shared store is a later step, not Phase 2a. ----
 const RATE_LIMIT = { max: 12, windowMs: 60_000 };
 const hits = new Map<string, { count: number; resetAt: number }>();
 
@@ -55,13 +51,22 @@ function clientIp(req: Request): string {
   return req.headers.get('x-real-ip') ?? 'local';
 }
 
+/** SHA-256(ip + salt). Null when no salt is configured — never store a raw IP. */
+async function hashIp(ip: string): Promise<string | null> {
+  const salt = process.env.KK_IP_HASH_SALT;
+  if (!salt || ip === 'local') return null;
+  const data = new TextEncoder().encode(`${ip}${salt}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 type ShortenSuccess = {
   ok: true;
   shortUrl: string;
   shortCode: string;
   destination: string;
-  /** PHASE 1 only — tells the UI the link is not yet persistent. */
-  mock: true;
 };
 
 type ShortenFailure = {
@@ -75,15 +80,6 @@ const noStore = { 'Cache-Control': 'no-store' };
 
 export async function POST(req: Request) {
   try {
-    // Deterministic states for QA — Phase 1 only, removed in Phase 2a.
-    const simulate = new URL(req.url).searchParams.get('simulate');
-    if (simulate === 'rate-limit') {
-      return fail({ error: 'rate_limited', message: rateLimitedMsg(), retryAfter: 30 }, 429);
-    }
-    if (simulate === 'error') {
-      return fail({ error: 'server_error', message: serverErrorMsg() }, 500);
-    }
-
     const rl = rateLimit(clientIp(req));
     if (!rl.ok) {
       return fail({ error: 'rate_limited', message: rateLimitedMsg(), retryAfter: rl.retryAfter }, 429);
@@ -106,21 +102,17 @@ export async function POST(req: Request) {
       return fail({ error: 'invalid_url', message: messageForReason(validated.reason) }, 400);
     }
 
-    // Generate a code that isn't a reserved word. (Phase 2a: also retry on a
-    // DB unique-constraint conflict.)
-    let shortCode = generateShortCode();
-    for (let i = 0; i < 5 && isReservedCode(shortCode); i += 1) {
-      shortCode = generateShortCode();
-    }
-
-    if (simulate === 'slow') await sleep(1500);
+    const db = await getDb();
+    const row = await createShortLink(db, {
+      destination: validated.normalized,
+      createdIpHash: await hashIp(clientIp(req)),
+    });
 
     const payload: ShortenSuccess = {
       ok: true,
-      shortUrl: `${SITE_URL}/${shortCode}`,
-      shortCode,
-      destination: validated.normalized,
-      mock: true,
+      shortUrl: `${SITE_URL}/${row.shortCode}`,
+      shortCode: row.shortCode,
+      destination: row.destination,
     };
     return NextResponse.json(payload, { status: 200, headers: noStore });
   } catch {
@@ -136,6 +128,5 @@ function fail(f: Omit<ShortenFailure, 'ok'>, status: number) {
 
 const rateLimitedMsg = () => "You've made quite a few requests. Try again in a little while.";
 const serverErrorMsg = () => "We couldn't shorten that link. Please try again.";
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export type { ShortenSuccess, ShortenFailure };

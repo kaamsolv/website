@@ -4,7 +4,7 @@ import { useRef, useState, type RefObject } from 'react';
 import { Icon } from '@/app/_components/icons';
 import { CopyButton } from '@/app/_components/copy-button';
 
-type Result = { shortUrl: string; shortCode: string; destination: string; mock?: boolean };
+type Result = { shortUrl: string; shortCode: string; destination: string };
 
 type FormState =
   | { status: 'idle' }
@@ -34,16 +34,8 @@ export function ShortenForm() {
     if (!value || submitting) return;
     setState({ status: 'submitting' });
 
-    // PHASE 1 QA ONLY: `?sim=rate-limit|error|slow` forces a response state.
-    // Removed in Phase 2a along with the API's `simulate` handling.
-    const sim =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('sim')
-        : null;
-    const endpoint = sim ? `/api/shorten?simulate=${encodeURIComponent(sim)}` : '/api/shorten';
-
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/shorten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: value }),
