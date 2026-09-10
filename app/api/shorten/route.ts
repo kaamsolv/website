@@ -16,6 +16,7 @@ import {
   messageForReason,
   validateDestinationUrl,
 } from '@/app/lib/url-validation';
+import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
 import { createShortLink } from '@/db/links';
 
@@ -117,38 +118,11 @@ export async function POST(req: Request) {
     return NextResponse.json(payload, { status: 200, headers: noStore });
   } catch (err) {
     // Log the cause server-side — the client only ever sees the friendly line.
-    // Without this, a misconfigured DATABASE_URL shows up in the platform logs
-    // as a bare 500 with no stack and there is nothing to debug from.
-    console.error('[api/shorten] server_error:', redactSecrets(errorDetail(err)));
+    // Root cause first, so a truncating log viewer still shows what broke.
+    console.error('[api/shorten] server_error:', formatErrorForLog(err));
     return fail({ error: 'server_error', message: serverErrorMsg() }, 500);
   }
 }
-
-/**
- * Flatten an error and its `cause` chain into one loggable string.
- *
- * Drizzle wraps a driver failure in a generic `Failed query: …` error and puts
- * the part that actually explains it — the Postgres code and message — on
- * `cause`. Logging only the top-level stack tells you a query failed but never
- * why (e.g. `42P01 relation "links" does not exist`, i.e. an unmigrated
- * database). Depth-bounded so a cyclic chain can't spin.
- */
-function errorDetail(err: unknown, depth = 0): string {
-  if (!(err instanceof Error)) return String(err);
-
-  const code = (err as { code?: unknown }).code;
-  const lines = [`${err.name}: ${err.message}${code == null ? '' : ` [code ${String(code)}]`}`];
-  if (depth === 0 && err.stack) lines.push(err.stack);
-  if (depth < 4 && err.cause != null) lines.push(`caused by → ${errorDetail(err.cause, depth + 1)}`);
-  return lines.join('\n');
-}
-
-/**
- * A driver error can quote the connection string it failed to parse, password
- * and all. Scrub it before anything reaches the logs.
- */
-const redactSecrets = (value: string): string =>
-  value.replace(/postgres(ql)?:\/\/\S*/gi, 'postgresql://[redacted]');
 
 function fail(f: Omit<ShortenFailure, 'ok'>, status: number) {
   const headers: Record<string, string> = { ...noStore };
