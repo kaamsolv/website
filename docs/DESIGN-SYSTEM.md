@@ -96,7 +96,17 @@ When a tool ships, flip its `status` to `live`.
 placement on the homepage, above the footer, outside every task flow. No third-party
 script loads until Ad Manager/consent is actually approved — see the file header.
 
-## 11. SEO baseline for a page
+## 11. Tool pages (flagship tools)
+
+The URL Shortener and QR Code Generator establish the flagship tool-page pattern:
+
+- Server page: `metadata`, breadcrumb, badge, H1, supporting sections, house `AdSlot` below the task flow, related tools, JSON-LD.
+- Client island: the interactive tool only (`_components/` under the route).
+- Catalogue: flip `status` to `live` when the route works.
+
+QR reference components in `app/design-system/` remain **provisional**; production UI lives at `/qr-code-generator`.
+
+## 12. SEO baseline for a page
 
 Server-rendered `metadata` (title, description, canonical, OpenGraph, Twitter) via
 the Metadata API; `viewport` export for `themeColor`/`colorScheme`. Structured data

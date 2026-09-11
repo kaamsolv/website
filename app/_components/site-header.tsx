@@ -7,7 +7,7 @@ import { ToolSearch } from './tool-search';
 
 const NAV = [
   { label: 'Tools', href: '/tools' },
-  { label: 'Categories', href: '#categories' },
+  { label: 'Categories', href: '/#categories' },
   { label: 'About', href: '/about' },
 ];
 

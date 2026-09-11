@@ -79,7 +79,7 @@ export function SiteFooter() {
 
       <div className="border-t border-hair">
         <div className="kk-container flex flex-col items-center justify-between gap-2 py-4 text-xs text-muted sm:flex-row">
-          <p>© {new Date().getFullYear()} KaamKit. All rights reserved.</p>
+          <p suppressHydrationWarning>© {new Date().getFullYear()} KaamKit. All rights reserved.</p>
           <p>Made in India.</p>
         </div>
       </div>

@@ -30,7 +30,10 @@ type IconName =
   | 'chevron-right'
   | 'alert-triangle'
   | 'flag'
-  | 'scissors';
+  | 'scissors'
+  | 'download'
+  | 'share'
+  | 'upload';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   money: (
@@ -172,6 +175,26 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <circle cx="6" cy="6" r="3" />
       <circle cx="6" cy="18" r="3" />
       <path d="M8.5 8.5 21 21M21 3 8.5 15.5" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 3v12M7 11l5 5 5-5" />
+      <path d="M5 21h14" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 21V9M7 13l5-5 5 5" />
+      <path d="M5 21h14" />
     </>
   ),
 };
