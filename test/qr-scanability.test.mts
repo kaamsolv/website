@@ -4,6 +4,18 @@ import { DEFAULT_QR_DESIGN } from '../app/lib/qr/design.ts';
 import { createMatrix } from '../app/lib/qr/matrix.ts';
 import { scanabilityReport } from '../app/lib/qr/scanability.ts';
 
+test('allows brand coral on white (restaurant preset)', () => {
+  const matrix = createMatrix('https://example.com', 'M');
+  const design = {
+    ...DEFAULT_QR_DESIGN,
+    colors: { fg: '#FE6336', bg: '#FFFFFF', transparent: false },
+  };
+  const r = scanabilityReport(matrix, design);
+  assert.equal(r.canRender, true);
+  assert.equal(r.canExport, true);
+  assert.ok(!r.issues.some((i) => i.code === 'fg-contrast'));
+});
+
 test('blocks low contrast colours', () => {
   const matrix = createMatrix('https://example.com', 'M');
   const design = {

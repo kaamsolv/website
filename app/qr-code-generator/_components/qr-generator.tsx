@@ -32,7 +32,6 @@ export function QrGenerator() {
   const [touched, setTouched] = useState(false);
   const [logoName, setLogoName] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
-  const [renderError, setRenderError] = useState<string | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1024);
 
   useEffect(() => {
@@ -67,28 +66,15 @@ export function QrGenerator() {
   }, [matrix, design, effectiveExportSize]);
 
   const validPayload = encoded.ok && !logoError;
+  const blockMessage = validPayload && !empty ? primaryBlockMessage(scanReport) : null;
   const canRender = validPayload && scanReport.canRender;
   const canExport = validPayload && scanReport.canExport;
   const encodedText = canRender && encoded.ok ? encoded.text : null;
-
-  useEffect(() => {
-    if (!encoded.ok && !empty) {
-      setRenderError(null);
-      return;
-    }
-    const block = primaryBlockMessage(scanReport);
-    if (block) {
-      setRenderError(block);
-      return;
-    }
-    setRenderError(null);
-  }, [encoded, empty, scanReport]);
 
   function selectKind(next: QrKind) {
     setKind(next);
     setPayload(emptyPayload(next));
     setTouched(false);
-    setRenderError(null);
   }
 
   function onPayloadChange(next: QrPayload) {
@@ -163,7 +149,7 @@ export function QrGenerator() {
           design={design}
           exportPixelSize={effectiveExportSize}
           empty={empty}
-          renderError={renderError}
+          renderError={blockMessage}
         />
         <QrDownload
           encodedText={encodedText}

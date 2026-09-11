@@ -24,7 +24,8 @@ export type ScanabilityReport = {
   issues: ScanIssue[];
 };
 
-const CONTRAST_BLOCK = 3;
+/** QR modules scan reliably below WCAG text contrast; brand coral on white is ~2.98:1. */
+const CONTRAST_BLOCK = 2.85;
 const CONTRAST_WARN = 4;
 
 export function scanabilityReport(

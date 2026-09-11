@@ -82,15 +82,19 @@ export function QrPreview({ encodedText, design, exportPixelSize, empty, renderE
             <Icon name="business" className="mx-auto h-8 w-8 text-faint" />
             <p className="mt-2 text-sm text-muted">Fill in the details and your QR appears here.</p>
           </div>
-        ) : message ? (
-          <p className="px-4 py-8 text-center text-sm font-medium text-danger-700">{message}</p>
         ) : (
-          <canvas
-            ref={canvasRef}
-            role="img"
-            aria-label="QR code preview"
-            className="block max-w-full"
-          />
+          <div className="relative w-full">
+            <canvas
+              ref={canvasRef}
+              role="img"
+              aria-label="QR code preview"
+              aria-hidden={message ? true : undefined}
+              className={`block max-w-full ${message ? 'invisible absolute h-0 w-0 overflow-hidden' : ''}`}
+            />
+            {message ? (
+              <p className="px-4 py-8 text-center text-sm font-medium text-danger-700">{message}</p>
+            ) : null}
+          </div>
         )}
       </div>
 
