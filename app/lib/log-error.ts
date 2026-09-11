@@ -61,11 +61,16 @@ export function errorDetail(err: unknown): string {
 }
 
 /**
- * A driver error can quote the connection string it failed on, password and
- * all. Scrub it before anything reaches the logs.
+ * Scrub credentials before anything reaches the logs:
+ *   - a Postgres connection string (a driver error can quote the one it failed
+ *     on, password and all);
+ *   - an API key in a query string — Google Web Risk takes `?key=…`, so a
+ *     fetch error can quote the full request URL.
  */
 export function redactSecrets(value: string): string {
-  return value.replace(/postgres(ql)?:\/\/\S*/gi, 'postgresql://[redacted]');
+  return value
+    .replace(/postgres(ql)?:\/\/\S*/gi, 'postgresql://[redacted]')
+    .replace(/([?&](?:key|api_key|apikey|access_token|token)=)[^&\s"']+/gi, '$1[redacted]');
 }
 
 /** Convenience: the two together, in the order every caller wants them. */

@@ -3,8 +3,10 @@
 **Status:** In development on the `url-shortener` branch (not merged, not
 `live`). Phase 1 (tool page + mock API) and Phase 2a (Neon persistence + real
 shorten API + redirect) complete and verified on Vercel Preview + Neon
-development. **Phase 2b.1 (click analytics + link controls) implemented —
-pending review.** **Draft — updated each phase.**
+development. Phase 2b.1 (click analytics + link controls) complete, commit
+`2c19495`. **Phase 2b.2 (abuse protection & launch readiness) implemented on top
+of a merge of `main` (QR Generator) — pending review.** **Draft — updated each
+phase.**
 
 This is the single source of truth for the URL Shortener. Platform-wide
 decisions live in [`../kaamkit-phase0-architecture.md`](../kaamkit-phase0-architecture.md);
@@ -25,7 +27,8 @@ This document records what is specific to this product.
 >   own segment + the shared reserved-word guard — the architecture is unchanged.
 > - Database: **Neon Postgres** (production/preview via `DATABASE_URL`), **PGlite**
 >   (local dev + tests; selected automatically when `DATABASE_URL` is unset).
-> - The tool stays **unlisted and `status: planned`** until Phase 2b security
+> - The tool stays **unlisted and `status: planned`** until the production release
+>   (see §11) — i.e. until the Phase 2b security
 >   hardening is complete.
 
 ---
@@ -52,10 +55,11 @@ not change this contract.
 | Route | Type | Where it runs | Phase |
 |---|---|---|---|
 | `/url-shortener` | static page + client island | Vercel | 1 |
-| `POST /api/shorten` | route handler (JSON) | Vercel (Node) | 1 (mock) → **2a (real, done)**; optional `expiresIn` in **2b.1** |
+| `POST /api/shorten` | route handler (JSON) | Vercel (Node) | 1 (mock) → **2a (real, done)**; optional `expiresIn` in **2b.1**; shared rate limit, destination policy, Web Risk, `400 blocked_url` in **2b.2** |
 | `/{shortCode}` | 302 redirect | **Vercel Route Handler** (`app/[shortCode]/route.ts`, Node runtime — see runtime note above) | **2a (done)**; click events in **2b.1** |
 | `/link-unavailable` | dynamic page (`?reason=disabled\|expired`) | Vercel | **2a (done)** |
-| `/report-link`, `POST /api/report` | abuse report | Vercel | 2a (deferred within 2a — see §11) |
+| `/report-link` | static page + client form island, `noindex` | Vercel | **2b.2 (done)** |
+| `POST /api/report` | route handler (JSON) → `202` / `400` / `429` | Vercel (Node) | **2b.2 (done)** — see §7 |
 
 Next.js static routes take precedence over the dynamic `[shortCode]` segment, so
 a real page (`/url-shortener`, `/about`, …) is never shadowed by a short code.
@@ -75,10 +79,11 @@ reuse it. **Rule: add every new top-level route here.**
 | Empty | Labelled `type="url"` input, "Shorten URL" button disabled until there's input. Below the help text, a labelled **"Link expires"** `<select>` (*Never* · *After 1 day* · *After 7 days* · *After 30 days*), defaulting to *Never* so the paste → shorten path is unchanged. *(2b.1)* The choice persists across "Shorten another". |
 | Submitting | Button → spinner + "Shortening…", input disabled, `aria-busy` on the form. |
 | Success | Teal result card: "Your short link is ready. Bas." · read-only input with the full `https://kaamkit.com/…` URL (click/focus selects all) · **Copy** button (Clipboard API + hidden-textarea fallback) · "Goes to …" · **expiry line** with a clock icon — "Expires 18 Sept 2026, 1:49 pm" (a `<time>` element, `en-IN` format, viewer's timezone) or "Never expires" *(2b.1)* · **Shorten another** (resets, refocuses input) · note: "Saved links and click stats are coming soon." (still true: clicks are recorded but not shown — see §9). Focus moves to the result heading. |
-| Invalid | Input border turns danger, inline `role="alert"` message from `messageForReason()`, focus returns to input. |
+| Invalid | Input border turns danger, inline `role="alert"` message from `messageForReason()`, focus returns to input. The same state carries the 2b.2 `blocked_url` messages (another shortener / flagged as harmful). |
 | Rate limited | Calm yellow banner, `role="alert"`: "You've made quite a few requests. Try again in a little while." |
 | Error / network | Danger banner, `role="alert"`: "We couldn't shorten that link. Please try again." |
-| Disabled / expired link (on visiting a short link) | `/link-unavailable?reason=disabled` → "This link has been turned off."; `?reason=expired` → "This link has expired."; + report link. *(Phase 2a)* |
+| Disabled / expired link (on visiting a short link) | `/link-unavailable?reason=disabled` → "This link has been turned off."; `?reason=expired` → "This link has expired."; + "Report a problem" → `/report-link` (works since 2b.2). *(Phase 2a)* |
+| Report a link *(2b.2)* | `/report-link`: flagship tool-page pattern (breadcrumb Home → Shorten a URL → Report a link, H1, one line, form card). Fields: short link · reason (5 radio cards, 44 px targets, `fieldset`/`legend`) · optional details with a `0 / 500` counter · hidden honeypot. States: idle · submitting ("Sending…") · invalid (per field, focus moves to it) · rate-limited (yellow banner) · error · success (teal card "Thanks — we'll take a look." + "Report another link"). Linked from a new FAQ item "What if a short link looks harmful?". QA'd light/dark, mobile/desktop. |
 
 Supporting content on the page: breadcrumb (Home → Work → Shorten a URL),
 "Three steps", 5-item FAQ (native `<details>`), one house `AdSlot` (outside the
@@ -104,9 +109,9 @@ shared `packages/link-core` only if/when a Cloudflare Worker needs to import it.
   short links (loop).
 - Light normalisation: lowercase host, drop default ports. Path/query/hash kept
   as given.
-- **Known limitation:** validation is not reputation screening. Real
-  malware/phishing screening (Google Safe Browsing or equivalent) is evaluated
-  and wired in Phase 2a — see §7.
+- Validation is structural, not reputational. Since 2b.2 it is followed by the
+  **destination policy** (other URL shorteners refused) and **Google Web Risk**
+  screening — see §7.
 
 ---
 
@@ -195,68 +200,138 @@ removed from production (kept for local / preview).
 
 ## 7. Security (V1)
 
-Ships with: URL validation (§4), IP rate limiting on `POST /api/shorten`, CSPRNG
-codes with a reserved-word blocklist, a `links.status = 'disabled'` takedown
-path (below), safe redirect handling (302, `noindex`, `no-store`,
-non-informative 404 for unknown codes), and a hashed creator IP on each link
-(`created_ip_hash` — `SHA-256(ip + KK_IP_HASH_SALT)`, null when no salt is set;
-the raw IP is never stored).
+**In place after Phase 2b.2**, in the order a create request meets them
+(`POST /api/shorten`): **shared rate limit → URL validation (§4) →
+destination policy → expiry preset → Web Risk screening → insert.** Plus CSPRNG
+codes with a reserved-word keyspace, safe redirect handling (302, `noindex`,
+`no-store`, non-informative 404 for unknown codes), abuse reporting, and the
+operator takedown path. Callers are identified only by a salted hash
+(`app/lib/ip-hash.ts` — `SHA-256(ip + KK_IP_HASH_SALT)`); a raw IP is never
+stored or logged.
 
-**Takedown / link controls (2b.1).** Operator-only, via
-[`db/link-status.mts`](../../db/link-status.mts):
+### Rate limiting — shared, database-backed (2b.2)
+
+Replaces the Phase 1 in-memory limiter (per-instance, reset on every deploy).
+Counts live in Postgres (`rate_limits`, §10) so they hold across instances and
+restarts — verified by restarting the server mid-window and still getting `429`.
+No Redis (deferred).
+
+| Action | Limits per caller | Key shape |
+|---|---|---|
+| create a link | 12 / minute **and** 100 / day | `url-shortener:create:1m:<hash>`, `…:1d:<hash>` |
+| report a link | 5 / hour | `url-shortener:report:1h:<hash>` |
+
+- The numbers live in one place — `ANONYMOUS_LIMITS` in
+  [`app/lib/rate-limit.ts`](../../app/lib/rate-limit.ts) — the seed of the future
+  entitlement boundary (Phase 0 §7), not literals in route handlers.
+- One atomic upsert per request (`INSERT … ON CONFLICT DO UPDATE … RETURNING`,
+  [`db/rate-limits.ts`](../../db/rate-limits.ts)); concurrent requests count
+  exactly (tested with 25 parallel calls). Any exceeded window blocks, and
+  `Retry-After` reports the latest reset.
+- Expired windows are pruned opportunistically (~1% of requests, via `after()`).
+- **`KK_IP_HASH_SALT` is required on Vercel.** Missing → the request fails with
+  an actionable server log (same pattern as `DATABASE_URL`); locally a fixed dev
+  salt is used. See `../infra/deployment.md` §6.
+- Keys carry a `scope` so a future product (e.g. dynamic QR creation) can reuse
+  the limiter without sharing counters.
+
+### Destination policy — other URL shorteners are refused (2b.2)
+
+[`app/lib/destination-policy.ts`](../../app/lib/destination-policy.ts). A chain
+(kaamkit.com → bit.ly → ?) hides the real destination from screening and from
+the person clicking, and the inner link can be repointed later. ~30 **open,
+general-purpose** shorteners are blocked, including subdomains (bit.ly,
+tinyurl.com, t.co, lnkd.in, is.gd, rb.gy …). First-party short domains that
+only lead to their own site are allowed (youtu.be, amzn.to, wa.me, fb.me).
+Response: `400 blocked_url` — "That's a link from another shortener. Paste the
+full destination link instead."
+
+### Reputation screening — Google Web Risk (2b.2)
+
+[`app/lib/url-reputation.ts`](../../app/lib/url-reputation.ts) — Lookup API,
+`GET https://webrisk.googleapis.com/v1/uris:search`, threat types `MALWARE`,
+`SOCIAL_ENGINEERING`, `UNWANTED_SOFTWARE`, 1.5 s timeout, no SDK.
+
+- **Why Web Risk:** Google's Safe Browsing API is licensed for non-commercial
+  use only and directs commercial users to Web Risk.
+- **Cost (verified 2026-09-11):** free up to 100,000 lookups/month, then
+  $0.50 / 1,000. One lookup per link *created* — redirects never call it.
+- **Setup (not done yet — owner action):** Google Cloud project with **billing
+  enabled**, Web Risk API enabled, an API key (restrict it to the Web Risk API),
+  stored as `WEB_RISK_API_KEY` on Vercel.
+- **Match** → `400 blocked_url` — "We can't shorten this link — it's been
+  flagged as potentially harmful." Logged with the destination **host** and
+  threat types only.
+- **Fail open** (approved decision): timeout, HTTP error, network error, or no
+  key configured → the link is created, the reason is logged
+  (`not screened (http_400): host=…`), and `links.screened_at` stays **null** so
+  those links can be re-screened later. Verified live against Google with a
+  deliberately invalid key.
+- **Privacy:** the Lookup API sends the full destination URL to Google.
+- **Secrets:** the key travels in the query string; `redactSecrets()`
+  (`app/lib/log-error.ts`) scrubs `key=` / `token=` parameters as well as
+  Postgres URLs before anything is logged. Verified: the key never appeared in
+  server logs.
+- `screened_at` is set only on a clean result; `npm run link:status` shows it.
+- Links created before 2b.2 have `screened_at = null`. Nothing re-screens them
+  yet (deferred).
+
+### Abuse reporting (2b.2)
+
+`/report-link` (form) → `POST /api/report` → `link_reports` (§10).
+
+- Anyone can report a short link — pasted as a full URL, `kaamkit.com/code`, or
+  just the code. Reasons: phishing · malware · spam · illegal · other; optional
+  details (≤ 500 chars).
+- **No enumeration:** a well-formed report gets the same `202 { ok: true }`
+  whether or not the code exists; it's only stored if the link exists.
+- **Reports never disable a link.** Otherwise anyone could take down a
+  legitimate link by reporting it. An operator reviews reports and decides.
+- **Spam controls:** 5 reports/hour per caller, a hidden honeypot field (a
+  filled honeypot also gets `202` and stores nothing), length caps. No CAPTCHA
+  (another third-party service — deferred).
+- **Hostile input:** details are stripped of control characters — including the
+  ESC of ANSI sequences, since reports are read in a terminal — capped in the app
+  *and* by a database `CHECK`, never echoed back, never rendered as HTML.
+- Only links on `kaamkit.com` (or the serving host, for Preview/local) are
+  accepted — `bit.ly/abc1234` isn't mistaken for a KaamKit code.
+
+### Operator tools (2b.1 + 2b.2)
 
 ```
-npm run link:status -- <code>                     show status, expiry, clicks, event breakdown
+npm run link:reports [-- N]                       newest reports across all links (read-only)
+npm run link:status -- <code>                     status, expiry, clicks, events, screened, reports
 npm run link:status -- <code> disable             dry run — changes nothing
 npm run link:status -- <code> disable --confirm   take it down
 npm run link:status -- <code> enable  --confirm   restore it
 ```
 
-It acts on whatever `DATABASE_URL` points at (loaded from `.env.local`) and
-prints that target's **host** first — never the credentials — so a production
-takedown is a deliberate act. It is **not** a web endpoint: links are anonymous,
-so there is no way yet to prove who owns one, and no anonymous management
-mechanism has been designed. A change takes effect on the next request
-(redirects are `no-store`). Precedence when both apply: **disabled beats
-expired**; re-enabling never resurrects an expired link.
+Both act on whatever `DATABASE_URL` points at (loaded from `.env.local`) and
+print that target's **host** first — never the credentials — so a production
+takedown is a deliberate act. Neither is a web endpoint: links are anonymous, so
+there is no way yet to prove who owns one. A change takes effect on the next
+request (redirects are `no-store`). **Disabled beats expired**; re-enabling never
+resurrects an expired link.
 
-**Expiry (2b.1).** The creator may pick a preset at creation time
-(`app/lib/link-expiry.ts`): never / 1 / 7 / 30 days. The API accepts only those
-preset keys and computes the timestamp **server-side** — no client-supplied
-dates. Anything else → `400 invalid_expiry`. Expiry can't be changed after
-creation.
+### Other controls (2b.1)
 
-**Click data minimisation (2b.1).** See §9 — enforced in the app *and* by
-`CHECK` constraints in the database.
+- **Expiry:** presets only (never / 1 / 7 / 30 days), computed server-side;
+  anything else → `400 invalid_expiry`; not editable after creation.
+- **Click data minimisation:** see §9 — enforced in the app and by database
+  `CHECK` constraints.
 
-**Rate limiter — current state (Phase 2a).** Still the Phase 1 **in-memory
-fixed-window** limiter (12/min/IP) in `app/api/shorten/route.ts`. It resets on
-redeploy and is not shared across instances. Moving it to a shared/DB-backed
-store (the `rate_limits` table in §10) is **deferred within Phase 2a** — it was
-not required to land persistence and is better done alongside the Phase 2b
-network-layer work. The boundary (one `rateLimit(ip)` call) is unchanged and
-swappable.
+### Still not in place
 
-**Deferred within Phase 2a** (documented here so scope is explicit; none were
-required to make shortening real, and the tool stays unlisted until 2b anyway):
-DB-backed rate limiting, the `link_reports` table + `/report-link` /
-`POST /api/report` flow, the signed `kk_sid` anonymous-session cookie, and
-`screenUrl()` / Safe Browsing reputation screening. `structured logging` beyond
-the stored IP hash is also still to come.
+- **Cloudflare network controls** (WAF, Bot Fight Mode, L7 DDoS, CF rate-limit
+  rules, protection against short-path enumeration) — need a Cloudflare-proxied
+  apex, a deliberate later DNS change. Until then protection is app-level: the
+  controls above.
+- Re-screening of unscreened links; CAPTCHA; email alerts for reports; a
+  `/{code}+` destination preview page; the signed `kk_sid` cookie.
 
-**Not available for V1 (needs a Cloudflare-proxied apex — deferred):** Cloudflare
-WAF managed rules, Bot Fight Mode, L7 DDoS mitigation, and CF rate-limiting rules
-on `/api/shorten` and short-path enumeration. Until then, protection is
-app-level: validation, the DB rate limiter, the reserved-word keyspace, the
-disable path, and reporting.
-
-**Reputation screening** (`screenUrl()` interface, planned `app/lib/url-reputation.ts`):
-not built yet. Google Safe Browsing or equivalent is evaluated and wired in
-Phase 2a/2b — see "Deferred within Phase 2a" above.
-
-**Because the network-layer controls are deferred, the tool stays unlisted and
-`status: planned` until Phase 2b.** KaamKit does not point real users at an
-anonymous redirect service before the fuller security posture is in place.
+**The tool stays unlisted and `status: planned` until the production release**
+(see §11): merge to `main`, production migrations, `KK_IP_HASH_SALT` and
+`WEB_RISK_API_KEY` set on Production, then the catalogue flip.
 
 ---
 
@@ -394,11 +469,45 @@ Migrations: `npm run db:generate` (schema → SQL, no DB needed) →
 applying). Production migrations are a deliberate manual step, never part of
 the Vercel build (see `../infra/deployment.md` §7).
 
+### Built in Phase 2b.2 — migration `0002_yellow_arachne.sql`
+
+Purely additive: a new enum, two tables, and one nullable column (`ADD COLUMN`
+of a nullable column doesn't rewrite `links`). Code from 2a/2b.1 keeps working
+against a migrated database.
+
+**`links.screened_at`** — `timestamptz` null. Set when Web Risk cleared the
+destination; null = not screened (fail-open, unconfigured, or pre-2b.2). §7.
+
+**`rate_limits`** — shared fixed-window counters (§7).
+
+| column | type | notes |
+|---|---|---|
+| `key` | `text` PK | `<scope>:<action>:<window>:<salted ip hash>` — never a raw IP |
+| `count` | `integer` | requests in the current window |
+| `reset_at` | `timestamptz` | window end; index `rate_limits_reset_at_idx` for pruning |
+
+**`link_reports`** — abuse reports (§7).
+
+| column | type | notes |
+|---|---|---|
+| `id` | `bigint` PK | identity |
+| `link_id` | `uuid` | FK → `links.id`, **`ON DELETE CASCADE`** |
+| `reason` | `report_reason` enum (`phishing` \| `malware` \| `spam` \| `illegal` \| `other`) | |
+| `details` | `text` null | sanitised in the app; `CHECK char_length ≤ 500` |
+| `reporter_ip_hash` | `text` null | salted hash, never the IP |
+| `created_at` | `timestamptz` | `now()` |
+
+Indexes: `(link_id, created_at)` for a link's reports; `(created_at)` for the
+newest-first operator listing. Reports for unknown codes are never stored — an
+`INSERT … SELECT FROM links WHERE short_code = $1` inserts zero rows.
+
+**Applied to:** Neon `development` (2026-09-11). **Not** applied to Neon
+production.
+
 ### Deferred additive migrations
 
-`rate_limits` (key, count, reset_at) and `link_reports` (short_code, link_id?,
-reason?, reporter_ip_hash?, created_at) — see §7.
-Later: `campaign_id`, `accounts` / `entitlements` / `usage`.
+`campaign_id`, `accounts` / `entitlements` / `usage`. No QR tables in this
+schema: dynamic QR will add its own table referencing `links.id` when it lands.
 
 ---
 
@@ -408,37 +517,40 @@ Later: `campaign_id`, `accounts` / `entitlements` / `usage`.
 |---|---|
 | **1 — Tool page + UX** ✅ | `/url-shortener` static page (SEO, breadcrumb, JSON-LD `WebApplication` + `BreadcrumbList`, FAQ, related tools, house AdSlot); `ShortenForm` client island with every state; shared `CopyButton` + `Breadcrumb`; `app/lib/{url-validation,short-code,reserved-routes}.ts`; `POST /api/shorten` **mock** (real validation + code-gen, no persistence, in-memory rate limiter, `?simulate=` for QA); zero-dep `node --test` suite. Commit `3ce516f` on `url-shortener`. |
 | **2a — Persistence + shorten API + redirect** ✅ *(commits `e7b3d4d` → `2c6a1df`; verified on Vercel Preview + Neon development 2026-09-11)* | **Delivered:** Drizzle schema ([`db/schema.ts`](../../db/schema.ts)) + migration `0000` + `drizzle.config.ts` + `db:generate` / `db:migrate` scripts; driver selection ([`db/client.ts`](../../db/client.ts): Neon-HTTP when `DATABASE_URL` set, else PGlite); data layer ([`db/links.ts`](../../db/links.ts): `createShortLink` w/ collision-retry, `resolveShortLink`, `recordClick`); real `POST /api/shorten` (persists, drops `mock`/`?simulate=`, stores hashed creator IP); `app/[shortCode]/route.ts` redirect (Node runtime — see runtime note; `after()` click count; 404 for unknown/reserved, `/link-unavailable` for disabled/expired); `/link-unavailable` page; `.env.example`; PGlite test suite (`test/db-links.test.mts`, `test/helpers/test-db.mts`). **Deferred within 2a** (see §7): DB-backed rate limiting + `rate_limits`, `link_reports` + `/report-link`, `kk_sid` cookie, `screenUrl()`/Safe Browsing, `robots.ts` / `sitemap.ts`. |
-| **2b.1 — Click analytics + link controls** ✅ *(implemented — pending review)* | **Delivered:** `click_events` table + `device_class` enum (migration `0001`, additive, applied to Neon development only); `app/lib/click-meta.ts` (device class / referrer host / country, `HEAD` + prefetch excluded); `recordClick()` rewritten as one atomic CTE — event row always, `click_count` for humans only (§9); redirect passes click metadata into `after()`; optional expiry presets (`app/lib/link-expiry.ts`) on `POST /api/shorten` (`expiresIn` → `expiresAt`, backward compatible) and in the form (**"Link expires"** select) + result card; FAQ copy updated; operator takedown tool `npm run link:status` (`db/link-status.mts`, dry-run by default) with `setLinkStatus` / `getLinkByCode` / `getClickBreakdown`; shared `db/load-env.mts`; tests `click-meta` (13), `link-expiry` (6), `db-clicks` (18). **Not built, by design:** any stats UI, any anonymous link-management mechanism, auth. |
-| **2b — Security hardening + go-live** | Cloudflare-native protection where possible without proxying; wire remaining screening; load-check the redirect; **flip catalogue `status` → `live` + surface on the production homepage** (existing design, no redesign). Optionally begin the Cloudflare Worker evaluation. *pending* |
+| **2b.1 — Click analytics + link controls** ✅ *(commit `2c19495`)* | **Delivered:** `click_events` table + `device_class` enum (migration `0001`, additive, applied to Neon development only); `app/lib/click-meta.ts` (device class / referrer host / country, `HEAD` + prefetch excluded); `recordClick()` rewritten as one atomic CTE — event row always, `click_count` for humans only (§9); redirect passes click metadata into `after()`; optional expiry presets (`app/lib/link-expiry.ts`) on `POST /api/shorten` (`expiresIn` → `expiresAt`, backward compatible) and in the form (**"Link expires"** select) + result card; FAQ copy updated; operator takedown tool `npm run link:status` (`db/link-status.mts`, dry-run by default) with `setLinkStatus` / `getLinkByCode` / `getClickBreakdown`; shared `db/load-env.mts`; tests `click-meta` (13), `link-expiry` (6), `db-clicks` (18). **Not built, by design:** any stats UI, any anonymous link-management mechanism, auth. |
+| **2b.2 — Abuse protection & launch readiness** ✅ *(implemented — pending review)* | **Step 0:** merged `main` (`22b16e3`, QR Generator) into `url-shortener` — 3 additive conflicts resolved by keeping both sides (`icons.tsx` union; `package.json` union incl. main's `tsx --test` runner and `0.0.0.0` dev host; lockfile regenerated); no QR file edited; all QR tests pass on the merged tree. **Delivered:** shared DB rate limiting (`rate_limits`, `app/lib/rate-limit.ts` `ANONYMOUS_LIMITS`, `db/rate-limits.ts`); salted IP hashing with `KK_IP_HASH_SALT` required on Vercel (`app/lib/ip-hash.ts`); destination policy blocking open URL shorteners (`app/lib/destination-policy.ts`); Google Web Risk screening, fail-open (`app/lib/url-reputation.ts`, `links.screened_at`); abuse reporting (`/report-link`, `POST /api/report`, `link_reports`, `db/reports.ts`, `app/lib/report.ts`); `redactSecrets()` now scrubs query-string API keys; operator `npm run link:reports` + reports/screening in `link:status` (and both exit cleanly on Windows); migration `0002`; new FAQ item. Tests: `abuse-policy` (14), `url-reputation` (8), `db-abuse` (13). |
+| **Production release** | Merge `url-shortener` → `main`; run migrations `0000`–`0002` on the Neon production branch; set `KK_IP_HASH_SALT` and `WEB_RISK_API_KEY` on Vercel Production (and Preview); load-check the redirect; **flip catalogue `status` → `live` + surface on the production homepage** (existing design, no redesign). Each step needs explicit approval. *pending* |
 | 3 — Account integration | *pending (shared platform)* — unlocks a creator-facing stats view and link management |
 | 4 — Analytics | *partly started* — click events are recorded since 2b.1; stats UI, retention and the shared engine are pending |
 | 5 — Monetisation | *pending* |
 
-### After Phase 2b.1 — what is real, what is still not
+### After Phase 2b.2 — what is real, what is still not
 
 **Real now:** `POST /api/shorten` persists to Postgres (Neon in prod/preview,
-PGlite locally), with an optional expiry preset; `kaamkit.com/{code}` redirects
-from the database; disabled and expired links resolve to `/link-unavailable`;
-every click writes a minimal `click_events` row and human clicks move
-`click_count`; operators can inspect, disable and re-enable a link with
-`npm run link:status`.
+PGlite locally), with an optional expiry preset, behind a shared rate limit, a
+destination policy and Web Risk screening (fail-open); `kaamkit.com/{code}`
+redirects from the database; disabled and expired links resolve to
+`/link-unavailable`; every click writes a minimal `click_events` row and human
+clicks move `click_count`; anyone can report a link at `/report-link`; operators
+can review reports and disable/re-enable links from the terminal.
 
 **Still not real / not built:**
 
-- The rate limiter is still in-memory (resets on redeploy, not shared across
-  instances) — see §7.
+- **Web Risk isn't switched on anywhere yet.** It needs the owner to create the
+  Google Cloud project, enable billing and the API, and set `WEB_RISK_API_KEY` on
+  Vercel. Until then every link is created unscreened (fail-open) and logged.
+- **`KK_IP_HASH_SALT` must be set on Vercel Preview before this branch's next
+  Preview deploy** — without it, shortening and reporting fail there by design.
 - No account/history, no `kk_sid` cookie, no way for a creator to see stats or
   manage a link.
-- No retention policy or volume control for `click_events` (§9).
-- No reputation screening, no `/report-link` flow.
+- No retention policy or volume control for `click_events` (§9); no re-screening
+  of unscreened links; no CAPTCHA; no report notifications.
 - On Preview, the result card shows `https://kaamkit.com/{code}` because
   `NEXT_PUBLIC_SITE_URL` isn't set for Preview; that host doesn't serve the
   shortener yet. Test redirects on the preview host instead.
-- Catalogue `status` stays `planned` and the homepage does not feature the tool.
-  The flip + homepage surfacing happens at the **end of Phase 2b** (after
-  security hardening) — the domain is live and public, so the tool is not exposed
-  to real users until the fuller posture is in place.
+- Catalogue `status` stays `planned` and the homepage does not feature the tool
+  until the **production release** row above.
 - The `url-shortener` branch is **not merged to `main`**. Preview uses the Neon
   `development` branch (`DATABASE_URL`, Preview scope); production uses the Neon
-  `production` branch, which has **no tables yet** — both migrations run there
-  as part of the production release.
+  `production` branch, which has **no tables yet** — migrations `0000`–`0002`
+  run there as part of the production release.

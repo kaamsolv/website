@@ -1,15 +1,19 @@
 /**
  * Drizzle schema — KaamKit URL Shortener.
  *
- *   Phase 2a  `links`         — one row per short link (migration 0000)
- *   Phase 2b.1 `click_events` — one row per recorded click (migration 0001)
+ *   Phase 2a   `links`         — one row per short link          (migration 0000)
+ *   Phase 2b.1 `click_events`  — one row per recorded click      (migration 0001)
+ *   Phase 2b.2 `rate_limits`   — shared fixed-window counters    (migration 0002)
+ *              `link_reports`  — abuse reports
+ *              `links.screened_at`
  *
  * Deliberately framework-free (no `next/*`) so it can move into a shared
  * `packages/link-core` if/when the Cloudflare Worker redirect lands.
  *
  * Deferred, additive-only later migrations (documented in
- * docs/products/url-shortener.md §10): `rate_limits`, `link_reports`,
- * `campaign_id`, `accounts` / `entitlements` / `usage`.
+ * docs/products/url-shortener.md §10): `campaign_id`, `accounts` /
+ * `entitlements` / `usage`. No QR tables here — dynamic QR will reference
+ * `links.id` from its own table when it lands.
  */
 
 import { sql } from 'drizzle-orm';
@@ -18,6 +22,7 @@ import {
   boolean,
   check,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -26,6 +31,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { DEVICE_CLASSES } from '../app/lib/click-meta.ts';
+import { MAX_REPORT_DETAILS, REPORT_REASONS } from '../app/lib/report.ts';
 
 /** Redirect behaviour for a link. `expired` is derived from `expiresAt`, not stored. */
 export const linkStatus = pgEnum('link_status', ['active', 'disabled']);
@@ -63,6 +69,13 @@ export const links = pgTable(
 
     /** SHA-256(ip + KK_IP_HASH_SALT) — abuse forensics only, never the raw IP. */
     createdIpHash: text('created_ip_hash'),
+
+    /**
+     * When Google Web Risk cleared the destination (2b.2). Null = not screened:
+     * screening was unavailable or unconfigured (fail-open), or the link predates
+     * screening. Null rows are the input to any future re-screen job.
+     */
+    screenedAt: timestamp('screened_at', { withTimezone: true }),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -118,3 +131,52 @@ export const clickEvents = pgTable(
 );
 
 export type ClickEventRow = typeof clickEvents.$inferSelect;
+
+/**
+ * Fixed-window rate-limit counters (2b.2), shared by every instance so limits
+ * survive redeploys and scale-out. Keys look like
+ * `url-shortener:create:1m:<salted ip hash>` — never a raw IP. One atomic
+ * upsert per check (db/rate-limits.ts); expired rows are pruned opportunistically.
+ */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    key: text('key').primaryKey(),
+    count: integer('count').notNull(),
+    resetAt: timestamp('reset_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('rate_limits_reset_at_idx').on(table.resetAt)],
+);
+
+export const reportReason = pgEnum('report_reason', REPORT_REASONS);
+
+/**
+ * Abuse reports (2b.2). Stored only for links that exist; a report for an
+ * unknown code is accepted and discarded so the endpoint can't be used to
+ * probe which codes exist. Reports never disable a link by themselves — an
+ * operator reviews them (npm run link:reports) and decides.
+ */
+export const linkReports = pgTable(
+  'link_reports',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => links.id, { onDelete: 'cascade' }),
+    reason: reportReason('reason').notNull(),
+    /** Optional free text — sanitised and capped in app/lib/report.ts, capped here too. */
+    details: text('details'),
+    reporterIpHash: text('reporter_ip_hash'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('link_reports_link_id_created_at_idx').on(table.linkId, table.createdAt),
+    index('link_reports_created_at_idx').on(table.createdAt),
+    check(
+      'link_reports_details_len',
+      sql`char_length(${table.details}) <= ${sql.raw(String(MAX_REPORT_DETAILS))}`,
+    ),
+  ],
+);
+
+export type LinkReportRow = typeof linkReports.$inferSelect;

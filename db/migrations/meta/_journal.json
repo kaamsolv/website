@@ -15,6 +15,13 @@
       "when": 1789114082675,
       "tag": "0001_aberrant_medusa",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789134807464,
+      "tag": "0002_yellow_arachne",
+      "breakpoints": true
     }
   ]
 }

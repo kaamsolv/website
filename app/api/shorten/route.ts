@@ -2,67 +2,41 @@
  * POST /api/shorten  —  create and persist a short link.
  *
  * Phase 2a: real persistence (Drizzle → Neon in prod, PGlite locally).
- * Phase 2b.1: optional expiry. Additive — a request without `expiresIn` behaves
- * exactly as before (the link never expires).
+ * Phase 2b.1: optional expiry. Additive — no `expiresIn` means "never".
+ * Phase 2b.2: shared DB rate limiting, destination policy, Web Risk screening.
+ *             Same request/response contract; one new failure code.
  *
  * Request:  { "url": "<destination>", "expiresIn"?: "never" | "1d" | "7d" | "30d" }
  * Success:  200 { ok: true, shortUrl, shortCode, destination, expiresAt: ISO string | null }
  * Failure:  4xx/5xx { ok: false, error, message, retryAfter? }
+ *
+ * Checks, cheapest first:
+ *   rate limit → URL validation → destination policy → expiry → screening → insert
  */
 
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
+import { checkDestinationPolicy } from '@/app/lib/destination-policy';
+import { clientIp, hashIp, resolveIpHashSalt } from '@/app/lib/ip-hash';
+import { expiresAtFor, parseExpiryOption } from '@/app/lib/link-expiry';
+import { formatErrorForLog } from '@/app/lib/log-error';
+import { rateLimitChecks, retryAfterSeconds } from '@/app/lib/rate-limit';
+import { screenUrl } from '@/app/lib/url-reputation';
 import {
   MAX_URL_LENGTH,
   messageForReason,
   validateDestinationUrl,
 } from '@/app/lib/url-validation';
-import { expiresAtFor, parseExpiryOption } from '@/app/lib/link-expiry';
-import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
 import { createShortLink } from '@/db/links';
+import { consumeRateLimits, pruneRateLimits } from '@/db/rate-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamkit.com';
 
-// ---- IP rate limiter (in-memory fixed window). Unchanged from Phase 1: the
-//      existing security boundary. It resets on redeploy and is not shared
-//      across instances — documented as swappable (docs/products/url-shortener.md
-//      §7). Moving it to a shared store is a later step, not Phase 2a. ----
-const RATE_LIMIT = { max: 12, windowMs: 60_000 };
-const hits = new Map<string, { count: number; resetAt: number }>();
-
-function rateLimit(ip: string): { ok: true } | { ok: false; retryAfter: number } {
-  const now = Date.now();
-  const entry = hits.get(ip);
-  if (!entry || entry.resetAt <= now) {
-    hits.set(ip, { count: 1, resetAt: now + RATE_LIMIT.windowMs });
-    return { ok: true };
-  }
-  entry.count += 1;
-  if (entry.count > RATE_LIMIT.max) {
-    return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
-  }
-  return { ok: true };
-}
-
-function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0].trim();
-  return req.headers.get('x-real-ip') ?? 'local';
-}
-
-/** SHA-256(ip + salt). Null when no salt is configured — never store a raw IP. */
-async function hashIp(ip: string): Promise<string | null> {
-  const salt = process.env.KK_IP_HASH_SALT;
-  if (!salt || ip === 'local') return null;
-  const data = new TextEncoder().encode(`${ip}${salt}`);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+/** Namespace for this product's rate-limit keys (see app/lib/rate-limit.ts). */
+const SCOPE = 'url-shortener';
 
 type ShortenSuccess = {
   ok: true;
@@ -75,18 +49,29 @@ type ShortenSuccess = {
 
 type ShortenFailure = {
   ok: false;
-  error: 'invalid_url' | 'invalid_expiry' | 'rate_limited' | 'server_error';
+  error: 'invalid_url' | 'invalid_expiry' | 'blocked_url' | 'rate_limited' | 'server_error';
   message: string;
   retryAfter?: number;
 };
 
 const noStore = { 'Cache-Control': 'no-store' };
 
+// Logged once per instance, not per request.
+let warnedNotConfigured = false;
+
 export async function POST(req: Request) {
   try {
-    const rl = rateLimit(clientIp(req));
-    if (!rl.ok) {
-      return fail({ error: 'rate_limited', message: rateLimitedMsg(), retryAfter: rl.retryAfter }, 429);
+    const db = await getDb();
+    const ipHash = await hashIp(clientIp(req.headers), resolveIpHashSalt());
+
+    // Shared across instances and deploys (db/rate-limits.ts).
+    const limit = await consumeRateLimits(db, rateLimitChecks(SCOPE, 'create', ipHash));
+    if (Math.random() < 0.01) after(() => pruneRateLimits(db));
+    if (!limit.allowed) {
+      return fail(
+        { error: 'rate_limited', message: rateLimitedMsg(), retryAfter: retryAfterSeconds(limit.resetAt) },
+        429,
+      );
     }
 
     let body: unknown;
@@ -106,17 +91,49 @@ export async function POST(req: Request) {
       return fail({ error: 'invalid_url', message: messageForReason(validated.reason) }, 400);
     }
 
+    // Other shorteners hide the real destination (app/lib/destination-policy.ts).
+    const policy = checkDestinationPolicy(validated.hostname);
+    if (!policy.ok) {
+      return fail(
+        {
+          error: 'blocked_url',
+          message: "That's a link from another shortener. Paste the full destination link instead.",
+        },
+        400,
+      );
+    }
+
     // Only the fixed presets are accepted; the server computes the timestamp.
     const expiry = parseExpiryOption((body as { expiresIn?: unknown })?.expiresIn);
     if (!expiry) {
       return fail({ error: 'invalid_expiry', message: 'Pick how long the link should last.' }, 400);
     }
 
-    const db = await getDb();
+    // Google Web Risk. Fails OPEN: unavailable/unconfigured → allowed, logged,
+    // screened_at left null for a later re-screen.
+    const screen = await screenUrl(validated.normalized, { apiKey: process.env.WEB_RISK_API_KEY });
+    if (screen.status === 'unsafe') {
+      // Destination host only — never the full URL (§7 logging rule).
+      console.warn(
+        `[api/shorten] blocked by Web Risk: host=${validated.hostname} threats=${screen.threatTypes.join(',')}`,
+      );
+      return fail(
+        { error: 'blocked_url', message: "We can't shorten this link — it's been flagged as potentially harmful." },
+        400,
+      );
+    }
+    if (screen.status === 'unavailable') {
+      console.warn(`[api/shorten] not screened (${screen.reason}): host=${validated.hostname} — allowed`);
+    } else if (screen.status === 'not_configured' && !warnedNotConfigured) {
+      warnedNotConfigured = true;
+      console.warn('[api/shorten] WEB_RISK_API_KEY not set — links are not being screened');
+    }
+
     const row = await createShortLink(db, {
       destination: validated.normalized,
-      createdIpHash: await hashIp(clientIp(req)),
+      createdIpHash: ipHash,
       expiresAt: expiresAtFor(expiry),
+      screenedAt: screen.status === 'safe' ? new Date() : null,
     });
 
     const payload: ShortenSuccess = {

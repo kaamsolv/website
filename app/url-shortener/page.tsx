@@ -63,7 +63,21 @@ const FAQ = [
   },
   {
     q: 'What kind of links can I shorten?',
-    a: 'Any public http or https web address. We do not shorten links with a username or password in them, or addresses that only work on a private network.',
+    a: 'Any public http or https web address. We do not shorten links with a username or password in them, addresses that only work on a private network, links from other URL shorteners, or links flagged as harmful.',
+  },
+  {
+    q: 'What if a short link looks harmful?',
+    a: (
+      <>
+        <a
+          href="/report-link"
+          className="rounded font-semibold text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+        >
+          Report it
+        </a>{' '}
+        and we&apos;ll take a look. Links that point somewhere harmful get switched off.
+      </>
+    ),
   },
 ];
 

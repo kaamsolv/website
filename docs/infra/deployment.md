@@ -121,14 +121,18 @@ committed `.env.example` documents the full set (added in Phase 2a).
 | Variable | Environments | Status | Purpose |
 |---|---|---|---|
 | `DATABASE_URL` | preview, production | **wired (2a)** | Neon pooled connection string (per-env: dev branch vs primary). Its **absence** selects the PGlite driver. Server-only — never exposed to the client. |
-| `KK_IP_HASH_SALT` | preview, production | **read (2a)** | salt for the hashed creator IP on new links (`SHA-256(ip + salt)`). If unset, `created_ip_hash` is null. |
+| `KK_IP_HASH_SALT` | preview, production | **REQUIRED on Vercel (2b.2)** | salt for every caller hash: rate-limit keys, `links.created_ip_hash`, `link_reports.reporter_ip_hash` (`SHA-256(ip + salt)`). **Missing on Vercel → shortening and reporting fail** with an actionable log (`app/lib/ip-hash.ts`). A long random string; changing it resets all rate-limit windows. Locally a fixed dev salt is used. **Not yet set on Preview — set it before the next Preview deploy of `url-shortener`.** |
+| `WEB_RISK_API_KEY` | preview, production | **read (2b.2)**, optional | Google Web Risk key for destination screening. Unset → screening is skipped (fail-open, logged once per instance). Needs a Google Cloud project with **billing enabled** and the Web Risk API enabled; restrict the key to that API. Free to 100k lookups/month, then $0.50 / 1,000. Replaces the earlier placeholder `SAFE_BROWSING_API_KEY` (Safe Browsing is non-commercial only). |
 | `NEXT_PUBLIC_SITE_URL` | (optional) all | read (1) | canonical base for generated short links; defaults to `https://kaamkit.com` |
 | `KK_ANON_COOKIE_SECRET` | preview, production | reserved | HMAC key for the signed `kk_sid` recent-links cookie — not read yet |
-| `SAFE_BROWSING_API_KEY` | production (optional) | reserved | enables reputation screening — not read yet |
 
-Local dev needs **nothing** — no `DATABASE_URL` selects PGlite (`.pglite/`), and
-`db/migrate.mts` hand-loads `.env.local` / `.env` for standalone runs. A
-committed [`.env.example`](../../.env.example) documents the full set.
+Local dev needs **nothing** — no `DATABASE_URL` selects PGlite (`.pglite/`), no
+`KK_IP_HASH_SALT` uses a dev salt, no `WEB_RISK_API_KEY` skips screening. The
+`db/*.mts` scripts hand-load `.env.local` / `.env`. A committed
+[`.env.example`](../../.env.example) documents the full set.
+
+**Test runner:** since the merge of `main` (QR Generator), `npm test` runs
+`tsx --test "test/**/*.test.mts"` — URL Shortener and QR suites together.
 
 ---
 
@@ -145,8 +149,16 @@ committed [`.env.example`](../../.env.example) documents the full set.
 - **Production migrations are a manual, deliberate step** run against the Neon
   primary before or during the deploy that needs them — not part of the Vercel
   build. For a Preview, apply to the Neon **dev branch** first.
-- Phase 2a shipped one migration: `0000_powerful_masque.sql` — creates the
-  `link_status` enum and the `links` table (see `products/url-shortener.md` §10).
+- Migrations so far (all additive; see `products/url-shortener.md` §10):
+
+  | Migration | Phase | Creates | Neon development | Neon production |
+  |---|---|---|---|---|
+  | `0000_powerful_masque.sql` | 2a | `link_status` enum, `links` | applied | **not applied** |
+  | `0001_aberrant_medusa.sql` | 2b.1 | `device_class` enum, `click_events` | applied | **not applied** |
+  | `0002_yellow_arachne.sql` | 2b.2 | `report_reason` enum, `rate_limits`, `link_reports`, `links.screened_at` | applied | **not applied** |
+
+  Neon production has no tables yet; all three run there as part of the URL
+  Shortener production release.
 
 ---
 

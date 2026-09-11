@@ -41,6 +41,8 @@ export type CreateShortLinkInput = {
   destination: string;
   createdIpHash?: string | null;
   expiresAt?: Date | null;
+  /** When reputation screening cleared the destination; null = not screened. */
+  screenedAt?: Date | null;
 };
 
 /**
@@ -72,6 +74,7 @@ export async function createShortLink(
           destination: input.destination,
           createdIpHash: input.createdIpHash ?? null,
           expiresAt: input.expiresAt ?? null,
+          screenedAt: input.screenedAt ?? null,
         })
         .returning();
       return row;

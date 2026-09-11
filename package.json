@@ -11,7 +11,8 @@
     "test": "tsx --test \"test/**/*.test.mts\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node db/migrate.mts",
-    "link:status": "node db/link-status.mts"
+    "link:status": "node db/link-status.mts",
+    "link:reports": "node db/link-reports.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
