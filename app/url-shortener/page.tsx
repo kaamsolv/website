@@ -55,7 +55,7 @@ const FAQ = [
   },
   {
     q: 'How long does the link last?',
-    a: 'Short links stay active indefinitely. We may disable a link if it points somewhere harmful or gets reported for abuse.',
+    a: 'As long as you like. By default a short link never expires, or you can set it to stop working after 1, 7 or 30 days. We may also disable a link if it points somewhere harmful or gets reported for abuse.',
   },
   {
     q: 'Can I choose the short link myself?',

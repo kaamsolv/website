@@ -11,30 +11,13 @@
  * Run with Node's native TypeScript support:  node db/migrate.mts
  */
 
-import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describeDatabaseTarget, loadLocalEnv } from './load-env.mts';
 
 const MIGRATIONS_FOLDER = resolve(import.meta.dirname, 'migrations');
 
-// Load .env.local / .env for local runs (Next does this for the app, not for
-// standalone scripts). No dependency — a tiny hand parser is enough here.
-for (const file of ['.env.local', '.env']) {
-  const path = resolve(process.cwd(), file);
-  if (!existsSync(path)) continue;
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/i);
-    if (!m) continue;
-    const key = m[1];
-    let value = m[2].trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
+loadLocalEnv();
+console.log(`Target: ${describeDatabaseTarget()}`);
 
 const url = process.env.DATABASE_URL;
 

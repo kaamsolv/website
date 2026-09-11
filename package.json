@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/**/*.test.mts\"",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node db/migrate.mts"
+    "db:migrate": "node db/migrate.mts",
+    "link:status": "node db/link-status.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

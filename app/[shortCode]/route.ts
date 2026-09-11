@@ -18,11 +18,14 @@
  *                              + X-Robots-Tag: noindex, Cache-Control: no-store
  *      disabled / expired    → 302 /link-unavailable?reason=…
  *      missing               → 404
- *   4. after(() => clickCount++, lastClickedAt = now())   ← best-effort
+ *   4. after(() => recordClick(...))  ← best-effort, off the response path:
+ *      one click_events row + click_count++ (humans only). Skipped for HEAD
+ *      and browser prefetch, which aren't clicks (see app/lib/click-meta.ts).
  */
 
 import { after } from 'next/server';
 import { notFound } from 'next/navigation';
+import { clickMetaFromRequest } from '@/app/lib/click-meta';
 import { isValidShortCodeShape } from '@/app/lib/short-code';
 import { isReservedCode } from '@/app/lib/reserved-routes';
 import { getDb } from '@/db/client';
@@ -63,8 +66,10 @@ export async function GET(
     });
   }
 
-  // Best-effort click accounting — never blocks or breaks the redirect.
-  after(() => recordClick(db, result.id));
+  // Best-effort click recording — never blocks or breaks the redirect. The
+  // headers are read now (cheap) so the deferred work holds only plain values.
+  const click = clickMetaFromRequest(req.method, req.headers);
+  if (click) after(() => recordClick(db, result.id, click));
 
   return new Response(null, {
     status: 302,

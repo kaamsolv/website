@@ -3,8 +3,15 @@
 import { useRef, useState, type RefObject } from 'react';
 import { Icon } from '@/app/_components/icons';
 import { CopyButton } from '@/app/_components/copy-button';
+import { DEFAULT_EXPIRY, EXPIRY_OPTIONS, type ExpiryOption } from '@/app/lib/link-expiry';
 
-type Result = { shortUrl: string; shortCode: string; destination: string };
+type Result = {
+  shortUrl: string;
+  shortCode: string;
+  destination: string;
+  /** ISO timestamp, or null when the link never expires. */
+  expiresAt: string | null;
+};
 
 type FormState =
   | { status: 'idle' }
@@ -20,6 +27,8 @@ const NETWORK_ERROR = "We couldn't reach KaamKit. Check your connection and try 
 
 export function ShortenForm() {
   const [url, setUrl] = useState('');
+  // Kept across "Shorten another", so a batch of links can share one expiry.
+  const [expiry, setExpiry] = useState<ExpiryOption>(DEFAULT_EXPIRY);
   const [state, setState] = useState<FormState>({ status: 'idle' });
   const inputRef = useRef<HTMLInputElement>(null);
   const resultHeadingRef = useRef<HTMLParagraphElement>(null);
@@ -38,7 +47,7 @@ export function ShortenForm() {
       const res = await fetch('/api/shorten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: value }),
+        body: JSON.stringify({ url: value, expiresIn: expiry }),
       });
       const data: unknown = await res.json().catch(() => null);
       const d = data as
@@ -141,6 +150,26 @@ export function ShortenForm() {
         </p>
       )}
 
+      <div className="mt-3 flex items-center gap-2">
+        <label htmlFor="shorten-expiry" className="text-xs font-semibold text-muted">
+          Link expires
+        </label>
+        <select
+          id="shorten-expiry"
+          name="expiresIn"
+          value={expiry}
+          onChange={(e) => setExpiry(e.target.value as ExpiryOption)}
+          disabled={submitting}
+          className="h-10 rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
+        >
+          {EXPIRY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {bannerError && (
         <div
           role="alert"
@@ -203,6 +232,16 @@ function ShortResult({
       <p className="mt-2 truncate text-xs text-muted" title={result.destination}>
         Goes to {result.destination}
       </p>
+      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+        <Icon name="clock" className="h-3.5 w-3.5 shrink-0" />
+        {result.expiresAt ? (
+          <span>
+            Expires <time dateTime={result.expiresAt}>{formatExpiry(result.expiresAt)}</time>
+          </span>
+        ) : (
+          <span>Never expires</span>
+        )}
+      </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
@@ -220,5 +259,12 @@ function ShortResult({
         coming soon.
       </p>
     </div>
+  );
+}
+
+/** e.g. "18 Sept 2026, 3:45 pm" — in the viewer's own timezone. */
+function formatExpiry(iso: string): string {
+  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(iso),
   );
 }

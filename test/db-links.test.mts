@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, sql } from 'drizzle-orm';
 import { links } from '../db/schema.ts';
-import { createShortLink, recordClick, resolveShortLink } from '../db/links.ts';
+import { createShortLink, resolveShortLink } from '../db/links.ts';
 import { isValidShortCodeShape } from '../app/lib/short-code.ts';
 import { isReservedCode } from '../app/lib/reserved-routes.ts';
 import { makeTestDb } from './helpers/test-db.mts';
@@ -129,36 +129,7 @@ test('resolveShortLink still redirects when expiresAt is in the future', async (
   }
 });
 
-test('recordClick increments clickCount and sets lastClickedAt, best-effort', async () => {
-  const { db, close } = await makeTestDb();
-  try {
-    const row = await createShortLink(db, { destination: 'https://example.com' });
-    await recordClick(db, row.id);
-    await recordClick(db, row.id);
-
-    const [after] = await db.select().from(links).where(eq(links.id, row.id));
-    assert.equal(after.clickCount, 2);
-    assert.ok(after.lastClickedAt instanceof Date);
-
-    // Unknown id: must not throw.
-    await recordClick(db, '00000000-0000-0000-0000-000000000000');
-  } finally {
-    await close();
-  }
-});
-
-test('recordClick does not count a click on a disabled link', async () => {
-  const { db, close } = await makeTestDb();
-  try {
-    const row = await createShortLink(db, { destination: 'https://example.com' });
-    await db.update(links).set({ status: 'disabled' }).where(eq(links.id, row.id));
-    await recordClick(db, row.id);
-    const [after] = await db.select().from(links).where(eq(links.id, row.id));
-    assert.equal(after.clickCount, 0);
-  } finally {
-    await close();
-  }
-});
+// Click recording and link controls live in db-clicks.test.mts.
 
 test('updatedAt / createdAt are populated by the schema defaults', async () => {
   const { db, close } = await makeTestDb();

@@ -1,18 +1,22 @@
 /**
- * Drizzle schema — KaamKit URL Shortener (Phase 2a).
+ * Drizzle schema — KaamKit URL Shortener.
  *
- * This is the minimum production schema for URL shortening: one `links` table.
- * It is deliberately framework-free (no `next/*`) so it can move into a shared
+ *   Phase 2a  `links`         — one row per short link (migration 0000)
+ *   Phase 2b.1 `click_events` — one row per recorded click (migration 0001)
+ *
+ * Deliberately framework-free (no `next/*`) so it can move into a shared
  * `packages/link-core` if/when the Cloudflare Worker redirect lands.
  *
  * Deferred, additive-only later migrations (documented in
  * docs/products/url-shortener.md §10): `rate_limits`, `link_reports`,
- * `campaign_id`, `click_events`, `accounts` / `entitlements` / `usage`.
+ * `campaign_id`, `accounts` / `entitlements` / `usage`.
  */
 
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   index,
   pgEnum,
   pgTable,
@@ -21,6 +25,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { DEVICE_CLASSES } from '../app/lib/click-meta.ts';
 
 /** Redirect behaviour for a link. `expired` is derived from `expiresAt`, not stored. */
 export const linkStatus = pgEnum('link_status', ['active', 'disabled']);
@@ -72,3 +77,44 @@ export const links = pgTable(
 
 export type LinkRow = typeof links.$inferSelect;
 export type NewLinkRow = typeof links.$inferInsert;
+
+/** Coarse device bucket for a click — see app/lib/click-meta.ts. */
+export const deviceClass = pgEnum('device_class', DEVICE_CLASSES);
+
+/**
+ * One row per recorded click (Phase 2b.1). Written off the redirect path via
+ * after(), in the same statement that bumps `links.click_count`.
+ *
+ * Holds only what docs/products/url-shortener.md §9 designed: when, the
+ * referring host, a two-letter country, and a device bucket. No IP, no raw
+ * User-Agent, no full referrer URL. The CHECK constraints enforce the shape at
+ * the database too, so a bug in the app layer can't widen what gets stored.
+ */
+export const clickEvents = pgTable(
+  'click_events',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => links.id, { onDelete: 'cascade' }),
+
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+
+    /** Hostname only, e.g. `web.whatsapp.com`. Null when absent or not http(s). */
+    referrerHost: text('referrer_host'),
+
+    /** ISO-3166 alpha-2 from the platform geo header. Null when unknown. */
+    country: text('country'),
+
+    deviceClass: deviceClass('device_class').notNull().default('unknown'),
+  },
+  (table) => [
+    // Per-link time series: "clicks for this link, newest first / in a range".
+    index('click_events_link_id_occurred_at_idx').on(table.linkId, table.occurredAt),
+    check('click_events_country_iso2', sql`${table.country} ~ '^[A-Z]{2}$'`),
+    check('click_events_referrer_host_len', sql`char_length(${table.referrerHost}) <= 253`),
+  ],
+);
+
+export type ClickEventRow = typeof clickEvents.$inferSelect;

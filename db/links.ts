@@ -1,5 +1,5 @@
 /**
- * Data access for the KaamKit URL Shortener `links` table.
+ * Data access for the KaamKit URL Shortener (`links`, `click_events`).
  *
  * Framework-free (no `next/*`). Every function takes an explicit `db`, so the
  * same code runs against Neon (production) and PGlite (local dev + tests).
@@ -9,8 +9,10 @@
  * unique-constraint violation regenerate and retry, then grow the code length.
  */
 
-import { and, eq, isNull, or, sql } from 'drizzle-orm';
+import { count, desc, eq, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { ClickMeta, DeviceClass } from '../app/lib/click-meta.ts';
+import { formatErrorForLog } from '../app/lib/log-error.ts';
 import {
   DEFAULT_LENGTH,
   MAX_ATTEMPTS,
@@ -19,7 +21,7 @@ import {
 } from '../app/lib/short-code.ts';
 import { isReservedCode } from '../app/lib/reserved-routes.ts';
 import * as schema from './schema.ts';
-import { links, type LinkRow } from './schema.ts';
+import { clickEvents, links, type LinkRow } from './schema.ts';
 
 /** Common supertype of the Neon (HTTP) and PGlite Drizzle instances. */
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -109,25 +111,79 @@ export async function resolveShortLink(db: Db, shortCode: string): Promise<Resol
 }
 
 /**
- * Best-effort click accounting. Called from `after()` on the redirect path, so
- * a slow or failing write never affects the redirect. Swallows its own errors.
+ * Record one click: insert a `click_events` row and — for a human click — bump
+ * `links.click_count` / `last_clicked_at`.
+ *
+ * Called from `after()` on the redirect path, so it never delays the redirect.
+ * One statement, one round trip, atomic: a data-modifying CTE does the counter
+ * update and the event insert together, so the count and the event log can't
+ * drift apart. Both are conditional on the link still being active and
+ * unexpired at write time (it could have been disabled since the lookup).
+ *
+ * Bots (link-preview fetchers, crawlers) get an event row with
+ * `device_class = 'bot'` but do not move `click_count`: that counter means
+ * "people who clicked", and pasting a link into a chat app makes the app fetch
+ * it without anyone clicking.
+ *
+ * Never throws — analytics must not break a redirect — but logs the cause, so a
+ * failure is diagnosable rather than silent.
  */
-export async function recordClick(db: Db, id: string): Promise<void> {
+export async function recordClick(db: Db, linkId: string, meta: ClickMeta): Promise<void> {
+  // Column names are literal SQL (Postgres forbids qualified names in SET);
+  // every value is a bound parameter.
+  const eligible = sql`status = 'active' and (expires_at is null or expires_at > now())`;
+  const target =
+    meta.deviceClass === 'bot'
+      ? sql`select id from links where id = ${linkId} and ${eligible}`
+      : sql`update links
+              set click_count = click_count + 1, last_clicked_at = now()
+            where id = ${linkId} and ${eligible}
+            returning id`;
+
   try {
-    await db
-      .update(links)
-      .set({
-        clickCount: sql`${links.clickCount} + 1`,
-        lastClickedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(links.id, id),
-          eq(links.status, 'active'),
-          or(isNull(links.expiresAt), sql`${links.expiresAt} > now()`),
-        ),
-      );
-  } catch {
-    // Analytics must never break the redirect.
+    await db.execute(sql`
+      with target as (${target})
+      insert into click_events (link_id, referrer_host, country, device_class)
+      select id, ${meta.referrerHost}, ${meta.country}, ${meta.deviceClass}::device_class
+        from target`);
+  } catch (err) {
+    console.error('[redirect] click not recorded:', formatErrorForLog(err));
   }
+}
+
+/** Every field of one link, or null. For operator tooling, not the hot path. */
+export async function getLinkByCode(db: Db, shortCode: string): Promise<LinkRow | null> {
+  const [row] = await db.select().from(links).where(eq(links.shortCode, shortCode)).limit(1);
+  return row ?? null;
+}
+
+/**
+ * Turn a link on or off. Operator-only (db/link-status.mts) — there is no
+ * public endpoint, because there is no way yet to prove who owns an anonymous
+ * link. Takes effect on the very next request: redirects are `no-store`.
+ */
+export async function setLinkStatus(
+  db: Db,
+  shortCode: string,
+  status: LinkRow['status'],
+): Promise<LinkRow | null> {
+  const [row] = await db
+    .update(links)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(links.shortCode, shortCode))
+    .returning();
+  return row ?? null;
+}
+
+/** Recorded events for one link, grouped by device class, largest first. */
+export async function getClickBreakdown(
+  db: Db,
+  linkId: string,
+): Promise<{ deviceClass: DeviceClass; events: number }[]> {
+  return db
+    .select({ deviceClass: clickEvents.deviceClass, events: count() })
+    .from(clickEvents)
+    .where(eq(clickEvents.linkId, linkId))
+    .groupBy(clickEvents.deviceClass)
+    .orderBy(desc(count()));
 }

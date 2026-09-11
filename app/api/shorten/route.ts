@@ -1,12 +1,12 @@
 /**
  * POST /api/shorten  —  create and persist a short link.
  *
- * Phase 2a: real persistence (Drizzle → Neon in prod, PGlite locally). The
- * request/response contract is unchanged from the Phase 1 mock except that the
- * Phase-1-only `mock: true` flag and the `?simulate=` QA hook are gone.
+ * Phase 2a: real persistence (Drizzle → Neon in prod, PGlite locally).
+ * Phase 2b.1: optional expiry. Additive — a request without `expiresIn` behaves
+ * exactly as before (the link never expires).
  *
- * Request:  { "url": "<destination>" }
- * Success:  200 { ok: true, shortUrl, shortCode, destination }
+ * Request:  { "url": "<destination>", "expiresIn"?: "never" | "1d" | "7d" | "30d" }
+ * Success:  200 { ok: true, shortUrl, shortCode, destination, expiresAt: ISO string | null }
  * Failure:  4xx/5xx { ok: false, error, message, retryAfter? }
  */
 
@@ -16,6 +16,7 @@ import {
   messageForReason,
   validateDestinationUrl,
 } from '@/app/lib/url-validation';
+import { expiresAtFor, parseExpiryOption } from '@/app/lib/link-expiry';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
 import { createShortLink } from '@/db/links';
@@ -68,11 +69,13 @@ type ShortenSuccess = {
   shortUrl: string;
   shortCode: string;
   destination: string;
+  /** ISO timestamp, or null when the link never expires. */
+  expiresAt: string | null;
 };
 
 type ShortenFailure = {
   ok: false;
-  error: 'invalid_url' | 'rate_limited' | 'server_error';
+  error: 'invalid_url' | 'invalid_expiry' | 'rate_limited' | 'server_error';
   message: string;
   retryAfter?: number;
 };
@@ -103,10 +106,17 @@ export async function POST(req: Request) {
       return fail({ error: 'invalid_url', message: messageForReason(validated.reason) }, 400);
     }
 
+    // Only the fixed presets are accepted; the server computes the timestamp.
+    const expiry = parseExpiryOption((body as { expiresIn?: unknown })?.expiresIn);
+    if (!expiry) {
+      return fail({ error: 'invalid_expiry', message: 'Pick how long the link should last.' }, 400);
+    }
+
     const db = await getDb();
     const row = await createShortLink(db, {
       destination: validated.normalized,
       createdIpHash: await hashIp(clientIp(req)),
+      expiresAt: expiresAtFor(expiry),
     });
 
     const payload: ShortenSuccess = {
@@ -114,6 +124,7 @@ export async function POST(req: Request) {
       shortUrl: `${SITE_URL}/${row.shortCode}`,
       shortCode: row.shortCode,
       destination: row.destination,
+      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     };
     return NextResponse.json(payload, { status: 200, headers: noStore });
   } catch (err) {
