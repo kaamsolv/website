@@ -13,6 +13,12 @@ import {
   type EncodeResult,
   type QrPayload,
 } from './types';
+import { encodeEventPayload } from './payloads/event';
+import { encodeFilePayload } from './payloads/file';
+import { encodeLocationPayload } from './payloads/location';
+import { encodeSmsPayload } from './payloads/sms';
+import { encodeSocialPayload } from './payloads/social';
+import { encodeUpiPayload } from './payloads/upi';
 import {
   hasControlChars,
   normalizeEmail,
@@ -33,10 +39,22 @@ export function isPayloadEmpty(payload: QrPayload): boolean {
       return !payload.email.trim();
     case 'phone':
       return !payload.phone.trim();
+    case 'sms':
+      return !payload.phone.trim();
     case 'whatsapp':
       return !payload.phone.trim();
     case 'vcard':
       return !payload.name.trim();
+    case 'location':
+      return !payload.latitude.trim() && !payload.longitude.trim();
+    case 'event':
+      return !payload.title.trim();
+    case 'social':
+      return !payload.url.trim();
+    case 'file':
+      return !payload.url.trim();
+    case 'upi':
+      return !payload.upiId.trim();
   }
 }
 
@@ -97,6 +115,8 @@ export function canonicalPayload(payload: QrPayload): EncodeResult {
       if (!tel.ok) return { ok: false, field: 'phone', message: tel.message };
       return { ok: true, text: `tel:${tel.tel}`, mode: 'static', kind: 'phone' };
     }
+    case 'sms':
+      return encodeSmsPayload(payload.phone, payload.message);
     case 'whatsapp': {
       const digits = whatsappDigits(payload.phone);
       if (!digits.ok) return { ok: false, field: 'phone', message: digits.message };
@@ -146,6 +166,22 @@ export function canonicalPayload(payload: QrPayload): EncodeResult {
       lines.push('END:VCARD');
       return { ok: true, text: lines.join('\n'), mode: 'static', kind: 'vcard' };
     }
+    case 'location':
+      return encodeLocationPayload(payload.latitude, payload.longitude, payload.name);
+    case 'event':
+      return encodeEventPayload(
+        payload.title,
+        payload.start,
+        payload.end,
+        payload.location,
+        payload.description,
+      );
+    case 'social':
+      return encodeSocialPayload(payload.platform, payload.url);
+    case 'file':
+      return encodeFilePayload(payload.url);
+    case 'upi':
+      return encodeUpiPayload(payload.upiId, payload.payeeName, payload.amount, payload.note);
   }
 }
 

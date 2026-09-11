@@ -1,6 +1,6 @@
 # KaamKit QR Code Generator — Product & Architecture
 
-**Status:** Phase 1 (static QR) · **Route:** `/qr-code-generator` · **Branch:** `feature/qr-code`
+**Status:** Phase 1 + 1.5 + 2 (QR Studio) · **Route:** `/qr-code-generator` · **Branch:** `feature/qr-code`
 
 Platform-wide decisions live in [`../kaamkit-phase0-architecture.md`](../kaamkit-phase0-architecture.md) and [`../DESIGN-SYSTEM.md`](../DESIGN-SYSTEM.md). This document is the product source of truth for the QR generator.
 
@@ -8,9 +8,9 @@ Platform-wide decisions live in [`../kaamkit-phase0-architecture.md`](../kaamkit
 
 ## 1. What it is
 
-A **static** QR code maker: choose a type, fill in fields, see a live preview, optionally customise, download PNG or SVG. No account, no server-side encoding, no tracking.
+A **static** QR code maker with **QR Studio** styling: choose a type, fill in fields, optionally style with presets and frames, preview, download. No account, no server-side encoding, no tracking.
 
-**Core promise:** choose → customise (optional) → download → done.
+**Core promise:** choose → style (optional) → download → done.
 
 ---
 
@@ -30,68 +30,124 @@ A **static** QR code maker: choose a type, fill in fields, see a live preview, o
 
 Default type: **URL**.
 
-### Customisation
+---
 
-- Foreground / background colour (presets + custom picker)
-- Transparent background (PNG/SVG)
-- Download size: 256 / 512 / 1024 px
-- Error correction: L / M / Q / H (default M; **forced H when a logo is present**)
-- Optional logo upload (PNG/JPG/WEBP, max 500 KB; logo in PNG only)
+## 2.5. Phase 1.5 scope (built)
 
-### Downloads & share
+Additional **static** QR types on the same `/qr-code-generator` page. No new catalogue entry, no per-type SEO pages.
 
-- Download PNG (with logo when set)
-- Download SVG (QR matrix only — no logo overlay)
-- Copy encoded text
-- Web Share API for PNG where supported
+### New QR types
 
-### Privacy
+| Type | Encoded as |
+|---|---|
+| SMS | `sms:+…` with optional `?body=` |
+| Location | RFC 5870 `geo:lat,lng` (optional `?q=` label) |
+| Event | iCalendar `VEVENT` (floating local datetimes) |
+| Social | Direct HTTPS profile/page URL (platform is UI context only) |
+| PDF / File | Direct HTTPS file URL (label is UI-only, not in QR) |
+| UPI Payment | `upi://pay?pa=…&cu=INR` with optional `pn`, `am`, `tn` |
+
+### Phase 1.5 notes
+
+- **Location:** client-side coordinate entry; optional Google Maps link parsing to fill lat/lng. No geocoding API.
+- **Event:** `datetime-local` values encoded as entered — no silent timezone shifts.
+- **Social:** Instagram, Facebook, LinkedIn, X/Twitter, YouTube — URL validated, not scraped.
+- **PDF / File:** URL only — no upload, proxy, or server inspection.
+- **UPI:** generic NPCI-style URI; KaamKit does not process or verify payments.
+
+Payload helpers live in `app/lib/qr/payloads/` (`sms.ts`, `location.ts`, `event.ts`, `social.ts`, `file.ts`, `upi.ts`) and are wired through `canonicalPayload()` in `encode.ts`.
+
+### Privacy (Phase 1 / 1.5)
 
 All encoding runs **in the browser**. Payloads (including Wi-Fi passwords) are **not** sent to KaamKit or third-party APIs and are **not** logged.
 
 ---
 
-## 3. Explicitly deferred (not Phase 1)
+## 3. Phase 2 scope — QR Studio (built)
+
+Visual design layer on top of the static QR generator. **Design only** — presets do not change QR payload or type.
+
+### Design model (`QrDesign`)
+
+| Field | Options |
+|---|---|
+| Module shape | Square, Rounded, Dots |
+| Eye / finder shape | Square, Rounded |
+| Colours | Solid fg/bg, transparent background |
+| Logo | Optional, centered, S / M / L |
+| Frame | None, Border, Scan Me, Pay Here, View Menu, Visit Website, WhatsApp Us |
+| CTA text | Editable on CTA frames only (max 24 chars) |
+| Error correction | L / M / Q / H — **forced H when logo present** |
+| Quiet zone | Minimum 4 modules (not user-shrinkable) |
+
+### Presets (design configurations)
+
+Classic · Minimal · Business · Payment · WhatsApp · Restaurant
+
+Presets apply colours, module/eye shapes, and frame defaults. They do **not** switch QR type (e.g. Payment preset does not convert a URL to UPI).
+
+### Exports
+
+| Format | Notes |
+|---|---|
+| PNG | Full artboard — modules, logo, frame, CTA |
+| SVG | Same visual parity as PNG |
+| JPG | Transparency flattened to white, quality ~0.92 |
+| High-res | 256 / 512 / 1024 / 2048 / 4096 px (4096 capped on mobile) |
+| Print | Lightweight print view — no PDF dependency |
+
+Also: copy encoded text, Web Share (PNG) where supported.
+
+### Scanability
+
+`scanabilityReport(matrix, design)` returns blocks and warnings. Hard blocks prevent preview/export for unsafe combinations (contrast, invalid colours, excessive logo, quiet zone). Warnings cover transparent backgrounds, dot modules, small export sizes, long CTA text.
+
+### Architecture (Phase 2 pipeline)
+
+```
+QR Content (QrPayload)
+    → canonicalPayload()
+    → resolveEncodeTarget()     // identity today; tracking URL later
+    → createMatrix()            // qrcode package — matrix only
+    → QrDesign + scanability
+    → KaamKit compositor        // canvas + SVG from same layout
+    → PNG / SVG / JPG / Print
+```
+
+| Layer | Location |
+|---|---|
+| Content / encode | `encode.ts`, `payloads/*`, `validate.ts` |
+| Matrix | `matrix.ts` |
+| Design | `design.ts`, `presets.ts`, `frames.ts` |
+| Scanability | `scanability.ts` |
+| Compositor | `compositor/*` |
+| Export | `export.ts`, `render.ts` (client facade) |
+| UI | `qr-studio.tsx`, `qr-preview.tsx`, `qr-download.tsx` |
+
+`resolveEncodeTarget()` is unchanged in concept. Dynamic QR later only swaps the string passed to `createMatrix()`.
+
+---
+
+## 4. Explicitly deferred (not Phase 2)
 
 - Dynamic / tracked QR codes
 - URL shortening inside the QR tool
 - Scan analytics, campaigns, accounts
 - Saved QR history, cloud storage
-- Database / Neon / API routes for QR
-- Patterns, dot shapes, frames, gradients, templates
-- Category pages as a dependency
-
----
-
-## 4. Architecture — separation for future dynamic QR
-
-```
-User fields (per type)
-    → canonicalPayload()     // validation + standard string (framework-free)
-    → resolveEncodeTarget()  // Phase 1: identity; later: tracking URL
-    → render (qrcode lib)    // SVG / canvas PNG
-    → style (colours, EC, size, logo)
-```
-
-| Layer | Location | Phase 1 | Later |
-|---|---|---|---|
-| Payload types | `app/lib/qr/types.ts` | User field shapes | + `dynamic` mode flag |
-| Validation | `app/lib/qr/validate.ts` | Per-type rules | Unchanged |
-| Canonical string | `app/lib/qr/encode.ts` | WIFI/mailto/vCard/etc. | Unchanged |
-| Encode target | `encode.ts` `resolveEncodeTarget()` | Same as canonical | KaamKit short URL |
-| Renderer | `app/lib/qr/render.ts` | `qrcode` → canvas/SVG | Unchanged |
-| Style | `app/lib/qr/style.ts` | Colours, EC, size | Unchanged |
-| UI | `app/qr-code-generator/` | React client island | + “Make trackable” when product exists |
-
-The UI and renderer should **not** need a rewrite when dynamic QR ships — only `resolveEncodeTarget()` and optional UI to opt into tracking.
+- Database / API routes for QR
+- Gradients on QR data modules
+- Independent eye colours
+- Downloadable PDF (print view instead)
+- Template marketplace, user-uploaded frames
+- AI QR generation, bulk QR
 
 ---
 
 ## 5. Library
 
-**`qrcode`** (soldair/node-qrcode) — lightweight, framework-independent encoder. Used from `render.ts` only; React components do not import it directly.
+**`qrcode`** (soldair/node-qrcode) — matrix generation via `QRCode.create()`. Visual output is drawn by the KaamKit compositor, not `qrcode`'s built-in renderer.
 
-Not used: `qr-code-styling`, multiple QR libraries, external QR APIs.
+Not used: `qr-code-styling`, `jspdf`, external QR APIs.
 
 ---
 
@@ -121,12 +177,16 @@ SEO: server `metadata` (title, description, canonical, OpenGraph, Twitter).
 
 ---
 
-## 8. Known limitations (Phase 1)
+## 8. Known limitations
 
-- SVG download does not embed the logo (PNG does).
+- **Phone testing in `npm run dev`:** Next.js 16 blocks dev JS from LAN IPs unless the PC’s IP is listed in `next.config.mjs` → `allowedDevOrigins`. Update the IP after DHCP changes and restart the dev server. For a closer-to-production check, use `npm run build` + `npm run start`.
 - vCard is v3.0, basic fields only.
+- Event QR uses floating local times — calendar apps may interpret timezone differently.
+- UPI QR compatibility varies slightly by payment app; amount formatting uses two decimal places.
+- File/PDF QR type requires a publicly accessible URL — KaamKit does not host files.
+- Dot-style modules may scan less reliably on some devices — test before print.
 - No scan analytics or edit-after-print for static codes.
-- Contrast warnings are advisory; user can still pick low-contrast colours.
+- Print uses the browser print dialog — not a downloadable PDF file.
 
 ---
 

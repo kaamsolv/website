@@ -1,8 +1,16 @@
 'use client';
 
 import { Icon } from '@/app/_components/icons';
-import type { QrKind, QrPayload, WifiSecurity } from '@/app/lib/qr/types';
-import { isWifiSecurity } from '@/app/lib/qr/validate';
+import type { QrKind, QrPayload, SocialPlatform, WifiSecurity } from '@/app/lib/qr/types';
+import { isSocialPlatform, isWifiSecurity, parseGoogleMapsUrl } from '@/app/lib/qr/validate';
+
+const SOCIAL_PLACEHOLDERS: Record<SocialPlatform, string> = {
+  instagram: 'https://instagram.com/yourname',
+  facebook: 'https://facebook.com/yourpage',
+  linkedin: 'https://linkedin.com/in/yourname',
+  twitter: 'https://x.com/yourname',
+  youtube: 'https://youtube.com/@yourchannel',
+};
 
 const INPUT =
   'h-12 w-full rounded-lg border border-hair bg-fieldbg px-4 text-sm text-ink placeholder:text-faint focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60';
@@ -43,6 +51,8 @@ export function QrTypeFields({ kind, payload, onChange, fieldErrors, touched }: 
           type="url"
           inputMode="url"
           autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
           spellCheck={false}
           placeholder="https://example.com"
           value={payload.url}
@@ -215,6 +225,42 @@ export function QrTypeFields({ kind, payload, onChange, fieldErrors, touched }: 
     );
   }
 
+  if (kind === 'sms' && payload.kind === 'sms') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="qr-sms-phone" className={LABEL}>Phone number</label>
+          <input
+            id="qr-sms-phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="+91 98765 43210"
+            value={payload.phone}
+            onChange={(e) => onChange({ ...payload, phone: e.target.value })}
+            aria-invalid={showError('phone') ? true : undefined}
+            aria-describedby={showError('phone') ? 'qr-sms-phone-error' : 'qr-sms-help'}
+            className={`mt-1.5 ${INPUT} ${showError('phone') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-sms-phone-error" message={showError('phone')} />
+        </div>
+        <div>
+          <label htmlFor="qr-sms-message" className={LABEL}>Pre-filled message (optional)</label>
+          <textarea
+            id="qr-sms-message"
+            value={payload.message}
+            onChange={(e) => onChange({ ...payload, message: e.target.value })}
+            className={`mt-1.5 ${TEXTAREA}`}
+            rows={2}
+          />
+        </div>
+        {!showError('phone') && (
+          <p id="qr-sms-help" className="text-xs text-muted">Opens the SMS app with this number. Include country code if you can.</p>
+        )}
+      </div>
+    );
+  }
+
   if (kind === 'whatsapp' && payload.kind === 'whatsapp') {
     return (
       <div className="space-y-4">
@@ -333,6 +379,316 @@ export function QrTypeFields({ kind, payload, onChange, fieldErrors, touched }: 
           />
           <FieldError id="qr-vcard-address-error" message={showError('address')} />
         </div>
+      </div>
+    );
+  }
+
+  if (kind === 'location' && payload.kind === 'location') {
+    const mapsCoords = parseGoogleMapsUrl(payload.mapsUrl);
+    return (
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="qr-loc-name" className={LABEL}>Location name (optional)</label>
+          <input
+            id="qr-loc-name"
+            type="text"
+            placeholder="India Gate"
+            value={payload.name}
+            onChange={(e) => onChange({ ...payload, name: e.target.value })}
+            className={`mt-1.5 ${INPUT}`}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="qr-lat" className={LABEL}>Latitude</label>
+            <input
+              id="qr-lat"
+              type="text"
+              inputMode="decimal"
+              placeholder="28.6139"
+              value={payload.latitude}
+              onChange={(e) => onChange({ ...payload, latitude: e.target.value })}
+              aria-invalid={showError('latitude') ? true : undefined}
+              aria-describedby={showError('latitude') ? 'qr-lat-error' : undefined}
+              className={`mt-1.5 ${INPUT} ${showError('latitude') ? 'border-danger-400 bg-danger-50' : ''}`}
+            />
+            <FieldError id="qr-lat-error" message={showError('latitude')} />
+          </div>
+          <div>
+            <label htmlFor="qr-lng" className={LABEL}>Longitude</label>
+            <input
+              id="qr-lng"
+              type="text"
+              inputMode="decimal"
+              placeholder="77.2090"
+              value={payload.longitude}
+              onChange={(e) => onChange({ ...payload, longitude: e.target.value })}
+              aria-invalid={showError('longitude') ? true : undefined}
+              aria-describedby={showError('longitude') ? 'qr-lng-error' : undefined}
+              className={`mt-1.5 ${INPUT} ${showError('longitude') ? 'border-danger-400 bg-danger-50' : ''}`}
+            />
+            <FieldError id="qr-lng-error" message={showError('longitude')} />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="qr-maps-url" className={LABEL}>Google Maps link (optional)</label>
+          <input
+            id="qr-maps-url"
+            type="url"
+            inputMode="url"
+            placeholder="Paste a Maps link to fill coordinates"
+            value={payload.mapsUrl}
+            onChange={(e) => onChange({ ...payload, mapsUrl: e.target.value })}
+            className={`mt-1.5 ${INPUT}`}
+          />
+          {mapsCoords && (
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  ...payload,
+                  latitude: String(mapsCoords.lat),
+                  longitude: String(mapsCoords.lng),
+                })
+              }
+              className="mt-2 text-sm font-semibold text-coralx-600 hover:text-coralx-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+            >
+              Use coordinates from link
+            </button>
+          )}
+          <p className="mt-1.5 text-xs text-muted">
+            Coordinates are encoded in the QR. The Maps link is only to help you fill the fields.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === 'event' && payload.kind === 'event') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="qr-event-title" className={LABEL}>Event title</label>
+          <input
+            id="qr-event-title"
+            type="text"
+            value={payload.title}
+            onChange={(e) => onChange({ ...payload, title: e.target.value })}
+            aria-invalid={showError('title') ? true : undefined}
+            aria-describedby={showError('title') ? 'qr-event-title-error' : undefined}
+            className={`mt-1.5 ${INPUT} ${showError('title') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-event-title-error" message={showError('title')} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="qr-event-start" className={LABEL}>Starts</label>
+            <input
+              id="qr-event-start"
+              type="datetime-local"
+              value={payload.start}
+              onChange={(e) => onChange({ ...payload, start: e.target.value })}
+              aria-invalid={showError('start') ? true : undefined}
+              aria-describedby={showError('start') ? 'qr-event-start-error' : undefined}
+              className={`mt-1.5 ${INPUT} ${showError('start') ? 'border-danger-400 bg-danger-50' : ''}`}
+            />
+            <FieldError id="qr-event-start-error" message={showError('start')} />
+          </div>
+          <div>
+            <label htmlFor="qr-event-end" className={LABEL}>Ends</label>
+            <input
+              id="qr-event-end"
+              type="datetime-local"
+              value={payload.end}
+              onChange={(e) => onChange({ ...payload, end: e.target.value })}
+              aria-invalid={showError('end') ? true : undefined}
+              aria-describedby={showError('end') ? 'qr-event-end-error' : undefined}
+              className={`mt-1.5 ${INPUT} ${showError('end') ? 'border-danger-400 bg-danger-50' : ''}`}
+            />
+            <FieldError id="qr-event-end-error" message={showError('end')} />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="qr-event-location" className={LABEL}>Location (optional)</label>
+          <input
+            id="qr-event-location"
+            type="text"
+            value={payload.location}
+            onChange={(e) => onChange({ ...payload, location: e.target.value })}
+            aria-invalid={showError('location') ? true : undefined}
+            aria-describedby={showError('location') ? 'qr-event-location-error' : undefined}
+            className={`mt-1.5 ${INPUT} ${showError('location') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-event-location-error" message={showError('location')} />
+        </div>
+        <div>
+          <label htmlFor="qr-event-desc" className={LABEL}>Description (optional)</label>
+          <textarea
+            id="qr-event-desc"
+            value={payload.description}
+            onChange={(e) => onChange({ ...payload, description: e.target.value })}
+            aria-invalid={showError('description') ? true : undefined}
+            aria-describedby={showError('description') ? 'qr-event-desc-error' : undefined}
+            className={`mt-1.5 ${TEXTAREA} ${showError('description') ? 'border-danger-400 bg-danger-50' : ''}`}
+            rows={3}
+          />
+          <FieldError id="qr-event-desc-error" message={showError('description')} />
+        </div>
+        <p className="text-xs text-muted">Times use your local timezone as entered — we don&apos;t shift them.</p>
+      </div>
+    );
+  }
+
+  if (kind === 'social' && payload.kind === 'social') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="qr-social-platform" className={LABEL}>Platform</label>
+          <select
+            id="qr-social-platform"
+            value={payload.platform}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange({ ...payload, platform: isSocialPlatform(v) ? v : 'instagram' });
+            }}
+            className={`mt-1.5 ${SELECT}`}
+          >
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="twitter">X / Twitter</option>
+            <option value="youtube">YouTube</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="qr-social-url" className={LABEL}>Profile or page URL</label>
+          <input
+            id="qr-social-url"
+            type="url"
+            inputMode="url"
+            placeholder={SOCIAL_PLACEHOLDERS[payload.platform]}
+            value={payload.url}
+            onChange={(e) => onChange({ ...payload, url: e.target.value })}
+            aria-invalid={showError('url') ? true : undefined}
+            aria-describedby={showError('url') ? 'qr-social-url-error' : 'qr-social-help'}
+            className={`mt-1.5 ${INPUT} ${showError('url') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-social-url-error" message={showError('url')} />
+          {!showError('url') && (
+            <p id="qr-social-help" className="mt-1.5 text-xs text-muted">
+              The QR encodes your URL directly — we don&apos;t check if the profile exists.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === 'file' && payload.kind === 'file') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="qr-file-url" className={LABEL}>File URL</label>
+          <input
+            id="qr-file-url"
+            type="url"
+            inputMode="url"
+            placeholder="https://example.com/document.pdf"
+            value={payload.url}
+            onChange={(e) => onChange({ ...payload, url: e.target.value })}
+            aria-invalid={showError('url') ? true : undefined}
+            aria-describedby={showError('url') ? 'qr-file-url-error' : 'qr-file-help'}
+            className={`mt-1.5 ${INPUT} ${showError('url') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-file-url-error" message={showError('url')} />
+        </div>
+        <div>
+          <label htmlFor="qr-file-label" className={LABEL}>Label (optional)</label>
+          <input
+            id="qr-file-label"
+            type="text"
+            placeholder="Annual report 2025"
+            value={payload.label}
+            onChange={(e) => onChange({ ...payload, label: e.target.value })}
+            className={`mt-1.5 ${INPUT}`}
+          />
+          <p id="qr-file-help" className="mt-1.5 text-xs text-muted">
+            Paste a public link to a PDF or other file. We don&apos;t upload or host it — the QR opens that URL.
+            {payload.label.trim() ? ' The label is for your reference only.' : ''}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === 'upi' && payload.kind === 'upi') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="qr-upi-id" className={LABEL}>UPI ID</label>
+          <input
+            id="qr-upi-id"
+            type="text"
+            inputMode="email"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="yourname@upi"
+            value={payload.upiId}
+            onChange={(e) => onChange({ ...payload, upiId: e.target.value })}
+            aria-invalid={showError('upiId') ? true : undefined}
+            aria-describedby={showError('upiId') ? 'qr-upi-id-error' : 'qr-upi-help'}
+            className={`mt-1.5 ${INPUT} ${showError('upiId') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-upi-id-error" message={showError('upiId')} />
+        </div>
+        <div>
+          <label htmlFor="qr-upi-name" className={LABEL}>Payee name (optional)</label>
+          <input
+            id="qr-upi-name"
+            type="text"
+            autoComplete="off"
+            placeholder="Shop name"
+            value={payload.payeeName}
+            onChange={(e) => onChange({ ...payload, payeeName: e.target.value })}
+            aria-invalid={showError('payeeName') ? true : undefined}
+            aria-describedby={showError('payeeName') ? 'qr-upi-name-error' : undefined}
+            className={`mt-1.5 ${INPUT} ${showError('payeeName') ? 'border-danger-400 bg-danger-50' : ''}`}
+          />
+          <FieldError id="qr-upi-name-error" message={showError('payeeName')} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="qr-upi-amount" className={LABEL}>Amount in ₹ (optional)</label>
+            <input
+              id="qr-upi-amount"
+              type="text"
+              inputMode="decimal"
+              placeholder="500"
+              value={payload.amount}
+              onChange={(e) => onChange({ ...payload, amount: e.target.value })}
+              aria-invalid={showError('amount') ? true : undefined}
+              aria-describedby={showError('amount') ? 'qr-upi-amount-error' : undefined}
+              className={`mt-1.5 ${INPUT} ${showError('amount') ? 'border-danger-400 bg-danger-50' : ''}`}
+            />
+            <FieldError id="qr-upi-amount-error" message={showError('amount')} />
+          </div>
+          <div>
+            <label htmlFor="qr-upi-note" className={LABEL}>Payment note (optional)</label>
+            <input
+              id="qr-upi-note"
+              type="text"
+              value={payload.note}
+              onChange={(e) => onChange({ ...payload, note: e.target.value })}
+              aria-invalid={showError('note') ? true : undefined}
+              aria-describedby={showError('note') ? 'qr-upi-note-error' : undefined}
+              className={`mt-1.5 ${INPUT} ${showError('note') ? 'border-danger-400 bg-danger-50' : ''}`}
+            />
+            <FieldError id="qr-upi-note-error" message={showError('note')} />
+          </div>
+        </div>
+        <p id="qr-upi-help" className="text-xs text-muted">
+          Generates a payment QR — not a receipt. KaamKit doesn&apos;t process or verify payments.
+        </p>
       </div>
     );
   }

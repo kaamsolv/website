@@ -13,7 +13,7 @@ const PATH = '/qr-code-generator';
 export const metadata: Metadata = {
   title: 'Make a QR code',
   description:
-    'Create a QR code for a link, Wi-Fi, contact card, email, phone, WhatsApp, or plain text. Customise colours, download PNG or SVG — free, in your browser.',
+    'Create a QR code for links, Wi-Fi, UPI payments, contacts, SMS, locations, events, social profiles, files, and more. Customise colours, download PNG or SVG — free, in your browser.',
   alternates: { canonical: PATH },
   openGraph: {
     type: 'website',
@@ -57,6 +57,14 @@ const TIPS = [
     t: 'Logos need headroom',
     d: 'A logo covers part of the code. KaamKit switches to High error correction automatically so scanners still have enough data to read.',
   },
+  {
+    t: 'Style it, then test it',
+    d: 'Presets and frames are for looks — the QR still encodes exactly what you entered. Scan the preview before you print, especially with dots or a transparent background.',
+  },
+  {
+    t: 'UPI codes are not receipts',
+    d: 'A UPI QR opens your payment app with the details filled in. KaamKit doesn’t process payments or confirm that money was sent.',
+  },
 ];
 
 const FAQ = [
@@ -70,7 +78,11 @@ const FAQ = [
   },
   {
     q: 'Does my data leave my device?',
-    a: 'The QR is built in your browser. Your text, Wi-Fi password, and contact details are not sent to KaamKit or any third-party QR service.',
+    a: 'The QR is built in your browser. Your text, Wi-Fi password, UPI ID, and contact details are not sent to KaamKit or any third-party QR service.',
+  },
+  {
+    q: 'Can I link to a PDF?',
+    a: 'Yes — use the PDF type and paste a public file URL. We don’t upload or host the file; the QR simply opens that link.',
   },
   {
     q: 'What’s error correction?',
@@ -120,7 +132,7 @@ export default function QrCodeGeneratorPage() {
       <SiteHeader />
 
       <main id="main">
-        <section aria-labelledby="tool-title" className="border-b border-hair">
+        <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
           <div className="kk-container py-10 sm:py-14">
             <Breadcrumb
               items={[
@@ -145,6 +157,11 @@ export default function QrCodeGeneratorPage() {
               </p>
             </div>
 
+            <noscript>
+              <p className="mt-4 rounded-lg border border-danger-400 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700">
+                JavaScript is required to generate QR codes. Please enable JavaScript in your browser.
+              </p>
+            </noscript>
             <div className="mt-8">
               <QrGenerator />
             </div>

@@ -1,8 +1,10 @@
 import {
   MAX_TEXT_LENGTH,
   MAX_URL_LENGTH,
+  SOCIAL_PLATFORMS,
   type QrKind,
   type QrPayload,
+  type SocialPlatform,
   type WifiSecurity,
 } from './types';
 
@@ -31,10 +33,22 @@ export function emptyPayload(kind: QrKind): QrPayload {
       return { kind: 'email', email: '', subject: '', body: '' };
     case 'phone':
       return { kind: 'phone', phone: '' };
+    case 'sms':
+      return { kind: 'sms', phone: '', message: '' };
     case 'whatsapp':
       return { kind: 'whatsapp', phone: '', message: '' };
     case 'vcard':
       return { kind: 'vcard', name: '', phone: '', email: '', org: '', url: '', address: '' };
+    case 'location':
+      return { kind: 'location', latitude: '', longitude: '', name: '', mapsUrl: '' };
+    case 'event':
+      return { kind: 'event', title: '', start: '', end: '', location: '', description: '' };
+    case 'social':
+      return { kind: 'social', platform: 'instagram', url: '' };
+    case 'file':
+      return { kind: 'file', url: '', label: '' };
+    case 'upi':
+      return { kind: 'upi', upiId: '', payeeName: '', amount: '', note: '' };
   }
 }
 
@@ -118,6 +132,111 @@ export function telDigits(raw: string): { ok: true; tel: string } | { ok: false;
 
 export function isWifiSecurity(value: string): value is WifiSecurity {
   return value === 'WPA' || value === 'WEP' || value === 'nopass';
+}
+
+export function isSocialPlatform(value: string): value is SocialPlatform {
+  return (SOCIAL_PLATFORMS as readonly string[]).includes(value);
+}
+
+export function parseCoordinate(raw: string): number | null {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function validateLatitude(lat: number): boolean {
+  return lat >= -90 && lat <= 90;
+}
+
+export function validateLongitude(lng: number): boolean {
+  return lng >= -180 && lng <= 180;
+}
+
+/** Extract lat/lng from common Google Maps URL patterns — client-side only. */
+export function parseGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
+  const trimmed = (url ?? '').trim();
+  if (!trimmed) return null;
+
+  const atMatch = trimmed.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (validateLatitude(lat) && validateLongitude(lng)) return { lat, lng };
+  }
+
+  const qMatch = trimmed.match(/[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (validateLatitude(lat) && validateLongitude(lng)) return { lat, lng };
+  }
+
+  const llMatch = trimmed.match(/[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (llMatch) {
+    const lat = parseFloat(llMatch[1]);
+    const lng = parseFloat(llMatch[2]);
+    if (validateLatitude(lat) && validateLongitude(lng)) return { lat, lng };
+  }
+
+  return null;
+}
+
+/** `datetime-local` value → iCal floating local datetime `YYYYMMDDTHHMMSS`. */
+export function toIcalLocal(datetimeLocal: string): string | null {
+  const m = (datetimeLocal ?? '').trim().match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  return `${m[1]}${m[2]}${m[3]}T${m[4]}${m[5]}00`;
+}
+
+export function compareLocalDateTime(a: string, b: string): number {
+  const pa = toIcalLocal(a);
+  const pb = toIcalLocal(b);
+  if (!pa || !pb) return 0;
+  return pa.localeCompare(pb);
+}
+
+export function escapeIcalText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+}
+
+const UPI_ID = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9._-]{2,64}$/;
+
+export function validateUpiId(raw: string): { ok: true; id: string } | { ok: false; message: string } {
+  const id = (raw ?? '').trim().toLowerCase();
+  if (!id) return { ok: false, message: 'Add a UPI ID (VPA).' };
+  if (!UPI_ID.test(id)) return { ok: false, message: "That doesn't look like a UPI ID. Use format name@bank." };
+  return { ok: true, id };
+}
+
+export function validateUpiPayeeName(raw: string): { ok: true; name: string } | { ok: false; message: string } {
+  const name = (raw ?? '').trim();
+  if (!name) return { ok: false, message: 'Add a payee name.' };
+  if (name.length > 100) return { ok: false, message: 'That payee name is too long.' };
+  if (hasControlChars(name)) return { ok: false, message: 'Remove unusual characters from the payee name.' };
+  return { ok: true, name };
+}
+
+export function formatUpiAmount(raw: string): { ok: true; amount: string } | { ok: false; message: string } {
+  const cleaned = (raw ?? '').trim().replace(/,/g, '');
+  if (!cleaned) return { ok: false, message: 'Add an amount.' };
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) {
+    return { ok: false, message: 'Amount must be a positive number with up to two decimal places.' };
+  }
+  const num = Number(cleaned);
+  if (!Number.isFinite(num) || num <= 0) return { ok: false, message: 'Amount must be greater than zero.' };
+  if (num > 100000) return { ok: false, message: 'That amount is too large.' };
+  const [whole, frac = ''] = cleaned.split('.');
+  const padded = frac.length === 0 ? `${whole}.00` : frac.length === 1 ? `${whole}.${frac}0` : `${whole}.${frac}`;
+  return { ok: true, amount: padded };
+}
+
+export function validateUpiNote(raw: string): { ok: true; note: string } | { ok: false; message: string } {
+  const note = (raw ?? '').trim();
+  if (!note) return { ok: false, message: 'Add a note.' };
+  if (note.length > 80) return { ok: false, message: 'Keep the payment note under 80 characters.' };
+  if (hasControlChars(note)) return { ok: false, message: 'Remove unusual characters from the note.' };
+  return { ok: true, note };
 }
 
 export function isHexColor(value: string): boolean {

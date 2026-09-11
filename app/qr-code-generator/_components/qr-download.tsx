@@ -3,43 +3,43 @@
 import { useState } from 'react';
 import { Icon } from '@/app/_components/icons';
 import { CopyButton } from '@/app/_components/copy-button';
-import type { QrStyle } from '@/app/lib/qr/types';
-import type { LogoSource } from '@/app/lib/qr/render';
+import type { QrDesign, QrExportOptions } from '@/app/lib/qr/design';
 import {
-  canvasToPngBlob,
+  DOWNLOAD_JPG,
+  DOWNLOAD_PNG,
+  DOWNLOAD_SVG,
   downloadBlob,
-  renderQrPngDataUrl,
-  renderQrSvg,
-  renderQrToCanvas,
+  exportJpgBlob,
+  exportPngBlob,
+  exportSvgString,
+  openPrintView,
+  canvasToPngBlob,
+  renderArtboardPngCanvas,
 } from '@/app/lib/qr/render';
-import { DOWNLOAD_PNG, DOWNLOAD_SVG } from '@/app/lib/qr/style';
 
 type Props = {
   encodedText: string | null;
-  style: QrStyle;
-  hasLogo: boolean;
-  logo: LogoSource | null;
+  design: QrDesign;
+  exportOptions: QrExportOptions;
   disabled: boolean;
 };
 
 const BTN =
   'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:cursor-not-allowed disabled:opacity-50';
 
-export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Props) {
-  const [busy, setBusy] = useState<'png' | 'svg' | 'share' | null>(null);
-  const [shareNote, setShareNote] = useState<string | null>(null);
+export function QrDownload({ encodedText, design, exportOptions, disabled }: Props) {
+  const [busy, setBusy] = useState<'png' | 'svg' | 'jpg' | 'share' | 'print' | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   async function downloadPng() {
     if (!encodedText || disabled) return;
     setBusy('png');
-    setShareNote(null);
+    setNote(null);
     try {
-      const dataUrl = await renderQrPngDataUrl(encodedText, style, hasLogo, logo ?? undefined);
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
+      const blob = await exportPngBlob(encodedText, design, exportOptions);
       downloadBlob(DOWNLOAD_PNG, blob);
     } catch {
-      setShareNote("Couldn't save the PNG. Try again.");
+      setNote("Couldn't save the PNG. Try again.");
     } finally {
       setBusy(null);
     }
@@ -48,13 +48,41 @@ export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Prop
   async function downloadSvg() {
     if (!encodedText || disabled) return;
     setBusy('svg');
-    setShareNote(null);
+    setNote(null);
     try {
-      const svg = await renderQrSvg(encodedText, style, hasLogo);
+      const svg = exportSvgString(encodedText, design, exportOptions);
       const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
       downloadBlob(DOWNLOAD_SVG, blob);
     } catch {
-      setShareNote("Couldn't save the SVG. Try again.");
+      setNote("Couldn't save the SVG. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadJpg() {
+    if (!encodedText || disabled) return;
+    setBusy('jpg');
+    setNote(null);
+    try {
+      const blob = await exportJpgBlob(encodedText, design, exportOptions);
+      downloadBlob(DOWNLOAD_JPG, blob);
+    } catch {
+      setNote("Couldn't save the JPG. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function printQr() {
+    if (!encodedText || disabled) return;
+    setBusy('print');
+    setNote(null);
+    try {
+      const svg = exportSvgString(encodedText, design, exportOptions);
+      openPrintView(svg);
+    } catch {
+      setNote("Couldn't open the print view. Try downloading instead.");
     } finally {
       setBusy(null);
     }
@@ -63,19 +91,18 @@ export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Prop
   async function sharePng() {
     if (!encodedText || disabled || typeof navigator.share !== 'function') return;
     setBusy('share');
-    setShareNote(null);
+    setNote(null);
     try {
-      const canvas = document.createElement('canvas');
-      await renderQrToCanvas(canvas, encodedText, style, hasLogo, logo ?? undefined);
+      const canvas = await renderArtboardPngCanvas(encodedText, design, exportOptions);
       const blob = await canvasToPngBlob(canvas);
       const file = new File([blob], DOWNLOAD_PNG, { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: 'QR code from KaamKit' });
       } else {
-        setShareNote('Sharing isn’t available here — download the PNG instead.');
+        setNote('Sharing isn’t available here — download the PNG instead.');
       }
     } catch {
-      setShareNote('Sharing was cancelled or isn’t supported on this device.');
+      setNote('Sharing was cancelled or isn’t supported on this device.');
     } finally {
       setBusy(null);
     }
@@ -89,7 +116,7 @@ export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Prop
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <button
           type="button"
           disabled={disabled || busy !== null}
@@ -97,7 +124,7 @@ export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Prop
           className={`${BTN} bg-coral-500 text-navy-900 hover:bg-coral-600 hover:text-white`}
         >
           <Icon name="download" className="h-4 w-4" />
-          {busy === 'png' ? 'Saving…' : 'Download PNG'}
+          {busy === 'png' ? 'Saving…' : 'PNG'}
         </button>
         <button
           type="button"
@@ -106,7 +133,24 @@ export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Prop
           className={`${BTN} border border-hair bg-surface text-strong hover:bg-wash`}
         >
           <Icon name="download" className="h-4 w-4" />
-          {busy === 'svg' ? 'Saving…' : 'Download SVG'}
+          {busy === 'svg' ? 'Saving…' : 'SVG'}
+        </button>
+        <button
+          type="button"
+          disabled={disabled || busy !== null}
+          onClick={downloadJpg}
+          className={`${BTN} border border-hair bg-surface text-strong hover:bg-wash`}
+        >
+          <Icon name="download" className="h-4 w-4" />
+          {busy === 'jpg' ? 'Saving…' : 'JPG'}
+        </button>
+        <button
+          type="button"
+          disabled={disabled || busy !== null}
+          onClick={printQr}
+          className={`${BTN} border border-hair bg-surface text-strong hover:bg-wash`}
+        >
+          {busy === 'print' ? 'Opening…' : 'Print'}
         </button>
       </div>
 
@@ -127,11 +171,11 @@ export function QrDownload({ encodedText, style, hasLogo, logo, disabled }: Prop
         )}
       </div>
 
-      {hasLogo && (
-        <p className="text-xs text-muted">Logo is included in the PNG preview and download. SVG is the QR only.</p>
-      )}
-      {shareNote && (
-        <p role="status" className="text-xs text-muted">{shareNote}</p>
+      <p className="text-xs text-muted">
+        Downloads at {exportOptions.pixelSize}px QR size. Logo, frame, and CTA are included in every format.
+      </p>
+      {note && (
+        <p role="status" className="text-xs text-muted">{note}</p>
       )}
     </div>
   );

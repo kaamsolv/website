@@ -1,10 +1,12 @@
-import type { QrEcLevel, QrKind, QrSize, QrStyle } from './types';
-import { contrastWarning, isHexColor } from './validate';
+import type { QrEcLevel, QrKind } from './types';
+import { EXPORT_SIZES, type ExportSize } from './design';
 
-export const SIZE_OPTIONS: { value: QrSize; label: string }[] = [
-  { value: 256, label: 'Small · 256px' },
-  { value: 512, label: 'Medium · 512px' },
-  { value: 1024, label: 'Large · 1024px' },
+export const SIZE_OPTIONS: { value: ExportSize; label: string }[] = [
+  { value: 256, label: '256px · Screen' },
+  { value: 512, label: '512px · Default' },
+  { value: 1024, label: '1024px · Print' },
+  { value: 2048, label: '2048px · High-res' },
+  { value: 4096, label: '4096px · Poster' },
 ];
 
 export const EC_OPTIONS: { value: QrEcLevel; label: string; hint: string }[] = [
@@ -20,23 +22,14 @@ export const KIND_OPTIONS: { kind: QrKind; label: string }[] = [
   { kind: 'wifi', label: 'Wi-Fi' },
   { kind: 'email', label: 'Email' },
   { kind: 'phone', label: 'Phone' },
+  { kind: 'sms', label: 'SMS' },
   { kind: 'whatsapp', label: 'WhatsApp' },
   { kind: 'vcard', label: 'Contact' },
+  { kind: 'location', label: 'Location' },
+  { kind: 'event', label: 'Event' },
+  { kind: 'social', label: 'Social' },
+  { kind: 'file', label: 'PDF' },
+  { kind: 'upi', label: 'UPI' },
 ];
 
-export const DOWNLOAD_PNG = 'kaamkit-qr-code.png';
-export const DOWNLOAD_SVG = 'kaamkit-qr-code.svg';
-
-/** Logo needs High correction so scanners can still read the covered modules. */
-export function effectiveErrorCorrection(requested: QrEcLevel, hasLogo: boolean): QrEcLevel {
-  return hasLogo ? 'H' : requested;
-}
-
-export function styleWarning(style: QrStyle): string | null {
-  if (!isHexColor(style.fg)) return 'Pick a valid foreground colour.';
-  if (!style.transparent && !isHexColor(style.bg)) return 'Pick a valid background colour.';
-  return contrastWarning(style.fg, style.transparent ? '#FFFFFF' : style.bg, style.transparent);
-}
-
-export const QR_MARGIN_MODULES = 4;
-export const LOGO_FRACTION = 0.18;
+export { EXPORT_SIZES };

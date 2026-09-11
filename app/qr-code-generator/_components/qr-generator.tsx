@@ -2,31 +2,45 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { encodePayload, isPayloadEmpty } from '@/app/lib/qr/encode';
-import { KIND_OPTIONS } from '@/app/lib/qr/style';
-import { styleWarning as computeStyleWarning } from '@/app/lib/qr/style';
 import {
-  DEFAULT_QR_STYLE,
-  LOGO_TYPES,
-  MAX_LOGO_BYTES,
-  type QrKind,
-  type QrPayload,
-  type QrStyle,
-} from '@/app/lib/qr/types';
+  DEFAULT_EXPORT_OPTIONS,
+  DEFAULT_QR_DESIGN,
+  type LogoSize,
+  type QrDesign,
+  type QrExportOptions,
+  clampExportSize,
+} from '@/app/lib/qr/design';
+import { createMatrixForDesign } from '@/app/lib/qr/matrix';
+import { primaryBlockMessage, scanabilityReport } from '@/app/lib/qr/scanability';
+import { KIND_OPTIONS } from '@/app/lib/qr/style';
+import { LOGO_TYPES, MAX_LOGO_BYTES, type QrKind, type QrPayload } from '@/app/lib/qr/types';
 import { emptyPayload } from '@/app/lib/qr/validate';
 import { QrTypeFields } from './qr-type-fields';
 import { QrPreview } from './qr-preview';
-import { QrCustomise } from './qr-customise';
+import { QrStudio } from './qr-studio';
 import { QrDownload } from './qr-download';
+
+const CHIP_SCROLL =
+  'flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
+const CHIP_BTN = 'touch-manipulation select-none';
 
 export function QrGenerator() {
   const [kind, setKind] = useState<QrKind>('url');
   const [payload, setPayload] = useState<QrPayload>(() => emptyPayload('url'));
-  const [style, setStyle] = useState<QrStyle>(DEFAULT_QR_STYLE);
+  const [design, setDesign] = useState<QrDesign>(DEFAULT_QR_DESIGN);
+  const [exportOptions, setExportOptions] = useState<QrExportOptions>(DEFAULT_EXPORT_OPTIONS);
   const [touched, setTouched] = useState(false);
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [logoName, setLogoName] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(1024);
+
+  useEffect(() => {
+    const update = () => setViewportWidth(window.innerWidth);
+    update();
+    window.addEventListener('resize', update, { passive: true });
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const encoded = useMemo(() => encodePayload(payload), [payload]);
   const empty = isPayloadEmpty(payload);
@@ -35,22 +49,40 @@ export function QrGenerator() {
     return {};
   }, [encoded]);
 
-  const styleWarn = useMemo(() => computeStyleWarning(style), [style]);
-  const hasLogo = !!logoDataUrl;
-  const valid = encoded.ok && !styleWarn && !logoError;
-  const encodedText = valid && encoded.ok ? encoded.text : null;
+  const effectiveExportSize = useMemo(
+    () => clampExportSize(exportOptions.pixelSize, viewportWidth),
+    [exportOptions.pixelSize, viewportWidth],
+  );
+
+  const matrix = useMemo(() => {
+    if (!encoded.ok || empty) return null;
+    return createMatrixForDesign(encoded.text, design);
+  }, [encoded, empty, design]);
+
+  const scanReport = useMemo(() => {
+    if (!matrix) {
+      return { canRender: false, canExport: false, issues: [] };
+    }
+    return scanabilityReport(matrix, design, effectiveExportSize);
+  }, [matrix, design, effectiveExportSize]);
+
+  const validPayload = encoded.ok && !logoError;
+  const canRender = validPayload && scanReport.canRender;
+  const canExport = validPayload && scanReport.canExport;
+  const encodedText = canRender && encoded.ok ? encoded.text : null;
 
   useEffect(() => {
     if (!encoded.ok && !empty) {
       setRenderError(null);
       return;
     }
-    if (styleWarn) {
-      setRenderError(styleWarn);
+    const block = primaryBlockMessage(scanReport);
+    if (block) {
+      setRenderError(block);
       return;
     }
     setRenderError(null);
-  }, [encoded, empty, styleWarn]);
+  }, [encoded, empty, scanReport]);
 
   function selectKind(next: QrKind) {
     setKind(next);
@@ -67,7 +99,7 @@ export function QrGenerator() {
   async function onLogoPick(file: File | null) {
     setLogoError(null);
     if (!file) {
-      setLogoDataUrl(null);
+      setDesign((d) => ({ ...d, logo: undefined }));
       setLogoName(null);
       return;
     }
@@ -81,7 +113,8 @@ export function QrGenerator() {
     }
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      setLogoDataUrl(dataUrl);
+      const size: LogoSize = design.logo?.size ?? 'm';
+      setDesign((d) => ({ ...d, logo: { dataUrl, size } }));
       setLogoName(file.name);
     } catch {
       setLogoError("Couldn't read that image. Try another file.");
@@ -89,10 +122,10 @@ export function QrGenerator() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,20rem)] lg:items-start">
-      <div className="rounded-xl2 border border-hair bg-surface p-5 shadow-soft sm:p-6">
+    <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[1fr_min(100%,20rem)] lg:items-start lg:gap-8">
+      <div className="min-w-0 rounded-xl2 border border-hair bg-surface p-5 shadow-soft sm:p-6 lg:col-start-1 lg:row-start-1">
         <p className="text-sm font-semibold text-ink">What should this QR do?</p>
-        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="QR type">
+        <div className={`mt-2 ${CHIP_SCROLL}`} role="group" aria-label="QR type">
           {KIND_OPTIONS.map((opt) => {
             const active = kind === opt.kind;
             return (
@@ -101,7 +134,7 @@ export function QrGenerator() {
                 type="button"
                 aria-pressed={active}
                 onClick={() => selectKind(opt.kind)}
-                className={`h-10 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
+                className={`${CHIP_BTN} h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
                   active
                     ? 'border-activebg bg-activebg text-activetext'
                     : 'border-hair text-strong hover:bg-wash'
@@ -113,7 +146,7 @@ export function QrGenerator() {
           })}
         </div>
 
-        <div className="mt-6">
+        <div className="mt-5 sm:mt-6">
           <QrTypeFields
             kind={kind}
             payload={payload}
@@ -122,33 +155,34 @@ export function QrGenerator() {
             touched={touched || !empty}
           />
         </div>
-
-        <QrCustomise
-          style={style}
-          onStyleChange={setStyle}
-          hasLogo={hasLogo}
-          logoName={logoName}
-          logoError={logoError}
-          onLogoPick={onLogoPick}
-          styleWarning={styleWarn}
-        />
       </div>
 
-      <div className="space-y-4 lg:sticky lg:top-24">
+      <div className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-24">
         <QrPreview
           encodedText={encodedText}
-          style={style}
-          hasLogo={hasLogo}
-          logo={logoDataUrl ? { dataUrl: logoDataUrl } : null}
+          design={design}
+          exportPixelSize={effectiveExportSize}
           empty={empty}
           renderError={renderError}
         />
         <QrDownload
           encodedText={encodedText}
-          style={style}
-          hasLogo={hasLogo}
-          logo={logoDataUrl ? { dataUrl: logoDataUrl } : null}
-          disabled={!valid}
+          design={design}
+          exportOptions={{ ...exportOptions, pixelSize: effectiveExportSize }}
+          disabled={!canExport}
+        />
+      </div>
+
+      <div className="min-w-0 rounded-xl2 border border-hair bg-surface p-5 shadow-soft sm:p-6 lg:col-start-1 lg:row-start-2">
+        <QrStudio
+          design={design}
+          exportOptions={exportOptions}
+          onDesignChange={setDesign}
+          onExportChange={setExportOptions}
+          logoName={logoName}
+          logoError={logoError}
+          onLogoPick={onLogoPick}
+          scanReport={scanReport}
         />
       </div>
     </div>
