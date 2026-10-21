@@ -3,24 +3,31 @@ import { Icon } from './_components/icons';
 import { SiteHeader } from './_components/site-header';
 import { SiteFooter } from './_components/site-footer';
 import { ToolSearch } from './_components/tool-search';
-import { CATEGORIES, POPULAR_TOOLS, type Accent } from './lib/catalogue';
+import { ACCENT } from './_components/accent';
+import { ToolCard } from './_components/tool-card';
+import {
+  CATEGORIES,
+  LIVE_TOOLS,
+  POPULAR_TOOLS,
+  TOOLS,
+  type Accent,
+} from './lib/catalogue';
 
-/* Literal class names (not interpolated) so Tailwind's build scanner keeps them. */
-const ACCENT: Record<Accent, { tint: string; fg: string; bar: string }> = {
-  coral: { tint: 'bg-coralx-100', fg: 'text-coralx-600', bar: 'bg-coral-500' },
-  yellow: { tint: 'bg-yellowx-100', fg: 'text-yellowx-600', bar: 'bg-yellow-500' },
-  teal: { tint: 'bg-tealx-100', fg: 'text-tealx-600', bar: 'bg-teal-500' },
-  purple: { tint: 'bg-purplex-100', fg: 'text-purplex-600', bar: 'bg-purple-500' },
-  navy: { tint: 'bg-chip', fg: 'text-strong', bar: 'bg-navy-500' },
-};
-
+/**
+ * Hero sticky notes. Status comes from the catalogue, so a "Soon" note turns
+ * into a working link on its own when that tool goes live.
+ */
 const HERO_CHIPS = [
-  { label: 'Calculate GST', accent: 'yellow' as Accent, rotate: '-rotate-2' },
-  { label: 'Convert a PDF', accent: 'purple' as Accent, rotate: 'rotate-1' },
-  { label: 'Split the bill', accent: 'teal' as Accent, rotate: '-rotate-1' },
-  { label: 'Make an invoice', accent: 'coral' as Accent, rotate: 'rotate-2' },
-  { label: 'Count the words', accent: 'navy' as Accent, rotate: '-rotate-1' },
-];
+  { label: 'Shorten a link', slug: 'url-shortener', accent: 'coral' as Accent, rotate: '-rotate-2' },
+  { label: 'Make a QR code', slug: 'qr-code-generator', accent: 'purple' as Accent, rotate: 'rotate-1' },
+  { label: 'Convert PNG to JPG', slug: 'png-to-jpg', accent: 'teal' as Accent, rotate: '-rotate-1' },
+  { label: 'iPhone photo to JPG', slug: 'heic-to-jpg', accent: 'yellow' as Accent, rotate: 'rotate-2' },
+  { label: 'Calculate GST', slug: 'gst-calculator', accent: 'yellow' as Accent, rotate: '-rotate-1' },
+  { label: 'Make an invoice', slug: 'invoice-generator', accent: 'coral' as Accent, rotate: 'rotate-1' },
+].map((chip) => ({ ...chip, tool: TOOLS.find((t) => t.slug === chip.slug)! }));
+
+/** Quick links under the search box — only tools that work today. */
+const QUICK_LINKS = [...new Set([...POPULAR_TOOLS.filter((t) => t.status === 'live'), ...LIVE_TOOLS])].slice(0, 4);
 
 const STEPS = [
   { n: '1', t: 'Find it', d: 'Search, or pick a category. The tool you need is a click away.' },
@@ -90,7 +97,7 @@ export default function HomePage() {
 
               <div className="kk-rise kk-rise-3 mt-4 flex max-w-xl flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <span className="text-muted">Popular:</span>
-                {POPULAR_TOOLS.slice(0, 4).map((tool) => (
+                {QUICK_LINKS.map((tool) => (
                   <a
                     key={tool.slug}
                     href={tool.url}
@@ -107,28 +114,40 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Decorative — original composition, echoes the KaamSolv sticky-note motif */}
-            <div className="kk-rise kk-rise-3 relative hidden md:block" aria-hidden="true">
-              <div className="ml-auto flex max-w-[17rem] flex-col items-start gap-2.5 lg:max-w-xs lg:gap-3">
-                {HERO_CHIPS.map((chip) => {
-                  const a = ACCENT[chip.accent];
+            {/* Sticky notes — tools you can use now, then a couple that are on the way. */}
+            <nav aria-label="Tools you can use now" className="kk-rise kk-rise-3 relative hidden md:block">
+              <ul className="ml-auto flex max-w-[17rem] flex-col items-start gap-2.5 lg:max-w-xs lg:gap-3">
+                {HERO_CHIPS.map(({ label, tool, accent, rotate }) => {
+                  const a = ACCENT[accent];
+                  const live = tool.status === 'live';
                   return (
-                    <div
-                      key={chip.label}
-                      className={`${chip.rotate} inline-flex items-center gap-2 rounded-full border border-hair bg-surface px-4 py-2 shadow-soft`}
-                    >
-                      <span className={`grid h-6 w-6 place-items-center rounded-full ${a.tint} ${a.fg}`}>
-                        <Icon name="arrow-right" className="h-3.5 w-3.5" />
-                      </span>
-                      <span className="text-sm font-semibold text-ink">{chip.label}</span>
-                    </div>
+                    <li key={tool.slug} className={rotate}>
+                      {live ? (
+                        <a
+                          href={tool.url}
+                          className="inline-flex items-center gap-2 rounded-full border border-hair bg-surface px-4 py-2 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                        >
+                          <span className={`grid h-6 w-6 place-items-center rounded-full ${a.tint} ${a.fg}`}>
+                            <Icon name="arrow-right" className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="text-sm font-semibold text-ink">{label}</span>
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-hair px-4 py-2">
+                          <span className="text-sm font-semibold text-muted">{label}</span>
+                          <span className="rounded-full bg-chip px-2 py-0.5 text-[11px] font-semibold text-muted">
+                            Soon
+                          </span>
+                        </span>
+                      )}
+                    </li>
                   );
                 })}
-                <p className="font-hand mt-2 self-end pr-4 text-2xl text-coral-600">
-                  Small problems. Less kaam.
-                </p>
-              </div>
-            </div>
+              </ul>
+              <p className="font-hand ml-auto mt-3 max-w-[17rem] pr-4 text-right text-2xl text-coral-600 lg:max-w-xs" aria-hidden="true">
+                Small problems. Less kaam.
+              </p>
+            </nav>
           </div>
         </section>
 
@@ -170,32 +189,11 @@ export default function HomePage() {
           </div>
 
           <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {POPULAR_TOOLS.map((tool) => {
-              const cat = CATEGORIES.find((c) => c.name === tool.category)!;
-              const a = ACCENT[cat.accent];
-              return (
-                <li key={tool.slug}>
-                  <a
-                    href={tool.url}
-                    className="group relative flex h-full flex-col overflow-hidden rounded-xl2 border border-hair bg-surface transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                  >
-                    <span className={`h-1 ${a.bar}`} aria-hidden="true" />
-                    <span className="flex flex-1 flex-col p-5">
-                      <span className={`mb-3 grid h-10 w-10 place-items-center rounded-xl ${a.tint} ${a.fg}`}>
-                        <Icon name={cat.icon} className="h-5 w-5" />
-                      </span>
-                      <span className="font-display text-base font-bold text-ink">{tool.name}</span>
-                      <span className="mt-1 text-sm text-muted">{tool.blurb}</span>
-                    </span>
-                    {tool.status === 'planned' && (
-                      <span className="absolute right-4 top-4 rounded-full bg-chip px-2 py-0.5 text-[11px] font-semibold text-muted">
-                        Soon
-                      </span>
-                    )}
-                  </a>
-                </li>
-              );
-            })}
+            {POPULAR_TOOLS.map((tool) => (
+              <li key={tool.slug}>
+                <ToolCard tool={tool} />
+              </li>
+            ))}
           </ul>
         </section>
 
@@ -218,7 +216,7 @@ export default function HomePage() {
               return (
                 <li key={cat.slug}>
                   <a
-                    href={`/categories/${cat.slug}`}
+                    href={`/tools#${cat.slug}`}
                     className="group flex h-full flex-col overflow-hidden rounded-xl2 border border-hair bg-surface transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                   >
                     <span className={`h-1 ${a.bar}`} aria-hidden="true" />

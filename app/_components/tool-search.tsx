@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from './icons';
-import { POPULAR_TOOLS, searchTools, type Tool } from '../lib/catalogue';
+import { liveFirst, POPULAR_TOOLS, searchTools, toolHref, type Tool } from '../lib/catalogue';
 
 type Variant = 'hero' | 'compact';
 
@@ -33,7 +33,7 @@ export function ToolSearch({
   const [active, setActive] = useState(-1);
 
   const trimmed = query.trim();
-  const matches = useMemo(() => (trimmed ? searchTools(trimmed) : []), [trimmed]);
+  const matches = useMemo(() => (trimmed ? liveFirst(searchTools(trimmed)) : []), [trimmed]);
   const showing: Tool[] = trimmed ? matches : POPULAR_TOOLS;
   const noResults = trimmed.length > 0 && matches.length === 0;
 
@@ -52,7 +52,7 @@ export function ToolSearch({
 
   function go(tool: Tool) {
     setOpen(false);
-    router.push(tool.url);
+    router.push(toolHref(tool));
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -176,7 +176,7 @@ export function ToolSearch({
                         <span className="block truncate text-xs text-muted">{tool.blurb}</span>
                       </span>
                       <span className="shrink-0 rounded-full bg-chip px-2 py-0.5 text-[11px] font-medium text-strong">
-                        {tool.category}
+                        {tool.status === 'live' ? tool.category : 'Soon'}
                       </span>
                     </button>
                   </li>

@@ -347,6 +347,12 @@ This catalogue is a planning baseline. Do not assume every tool is approved for 
 
 Do NOT create a giant directory full of empty categories or fake "coming soon" tools.
 
+Approved refinement (2026-10-21): planned tools from the catalogue MAY appear on
+`/tools`, the homepage and in search as clearly marked "Coming soon" entries,
+provided that live tools always come first, planned entries are visually
+secondary (grey, dashed, compact) and never link to a page that doesn't exist.
+Planned entries still need no page of their own. See `docs/DECISIONS.md`.
+
 The website should grow incrementally.
 
 Pattern:

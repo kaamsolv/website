@@ -4,7 +4,8 @@ import { Icon } from '@/app/_components/icons';
 import { SiteHeader } from '@/app/_components/site-header';
 import { SiteFooter } from '@/app/_components/site-footer';
 import { Breadcrumb } from '@/app/_components/breadcrumb';
-import { CATEGORIES, TOOLS, type Accent } from '@/app/lib/catalogue';
+import { liveFirst, TOOLS } from '@/app/lib/catalogue';
+import { ToolCard } from '@/app/_components/tool-card';
 import { ShortenForm } from './_components/shorten-form';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
@@ -27,15 +28,6 @@ export const metadata: Metadata = {
     title: 'Shorten a URL · KaamSolv',
     description: 'Turn a long URL into a short, shareable link. Free, no sign-up.',
   },
-};
-
-/* Literal class names so Tailwind's scanner keeps them. */
-const ACCENT: Record<Accent, { tint: string; fg: string; bar: string }> = {
-  coral: { tint: 'bg-coralx-100', fg: 'text-coralx-600', bar: 'bg-coral-500' },
-  yellow: { tint: 'bg-yellowx-100', fg: 'text-yellowx-600', bar: 'bg-yellow-500' },
-  teal: { tint: 'bg-tealx-100', fg: 'text-tealx-600', bar: 'bg-teal-500' },
-  purple: { tint: 'bg-purplex-100', fg: 'text-purplex-600', bar: 'bg-purple-500' },
-  navy: { tint: 'bg-chip', fg: 'text-strong', bar: 'bg-navy-500' },
 };
 
 const STEPS = [
@@ -81,10 +73,9 @@ const FAQ = [
   },
 ];
 
-const relatedTools = TOOLS.filter((t) => t.category === 'Work' && t.slug !== 'url-shortener').slice(
-  0,
-  3,
-);
+const relatedTools = liveFirst(
+  TOOLS.filter((t) => t.slug === 'qr-code-generator' || (t.category === 'Work' && t.slug !== 'url-shortener')),
+).slice(0, 3);
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -105,8 +96,7 @@ const jsonLd = {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
-        { '@type': 'ListItem', position: 2, name: 'Work', item: `${SITE_URL}/categories/work` },
-        { '@type': 'ListItem', position: 3, name: 'Shorten a URL', item: `${SITE_URL}${PATH}` },
+        { '@type': 'ListItem', position: 2, name: 'Shorten a URL', item: `${SITE_URL}${PATH}` },
       ],
     },
   ],
@@ -127,7 +117,6 @@ export default function UrlShortenerPage() {
             <Breadcrumb
               items={[
                 { label: 'Home', href: '/' },
-                { label: 'Work', href: '/categories/work' },
                 { label: 'Shorten a URL' },
               ]}
             />
@@ -223,42 +212,21 @@ export default function UrlShortenerPage() {
         <section aria-labelledby="related-title" className="kk-container py-12 sm:py-16">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 id="related-title" className="font-display text-2xl font-bold text-ink">
-              More Work tools
+              Related tools
             </h2>
             <a
-              href="/categories/work"
+              href="/tools"
               className="inline-flex items-center gap-1 rounded text-sm font-semibold text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
             >
-              All Work tools <Icon name="arrow-right" className="h-4 w-4" />
+              All tools <Icon name="arrow-right" className="h-4 w-4" />
             </a>
           </div>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {relatedTools.map((tool) => {
-              const cat = CATEGORIES.find((c) => c.name === tool.category)!;
-              const a = ACCENT[cat.accent];
-              return (
-                <li key={tool.slug}>
-                  <a
-                    href={tool.url}
-                    className="group relative flex h-full flex-col overflow-hidden rounded-xl2 border border-hair bg-surface transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                  >
-                    <span className={`h-1 ${a.bar}`} aria-hidden="true" />
-                    <span className="flex flex-1 flex-col p-5">
-                      <span className={`mb-3 grid h-10 w-10 place-items-center rounded-xl ${a.tint} ${a.fg}`}>
-                        <Icon name={cat.icon} className="h-5 w-5" />
-                      </span>
-                      <span className="font-display font-bold text-ink">{tool.name}</span>
-                      <span className="mt-1 text-sm text-muted">{tool.blurb}</span>
-                    </span>
-                    {tool.status === 'planned' && (
-                      <span className="absolute right-4 top-4 rounded-full bg-chip px-2 py-0.5 text-[11px] font-semibold text-muted">
-                        Soon
-                      </span>
-                    )}
-                  </a>
-                </li>
-              );
-            })}
+            {relatedTools.map((tool) => (
+              <li key={tool.slug}>
+                <ToolCard tool={tool} />
+              </li>
+            ))}
           </ul>
         </section>
       </main>

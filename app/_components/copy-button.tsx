@@ -13,11 +13,14 @@ export function CopyButton({
   label = 'Copy',
   copiedLabel = 'Copied',
   className = '',
+  iconOnlyOnMobile = false,
 }: {
   value: string;
   label?: string;
   copiedLabel?: string;
   className?: string;
+  /** Below `sm`, show only the icon (label stays for screen readers) — for tight rows. */
+  iconOnlyOnMobile?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,7 +55,7 @@ export function CopyButton({
       } ${className}`}
     >
       <Icon name={copied ? 'check' : 'copy'} className="h-4 w-4" />
-      {copied ? copiedLabel : label}
+      <span className={iconOnlyOnMobile ? 'max-sm:sr-only' : undefined}>{copied ? copiedLabel : label}</span>
     </button>
   );
 }

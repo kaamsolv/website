@@ -215,12 +215,32 @@ export const TOOLS: Tool[] = [
   { name: 'Meme Generator', slug: 'meme-generator', url: '/generators/meme-generator', category: 'Creators', blurb: 'Top and bottom text on any image, fast.', keywords: ['meme', 'caption', 'image text'], status: 'planned' },
 ];
 
-export const LIVE_TOOL_COUNT = TOOLS.filter((t) => t.status === 'live').length;
+/** Live tools first, then planned; each group keeps its incoming order. */
+export function liveFirst(tools: Tool[]): Tool[] {
+  return [...tools.filter((t) => t.status === 'live'), ...tools.filter((t) => t.status !== 'live')];
+}
 
-/** The featured rail, in the order it should render. */
-export const POPULAR_TOOLS: Tool[] = TOOLS.filter((t) => t.popularRank != null).sort(
-  (a, b) => (a.popularRank ?? 99) - (b.popularRank ?? 99),
+export const LIVE_TOOLS: Tool[] = TOOLS.filter((t) => t.status === 'live');
+export const LIVE_TOOL_COUNT = LIVE_TOOLS.length;
+
+/**
+ * Where a tool link should go. Planned tools have no page yet, so they point
+ * at their "coming soon" entry on /tools instead of a 404.
+ */
+export function toolHref(tool: Tool): string {
+  return tool.status === 'live' ? tool.url : `/tools#${tool.slug}`;
+}
+
+/** The featured rail, in the order it should render: live tools first, then by rank. */
+export const POPULAR_TOOLS: Tool[] = liveFirst(
+  TOOLS.filter((t) => t.popularRank != null).sort(
+    (a, b) => (a.popularRank ?? 99) - (b.popularRank ?? 99),
+  ),
 );
+
+export function toolsInCategory(category: CategoryName): Tool[] {
+  return liveFirst(TOOLS.filter((t) => t.category === category));
+}
 
 export function categoryBySlug(slug: string): Category | undefined {
   return CATEGORIES.find((c) => c.slug === slug);

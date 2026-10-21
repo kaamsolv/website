@@ -8,9 +8,9 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
     heading: 'Tools',
     links: [
       { label: 'All tools', href: '/tools' },
-      { label: 'Calculators', href: '/calculators' },
-      { label: 'Converters', href: '/converters' },
-      { label: 'Generators', href: '/generators' },
+      { label: 'Shorten a link', href: '/url-shortener' },
+      { label: 'Make a QR code', href: '/qr-code-generator' },
+      { label: 'Convert images', href: '/tools#images-files' },
     ],
   },
   {
@@ -53,7 +53,7 @@ export function SiteFooter() {
           <ul className="space-y-2">
             {CATEGORIES.slice(0, 6).map((c) => (
               <li key={c.slug}>
-                <a href={`/categories/${c.slug}`} className={FOOTER_LINK}>
+                <a href={`/tools#${c.slug}`} className={FOOTER_LINK}>
                   {c.name}
                 </a>
               </li>

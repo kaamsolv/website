@@ -5,6 +5,34 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — All tools page, "coming soon" entries, shorter short links
+
+**Decided by:** product owner.
+
+- **`/tools` page:** every catalogue tool. "Ready to use" grid of live tools,
+  then each category (anchor `#<category-slug>`) with live tools first and
+  planned ones as compact grey "Coming soon" cards (anchor `#<tool-slug>`).
+- **Coming soon is allowed** (refines CLAUDE.md §13): live first, planned
+  visually secondary and never a link to a missing page. "Faded" = grey text +
+  dashed outline, not opacity (60% opacity measured 2.56:1 contrast; plain muted
+  text is 5.93:1).
+- **Homepage:** hero sticky notes now link to live tools (shortener, QR, PNG→JPG,
+  HEIC→JPG) followed by two "Soon" notes (GST, invoice) — status is read from
+  the catalogue, so a note goes live with its tool. Quick links under search,
+  the Popular grid, search results and related-tools sections show live tools
+  first; planned tools route to their `/tools` entry instead of a 404.
+- **Category links** (homepage, footer, header "Categories") go to `/tools#…`
+  instead of the unbuilt `/categories/*` pages. Footer's dead Calculators /
+  Converters / Generators links replaced with live tools.
+- **Short links shown and copied without `https://`** (`kaamsolv.com/abc1234`);
+  "Copy with https://" button for forms and other QR makers. The API's
+  `shortUrl` still includes the scheme. On phones the Copy button is icon-only
+  so the whole link fits.
+- Still 404 (need content or decisions): About, Contact, Feedback, Suggest a
+  tool, Log in, Privacy, Terms, Cookies.
+
+---
+
 ## 2026-10-21 — URL Shortener live
 
 **Decided by:** product owner.

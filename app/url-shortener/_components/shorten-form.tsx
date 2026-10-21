@@ -206,6 +206,11 @@ function ShortResult({
   onReset: () => void;
   headingRef: RefObject<HTMLParagraphElement | null>;
 }) {
+  // Shown and copied without the scheme — it's the shortest form, and chat
+  // apps, email and social posts turn `kaamsolv.com/abc` into a link anyway.
+  // The full https:// form stays one click away for fields that require it.
+  const shortLink = result.shortUrl.replace(/^https?:\/\//, '');
+
   return (
     <div className="rounded-xl2 border border-teal-300 bg-tealx-100 p-5 sm:p-6">
       <p
@@ -220,13 +225,13 @@ function ShortResult({
       <div className="mt-3 flex h-12 items-center gap-1 rounded-lg border border-hair bg-surface pl-3 pr-1">
         <input
           readOnly
-          value={result.shortUrl}
+          value={shortLink}
           aria-label="Your short link"
           onFocus={(e) => e.currentTarget.select()}
           onClick={(e) => e.currentTarget.select()}
           className="min-w-0 flex-1 truncate bg-transparent text-sm font-semibold text-ink outline-none sm:text-base"
         />
-        <CopyButton value={result.shortUrl} />
+        <CopyButton value={shortLink} iconOnlyOnMobile />
       </div>
 
       <p className="mt-2 truncate text-xs text-muted" title={result.destination}>
@@ -252,7 +257,12 @@ function ShortResult({
           <Icon name="scissors" className="h-4 w-4" />
           Shorten another
         </button>
+        <CopyButton value={result.shortUrl} label="Copy with https://" copiedLabel="Copied" />
       </div>
+      <p className="mt-2 text-xs text-muted">
+        Most apps turn the short form into a link. Use the https:// version for website forms or
+        other QR code makers.
+      </p>
 
       <p className="mt-4 border-t border-teal-300 pt-3 text-xs text-muted">
         Anyone with this link goes straight to your original URL. Saved links and click stats are
