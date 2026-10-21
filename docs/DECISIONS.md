@@ -11,8 +11,8 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 - New Neon account (kaamsolv Gmail) and project `kaamsolv` in **Singapore**,
   replacing the old KaamKit database in `us-east-2`: every short-link redirect
-  queries it, so it sits near Indian visitors. An accidental Ohio project was
-  deleted.
+  queries it, so it sits near Indian visitors. An empty project accidentally
+  created in Ohio (`long-dawn-09331756`) is unused and should be deleted.
 - Tables created and Worker secrets set — see
   [`infra/deployment.md`](infra/deployment.md). The old database and the old
   `.env.local` in the `url-shortener` worktree are no longer used.
