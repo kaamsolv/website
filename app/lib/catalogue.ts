@@ -1,7 +1,7 @@
 /**
- * KaamKit catalogue — the single list the homepage reads from.
+ * KaamSolv catalogue — the single list the homepage reads from.
  *
- * Source of truth: docs/kaamkit-tool-catalogue.md (the 60-tool master
+ * Source of truth: docs/kaamsolv-tool-catalogue.md (the 60-tool master
  * universe + 10 locked categories). This file is the typed, homepage-facing
  * slice of it: enough per tool to power search, the "popular" rail, and the
  * category grid. Per-tool SEO copy still lives with each tool when it ships.

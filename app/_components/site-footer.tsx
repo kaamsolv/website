@@ -14,7 +14,7 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
     ],
   },
   {
-    heading: 'KaamKit',
+    heading: 'KaamSolv',
     links: [
       { label: 'About', href: '/about' },
       { label: 'Suggest a tool', href: '/suggest-a-tool' },
@@ -39,10 +39,10 @@ export function SiteFooter() {
         <div className="sm:col-span-2 lg:col-span-2">
           <a
             href="/"
-            aria-label="KaamKit home"
+            aria-label="KaamSolv home"
             className="rounded font-display text-lg font-extrabold tracking-tight text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
           >
-            Kaam<span className="text-coral-500">Kit</span>
+            Kaam<span className="text-coral-500">Solv</span>
           </a>
           <p className="mt-1 text-sm text-muted">Small tools for everyday problems.</p>
           <p className="font-hand mt-3 text-lg text-coral-600">Work smart.</p>
@@ -79,7 +79,7 @@ export function SiteFooter() {
 
       <div className="border-t border-hair">
         <div className="kk-container flex flex-col items-center justify-between gap-2 py-4 text-xs text-muted sm:flex-row">
-          <p suppressHydrationWarning>© {new Date().getFullYear()} KaamKit. All rights reserved.</p>
+          <p suppressHydrationWarning>© {new Date().getFullYear()} KaamSolv. All rights reserved.</p>
           <p>Made in India.</p>
         </div>
       </div>

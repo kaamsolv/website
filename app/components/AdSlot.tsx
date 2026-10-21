@@ -1,15 +1,15 @@
 /**
- * AdSlot — the single advertising / promotion surface for KaamKit.
+ * AdSlot — the single advertising / promotion surface for KaamSolv.
  *
  * WHAT THIS IS TODAY
  * A reusable slot that reserves layout space (so a real ad loading later doesn't
  * shift the page — Cumulative Layout Shift) and, by default, renders a clearly
- * labelled KaamKit **house promo**. No third-party script is loaded here.
+ * labelled KaamSolv **house promo**. No third-party script is loaded here.
  *
  * WHAT THIS BECOMES, once Google Ad Manager / AdSense is actually approved:
  *   1. Add an ads.txt file at the domain root — Google requires this first.
  *   2. Add a consent step before any personalised ad request (GDPR + India's
- *      DPDP Act, since KaamKit is India-based).
+ *      DPDP Act, since KaamSolv is India-based).
  *   3. Replace the no-op `requestGoogleAd()` with a real Google Publisher Tag
  *      call (`googletag.cmd.push(...)`), scoped to `slotId`.
  *   4. Pass `mode="auto"` on slots that should try Google first and fall back to
@@ -48,7 +48,7 @@ type AdSlotProps = {
   houseAd: HouseAd;
   /** Global off switch — renders nothing. Lets advertising be disabled site-wide. */
   enabled?: boolean;
-  /** Disclosure label on the unit. Defaults to "From KaamKit" / "Advertisement". */
+  /** Disclosure label on the unit. Defaults to "From KaamSolv" / "Advertisement". */
   label?: string;
   className?: string;
 };
@@ -72,7 +72,7 @@ export default function AdSlot({
 
   const { width, height } = SIZES[size];
   const filledByGoogle = mode === 'auto' && requestGoogleAd(slotId);
-  const disclosure = label ?? (filledByGoogle ? 'Advertisement' : 'From KaamKit');
+  const disclosure = label ?? (filledByGoogle ? 'Advertisement' : 'From KaamSolv');
 
   // Future external ad: reserve the exact IAB box, labelled, centred.
   if (filledByGoogle) {

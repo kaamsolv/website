@@ -1,8 +1,8 @@
-# KaamKit QR Code Generator — Product & Architecture
+# KaamSolv QR Code Generator — Product & Architecture
 
 **Status:** Phase 1 + 1.5 + 2 (QR Studio) · **Route:** `/qr-code-generator` · **Branch:** `feature/qr-code`
 
-Platform-wide decisions live in [`../kaamkit-phase0-architecture.md`](../kaamkit-phase0-architecture.md) and [`../DESIGN-SYSTEM.md`](../DESIGN-SYSTEM.md). This document is the product source of truth for the QR generator.
+Platform-wide decisions live in [`../kaamsolv-phase0-architecture.md`](../kaamsolv-phase0-architecture.md) and [`../DESIGN-SYSTEM.md`](../DESIGN-SYSTEM.md). This document is the product source of truth for the QR generator.
 
 ---
 
@@ -53,13 +53,13 @@ Additional **static** QR types on the same `/qr-code-generator` page. No new cat
 - **Event:** `datetime-local` values encoded as entered — no silent timezone shifts.
 - **Social:** Instagram, Facebook, LinkedIn, X/Twitter, YouTube — URL validated, not scraped.
 - **PDF / File:** URL only — no upload, proxy, or server inspection.
-- **UPI:** generic NPCI-style URI; KaamKit does not process or verify payments.
+- **UPI:** generic NPCI-style URI; KaamSolv does not process or verify payments.
 
 Payload helpers live in `app/lib/qr/payloads/` (`sms.ts`, `location.ts`, `event.ts`, `social.ts`, `file.ts`, `upi.ts`) and are wired through `canonicalPayload()` in `encode.ts`.
 
 ### Privacy (Phase 1 / 1.5)
 
-All encoding runs **in the browser**. Payloads (including Wi-Fi passwords) are **not** sent to KaamKit or third-party APIs and are **not** logged.
+All encoding runs **in the browser**. Payloads (including Wi-Fi passwords) are **not** sent to KaamSolv or third-party APIs and are **not** logged.
 
 ---
 
@@ -110,7 +110,7 @@ QR Content (QrPayload)
     → resolveEncodeTarget()     // identity today; tracking URL later
     → createMatrix()            // qrcode package — matrix only
     → QrDesign + scanability
-    → KaamKit compositor        // canvas + SVG from same layout
+    → KaamSolv compositor        // canvas + SVG from same layout
     → PNG / SVG / JPG / Print
 ```
 
@@ -145,7 +145,7 @@ QR Content (QrPayload)
 
 ## 5. Library
 
-**`qrcode`** (soldair/node-qrcode) — matrix generation via `QRCode.create()`. Visual output is drawn by the KaamKit compositor, not `qrcode`'s built-in renderer.
+**`qrcode`** (soldair/node-qrcode) — matrix generation via `QRCode.create()`. Visual output is drawn by the KaamSolv compositor, not `qrcode`'s built-in renderer.
 
 Not used: `qr-code-styling`, `jspdf`, external QR APIs.
 
@@ -153,7 +153,7 @@ Not used: `qr-code-styling`, `jspdf`, external QR APIs.
 
 ## 6. Tool page structure
 
-Matches other KaamKit flagship tools:
+Matches other KaamSolv flagship tools:
 
 1. Site header  
 2. Breadcrumb (Home → tool — **no** `/categories/business` dependency)  
@@ -183,7 +183,7 @@ SEO: server `metadata` (title, description, canonical, OpenGraph, Twitter).
 - vCard is v3.0, basic fields only.
 - Event QR uses floating local times — calendar apps may interpret timezone differently.
 - UPI QR compatibility varies slightly by payment app; amount formatting uses two decimal places.
-- File/PDF QR type requires a publicly accessible URL — KaamKit does not host files.
+- File/PDF QR type requires a publicly accessible URL — KaamSolv does not host files.
 - Dot-style modules may scan less reliably on some devices — test before print.
 - No scan analytics or edit-after-print for static codes.
 - Print uses the browser print dialog — not a downloadable PDF file.
@@ -194,7 +194,7 @@ SEO: server `metadata` (title, description, canonical, OpenGraph, Twitter).
 
 When dynamic QR lands (shared with URL Shortener infrastructure per Phase 0):
 
-1. `resolveEncodeTarget()` returns `https://kaamkit.com/{code}` instead of the raw URL.
+1. `resolveEncodeTarget()` returns `https://kaamsolv.com/{code}` instead of the raw URL.
 2. Optional `QrCode` row + `link_id` in Postgres.
 3. Scan events via the shared analytics/redirect path.
 

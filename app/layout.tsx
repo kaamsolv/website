@@ -28,30 +28,30 @@ const caveat = Caveat({
   display: 'swap',
 });
 
-const SITE_URL = 'https://kaamkit.com';
+const SITE_URL = 'https://kaamsolv.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'KaamKit — Small tools for everyday problems',
-    template: '%s · KaamKit',
+    default: 'KaamSolv — Small tools for everyday problems',
+    template: '%s · KaamSolv',
   },
   description:
-    'KaamKit is a growing toolbox for small everyday problems. Calculate, convert, create and get on with your day. Free to use, nothing to install.',
-  applicationName: 'KaamKit',
-  keywords: ['online tools', 'calculators', 'converters', 'generators', 'free tools', 'KaamKit'],
+    'KaamSolv is a growing toolbox for small everyday problems. Calculate, convert, create and get on with your day. Free to use, nothing to install.',
+  applicationName: 'KaamSolv',
+  keywords: ['online tools', 'calculators', 'converters', 'generators', 'free tools', 'KaamSolv'],
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     url: SITE_URL,
-    siteName: 'KaamKit',
-    title: 'KaamKit — Small tools for everyday problems',
+    siteName: 'KaamSolv',
+    title: 'KaamSolv — Small tools for everyday problems',
     description:
       'A growing toolbox for small everyday problems. Calculate, convert, create and get on with your day.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'KaamKit — Small tools for everyday problems',
+    title: 'KaamSolv — Small tools for everyday problems',
     description:
       'A growing toolbox for small everyday problems. Calculate, convert, create and get on with your day.',
   },
@@ -68,7 +68,7 @@ export const viewport: Viewport = {
 
 // Runs before first paint so a stored light/dark choice never flashes.
 // "system" (the default) is left to the CSS prefers-color-scheme query.
-const themeScript = `(function(){try{var t=localStorage.getItem('kaamkit-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
+const themeScript = `(function(){try{var t=localStorage.getItem('kaamsolv-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

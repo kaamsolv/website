@@ -1,6 +1,6 @@
-# KaamKit — Phase 1 design system (production build)
+# KaamSolv — Phase 1 design system (production build)
 
-This replaces the CDN-based prototype (`kaamkit-design-system.html`) with a real
+This replaces the CDN-based prototype (`kaamsolv-design-system.html`) with a real
 Next.js project where **Tailwind CSS is installed and compiled at build time**.
 Nothing in this app calls `cdn.tailwindcss.com`, and fonts are self-hosted via
 `next/font` instead of a runtime request to `fonts.googleapis.com`. No visual
@@ -19,7 +19,7 @@ the prototype approved in Phase 1.
 ## Project structure
 
 ```
-kaamkit-app/
+kaamsolv-app/
 ├── package.json
 ├── postcss.config.mjs        ← wires Tailwind into the build, no CDN
 ├── next.config.mjs

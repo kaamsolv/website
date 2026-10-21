@@ -1,10 +1,10 @@
-# KaamKit — Claude Code Project Instructions
+# KaamSolv — Claude Code Project Instructions
 
 ## 1. Project Identity
 
-You are working on **KaamKit**, an independent digital utility/SaaS brand.
+You are working on **KaamSolv**, an independent digital utility/SaaS brand.
 
-KaamKit is a collection of small, useful, highly practical web tools that solve everyday problems quickly.
+KaamSolv is a collection of small, useful, highly practical web tools that solve everyday problems quickly.
 
 Core product thought:
 
@@ -16,7 +16,7 @@ Ultimate brand territory:
 
 Working brand promise:
 
-> **When you have a small problem, KaamKit probably has a tool for it.**
+> **When you have a small problem, KaamSolv probably has a tool for it.**
 
 Working tagline:
 
@@ -24,9 +24,9 @@ Working tagline:
 
 The tagline is a working line and must not be treated as permanently locked unless explicitly approved.
 
-KaamKit should feel useful, smart, fast, friendly, slightly witty, modern, trustworthy, simple, accessible, and Indian in personality without being stereotypically Indian.
+KaamSolv should feel useful, smart, fast, friendly, slightly witty, modern, trustworthy, simple, accessible, and Indian in personality without being stereotypically Indian.
 
-KaamKit must NOT feel like a government portal, cheap SEO farm, generic AI startup, overly corporate software, an over-designed tech product, or something that requires a learning curve.
+KaamSolv must NOT feel like a government portal, cheap SEO farm, generic AI startup, overly corporate software, an over-designed tech product, or something that requires a learning curve.
 
 Core UX principle:
 
@@ -40,7 +40,7 @@ Ideal user reaction:
 
 # 2. Source of Truth and Documentation
 
-The Git repository is the **technical source of truth** for KaamKit.
+The Git repository is the **technical source of truth** for KaamSolv.
 
 Do not rely on conversation history, model memory, or undocumented assumptions when repository documentation can contain the information.
 
@@ -56,9 +56,10 @@ Current project documentation includes:
 
 ```text
 docs/
-├── KAAMKIT-BRIEF.md
-├── kaamkit-phase0-architecture.md
-├── kaamkit-tool-catalogue.md
+├── KAAMSOLV-BRIEF.md
+├── kaamsolv-phase0-architecture.md
+├── kaamsolv-tool-catalogue.md
+├── DECISIONS.md
 └── README.md
 ```
 
@@ -72,7 +73,7 @@ Recommended future documentation structure:
 
 ```text
 docs/
-├── KAAMKIT-BRIEF.md
+├── KAAMSOLV-BRIEF.md
 ├── DESIGN-SYSTEM.md
 ├── ARCHITECTURE.md
 ├── TOOL-CATALOGUE.md
@@ -89,7 +90,7 @@ Create missing documents only when they become useful. Do not generate large amo
 
 # 3. Development Philosophy
 
-KaamKit is being developed **phase by phase**. Do NOT attempt to build the entire SaaS at once.
+KaamSolv is being developed **phase by phase**. Do NOT attempt to build the entire SaaS at once.
 
 Development loop:
 
@@ -128,7 +129,7 @@ The architecture must be scalable, but do not over-engineer the first version.
 
 # 5. Tailwind CSS — IMPORTANT
 
-KaamKit uses **Tailwind CSS installed locally and compiled as part of the production build**.
+KaamSolv uses **Tailwind CSS installed locally and compiled as part of the production build**.
 
 DO NOT use:
 
@@ -144,7 +145,7 @@ Use the project's installed Tailwind/PostCSS setup. The design system must remai
 
 # 6. Brand Colours
 
-Approved KaamKit brand colours:
+Approved KaamSolv brand colours:
 
 ```text
 Deep Navy   #0C2248
@@ -213,11 +214,11 @@ CTAs should describe the action: Calculate, Convert, Generate, Create invoice, D
 
 # 9. Core UX Principle
 
-Every KaamKit tool should follow:
+Every KaamSolv tool should follow:
 
 > **Find → Do → Done**
 
-The website should never explain KaamKit for longer than it takes to use KaamKit.
+The website should never explain KaamSolv for longer than it takes to use KaamSolv.
 
 Prioritise the user's task over decorative content. Use progressive disclosure. Do not expose advanced options until they are useful.
 
@@ -644,7 +645,7 @@ Both light and dark themes are required where the product design supports them.
 
 Do not create a separate visual identity for dark mode.
 
-Use the same KaamKit brand identity through semantic tokens.
+Use the same KaamSolv brand identity through semantic tokens.
 
 When modifying theme variables, check text contrast, borders, surfaces, muted text, brand accents, interactive states, and disabled states.
 
@@ -674,7 +675,7 @@ Before adding a dependency:
 4. Avoid adding dependencies for trivial functionality.
 5. Document meaningful architectural dependencies.
 
-The previous prototype instruction saying "no third-party NPM packages" is NOT a permanent KaamKit rule. Use dependencies when they provide clear value and are appropriate for production.
+The previous prototype instruction saying "no third-party NPM packages" is NOT a permanent KaamSolv rule. Use dependencies when they provide clear value and are appropriate for production.
 
 ---
 
@@ -696,16 +697,16 @@ For regulated or high-impact financial/tax functionality:
 
 # 34. Existing Prototype Instructions — Superseded
 
-Some earlier Claude Chat/Cowork prototype instructions conflict with the current KaamKit architecture.
+Some earlier Claude Chat/Cowork prototype instructions conflict with the current KaamSolv architecture.
 
 ### Superseded: Tailwind via CDN
 Current: Tailwind CSS installed locally and compiled for production.
 
 ### Superseded: Vanilla JavaScript only
-Current: KaamKit is a full-stack Next.js/TypeScript/React application. Use client-side React where appropriate and server-side functionality where the product requires it.
+Current: KaamSolv is a full-stack Next.js/TypeScript/React application. Use client-side React where appropriate and server-side functionality where the product requires it.
 
 ### Superseded: Dark-mode-only utility interfaces
-Current: KaamKit supports both light and dark themes using one brand identity.
+Current: KaamSolv supports both light and dark themes using one brand identity.
 
 ### Superseded: Electric Cyan / Deep Slate palette
 Current approved brand palette:
@@ -731,7 +732,7 @@ Do not use IP-based currency switching as a default architecture.
 
 # 35. Design Reference
 
-The existing KaamKit design-system reference should be treated as a **visual/reference artifact**, not as production implementation code.
+The existing KaamSolv design-system reference should be treated as a **visual/reference artifact**, not as production implementation code.
 
 If it contains prototype-only implementation such as Tailwind CDN, direct Google Fonts links, vanilla JS demos, or static demo data, do not copy those implementation choices directly into production.
 
@@ -791,7 +792,7 @@ Preferred project skill areas:
 
 ```text
 .claude/skills/
-├── kaamkit-design/
+├── kaamsolv-design/
 ├── tool-builder/
 ├── qa-review/
 └── documentation-sync/
@@ -885,7 +886,7 @@ Do not add complexity unless it solves a real problem.
 
 ---
 
-# 42. The KaamKit Test
+# 42. The KaamSolv Test
 
 Before finalising any user-facing experience, ask:
 
@@ -897,7 +898,7 @@ Then ask:
 - Is it useful?
 - Can it be shorter?
 - Does it feel human?
-- Does it feel like KaamKit?
+- Does it feel like KaamSolv?
 - Is the humour necessary?
 - Are we designing for the user rather than the search engine?
 
@@ -909,11 +910,11 @@ If there is a conflict between SEO decoration and user utility:
 
 # 43. Final Principle
 
-KaamKit is not trying to be another giant software platform.
+KaamSolv is not trying to be another giant software platform.
 
 It should feel like a useful internet destination:
 
-> **"I have a small problem. KaamKit probably has a tool for it."**
+> **"I have a small problem. KaamSolv probably has a tool for it."**
 
 Build toward that feeling.
 

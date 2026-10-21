@@ -7,7 +7,7 @@ import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { CATEGORIES, TOOLS, type Accent } from '@/app/lib/catalogue';
 import { QrGenerator } from './_components/qr-generator';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamkit.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
 const PATH = '/qr-code-generator';
 
 export const metadata: Metadata = {
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: `${SITE_URL}${PATH}`,
-    title: 'Make a QR code · KaamKit',
+    title: 'Make a QR code · KaamSolv',
     description:
       'Create a QR code for links, Wi-Fi, contacts and more. Customise, download PNG or SVG — free, no sign-up.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Make a QR code · KaamKit',
+    title: 'Make a QR code · KaamSolv',
     description:
       'Create a QR code for links, Wi-Fi, contacts and more. Free, in your browser.',
   },
@@ -55,7 +55,7 @@ const TIPS = [
   },
   {
     t: 'Logos need headroom',
-    d: 'A logo covers part of the code. KaamKit switches to High error correction automatically so scanners still have enough data to read.',
+    d: 'A logo covers part of the code. KaamSolv switches to High error correction automatically so scanners still have enough data to read.',
   },
   {
     t: 'Style it, then test it',
@@ -63,7 +63,7 @@ const TIPS = [
   },
   {
     t: 'UPI codes are not receipts',
-    d: 'A UPI QR opens your payment app with the details filled in. KaamKit doesn’t process payments or confirm that money was sent.',
+    d: 'A UPI QR opens your payment app with the details filled in. KaamSolv doesn’t process payments or confirm that money was sent.',
   },
 ];
 
@@ -78,7 +78,7 @@ const FAQ = [
   },
   {
     q: 'Does my data leave my device?',
-    a: 'The QR is built in your browser. Your text, Wi-Fi password, UPI ID, and contact details are not sent to KaamKit or any third-party QR service.',
+    a: 'The QR is built in your browser. Your text, Wi-Fi password, UPI ID, and contact details are not sent to KaamSolv or any third-party QR service.',
   },
   {
     q: 'Can I link to a PDF?',
@@ -104,7 +104,7 @@ const jsonLd = {
     {
       '@type': 'WebApplication',
       '@id': `${SITE_URL}${PATH}#app`,
-      name: 'KaamKit QR Code Generator',
+      name: 'KaamSolv QR Code Generator',
       url: `${SITE_URL}${PATH}`,
       applicationCategory: 'UtilitiesApplication',
       operatingSystem: 'Any',
@@ -233,11 +233,11 @@ export default function QrCodeGeneratorPage() {
             size="billboard"
             mode="house"
             enabled
-            label="From KaamKit"
+            label="From KaamSolv"
             houseAd={{
               eyebrow: 'Small problems. Solved.',
               title: 'One small tool at a time.',
-              body: 'KaamKit is a growing toolbox for everyday work and life. More tools are on the way.',
+              body: 'KaamSolv is a growing toolbox for everyday work and life. More tools are on the way.',
               ctaLabel: 'See what else is coming',
               href: '/',
             }}

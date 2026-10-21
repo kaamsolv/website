@@ -1,4 +1,4 @@
-# KaamKit Tool Catalogue — Master Product Universe
+# KaamSolv Tool Catalogue — Master Product Universe
 
 **Status:** Master catalogue, not a build list. Confirms Phase 0/1 approvals. Updated: Phase 1.
 

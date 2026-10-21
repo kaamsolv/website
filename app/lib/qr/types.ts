@@ -3,7 +3,7 @@
  *
  * Phase 1 encodes the payload string directly into the image (`mode: 'static'`).
  * Later, dynamic/tracked QR can keep the same payload + style and only change
- * `mode` so the image encodes a KaamKit short URL instead. Do not collapse
+ * `mode` so the image encodes a KaamSolv short URL instead. Do not collapse
  * payload, style, and encoded text into one blob — that would force a rewrite.
  */
 

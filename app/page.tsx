@@ -40,19 +40,19 @@ const JSON_LD = {
   '@graph': [
     {
       '@type': 'Organization',
-      '@id': 'https://kaamkit.com/#org',
-      name: 'KaamKit',
-      url: 'https://kaamkit.com',
+      '@id': 'https://kaamsolv.com/#org',
+      name: 'KaamSolv',
+      url: 'https://kaamsolv.com',
       slogan: 'Small tools for everyday problems.',
     },
     {
       '@type': 'WebSite',
-      '@id': 'https://kaamkit.com/#site',
-      name: 'KaamKit',
-      url: 'https://kaamkit.com',
+      '@id': 'https://kaamsolv.com/#site',
+      name: 'KaamSolv',
+      url: 'https://kaamsolv.com',
       description:
         'A growing toolbox for small everyday problems. Calculate, convert, create and get on with your day.',
-      publisher: { '@id': 'https://kaamkit.com/#org' },
+      publisher: { '@id': 'https://kaamsolv.com/#org' },
       inLanguage: 'en',
     },
   ],
@@ -107,7 +107,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Decorative — original composition, echoes the KaamKit sticky-note motif */}
+            {/* Decorative — original composition, echoes the KaamSolv sticky-note motif */}
             <div className="kk-rise kk-rise-3 relative hidden md:block" aria-hidden="true">
               <div className="ml-auto flex max-w-[17rem] flex-col items-start gap-2.5 lg:max-w-xs lg:gap-3">
                 {HERO_CHIPS.map((chip) => {
@@ -141,12 +141,12 @@ export default function HomePage() {
             size="billboard"
             mode="house"
             enabled
-            label="From KaamKit"
+            label="From KaamSolv"
             houseAd={{
               eyebrow: 'Small problems. Solved.',
               title: 'Need to get something done?',
-              body: 'KaamKit is a growing collection of quick, useful tools for everyday work and life — no sign-up, no clutter.',
-              ctaLabel: 'Explore KaamKit',
+              body: 'KaamSolv is a growing collection of quick, useful tools for everyday work and life — no sign-up, no clutter.',
+              ctaLabel: 'Explore KaamSolv',
               href: '#categories',
             }}
           />
@@ -159,7 +159,7 @@ export default function HomePage() {
               <h2 id="popular-title" className="font-display text-2xl font-bold text-ink sm:text-3xl">
                 Popular tools
               </h2>
-              <p className="mt-1 text-muted">KaamKit is new — these are the first tools rolling out.</p>
+              <p className="mt-1 text-muted">KaamSolv is new — these are the first tools rolling out.</p>
             </div>
             <a
               href="/tools"

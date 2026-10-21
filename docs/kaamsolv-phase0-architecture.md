@@ -1,4 +1,4 @@
-# KaamKit — Phase 0: Product & Technical Architecture Document
+# KaamSolv — Phase 0: Product & Technical Architecture Document
 
 **Status:** Draft for approval · **Phase:** 0 of 10 · **Scope:** Architecture only — no UI, no code, no products built yet.
 
@@ -14,12 +14,12 @@ The brief for this build arrived with two layers of instruction that don't fully
 
 Layer B is a reasonable spec *for a static tools demo*. It is not compatible with Layer A's actual products:
 
-- A short link (`kaamkit.com/x7Kp2`) has to resolve **on the server** when a stranger clicks it — there is no browser session to read `localStorage` from at that point. Client-only JS cannot implement a redirect service.
+- A short link (`kaamsolv.com/x7Kp2`) has to resolve **on the server** when a stranger clicks it — there is no browser session to read `localStorage` from at that point. Client-only JS cannot implement a redirect service.
 - QR campaign analytics (scans by device/location/time) happen on devices that never touch your browser. They must be recorded server-side.
 - Accounts, billing, and entitlements require server-side authentication and a real database — `localStorage` is per-browser, per-device, and trivially editable by the end user, so it cannot hold anything the business depends on (usage limits, plan status, saved links).
 - GSTIN/VPA/currency validation is explicitly a **Phase 6/9** concern in the roadmap (calculators and billing come after URL Shortener → QR → Image Tools), not a Phase 0–3 one.
 
-**Recommendation:** Treat protocols #1, #3, #4, #5 (Tailwind dark-mode styling, JSON-LD schema, mobile QA, query-param-driven SEO metadata) as valid *frontend presentation-layer standards* — they're genuinely good practice and I'll apply them from Phase 1 onward. Treat #2 ("no backend, ever") as **overridden by the product requirements** — KaamKit needs a thin backend for redirects, tracking, auth, and billing, even if most tool *logic* (image conversion math, QR rendering, calculator formulas) runs client-side for speed. Treat #6 (GSTIN/VPA/INR-USD) as a **noted future requirement**, scheduled into Phase 6 (GST Calculator) and Phase 9 (Billing), not built now.
+**Recommendation:** Treat protocols #1, #3, #4, #5 (Tailwind dark-mode styling, JSON-LD schema, mobile QA, query-param-driven SEO metadata) as valid *frontend presentation-layer standards* — they're genuinely good practice and I'll apply them from Phase 1 onward. Treat #2 ("no backend, ever") as **overridden by the product requirements** — KaamSolv needs a thin backend for redirects, tracking, auth, and billing, even if most tool *logic* (image conversion math, QR rendering, calculator formulas) runs client-side for speed. Treat #6 (GSTIN/VPA/INR-USD) as a **noted future requirement**, scheduled into Phase 6 (GST Calculator) and Phase 9 (Billing), not built now.
 
 This is listed again as **Decision #1** at the end of this document. Nothing below assumes it's settled — I've designed around the real product need and I'm asking you to confirm.
 
@@ -28,12 +28,12 @@ This is listed again as **Decision #1** at the end of this document. Nothing bel
 ## 1. Product Architecture
 
 ```
-                        KAAMKIT
+                        KAAMSOLV
                            │
               ┌────────────┴────────────┐
               │                         │
         PUBLIC UTILITY              USER PLATFORM
-        (no login needed)           (kaamkit.com/app)
+        (no login needed)           (kaamsolv.com/app)
               │                         │
         Tools, Categories          Dashboard, Links,
         SEO pages, Guides         QR Codes, Campaigns,
@@ -57,7 +57,7 @@ This is listed again as **Decision #1** at the end of this document. Nothing bel
 **Product dependency map:**
 
 ```
-KAAMKIT FOUNDATION
+KAAMSOLV FOUNDATION
 │
 ├── Design System
 ├── Authentication
@@ -83,7 +83,7 @@ Calculators and Generators are intentionally the *least* coupled products — th
 
 **Update (Phase 1 approval) — locked category structure and incremental deployment model.**
 
-The 10 top-level categories are now locked and final: `Money · Work · Business · Documents · Images & Files · Writing · Career · Everyday · India · Creators`. A 60-tool master catalogue mapped to these categories now exists at `/docs/products/kaamkit-tool-catalogue.md` — it is a *product universe*, not a build list. The dependency map above still governs *shared infrastructure*; the catalogue governs *which tool gets attached to that infrastructure next*.
+The 10 top-level categories are now locked and final: `Money · Work · Business · Documents · Images & Files · Writing · Career · Everyday · India · Creators`. A 60-tool master catalogue mapped to these categories now exists at `/docs/products/kaamsolv-tool-catalogue.md` — it is a *product universe*, not a build list. The dependency map above still governs *shared infrastructure*; the catalogue governs *which tool gets attached to that infrastructure next*.
 
 Deployment is now explicitly incremental, not phase-batch: `build locally → test → document → approve → deploy → add tool to its live category → build next tool`. A category with zero live tools shows a plain "0 live" count, never a wall of "coming soon" cards — the category page itself must adapt its layout by tool count (1 tool = single strong feature, 2–4 = grid, 5+ = featured + all), not assume a fixed density.
 
@@ -99,7 +99,7 @@ The brief's proposed IA (Section 6) is close to right. Two refinements, with rea
 `/image-tools/jpg-to-png` etc. is good for long-tail SEO (each conversion pair is its own search query — "jpg to png converter" and "png to jpg converter" are different searches with different intent, so they should stay separate indexable pages). But route them through **one templated page type** with a `from`/`to` config, not 10 hand-built pages — this is what makes "add another converter" cheap later, per the brief's own Section 44 plug-in model.
 
 **b) Give the redirect path its own top-level namespace, not a subpath of the marketing site.**
-Short links must resolve fast and shouldn't share a route tree with SSR marketing pages (different caching rules, different scaling profile — a viral link can spike traffic in a way that shouldn't touch homepage infra). Recommend short links resolve at the bare domain root (`kaamkit.com/x7Kp2`) but are served by a **distinct routing rule** at the edge (CDN/edge function) that checks "is this a known short-code?" before falling through to the marketing app. This preserves the clean, brandable short URL the brief wants while keeping it architecturally isolated.
+Short links must resolve fast and shouldn't share a route tree with SSR marketing pages (different caching rules, different scaling profile — a viral link can spike traffic in a way that shouldn't touch homepage infra). Recommend short links resolve at the bare domain root (`kaamsolv.com/x7Kp2`) but are served by a **distinct routing rule** at the edge (CDN/edge function) that checks "is this a known short-code?" before falling through to the marketing app. This preserves the clean, brandable short URL the brief wants while keeping it architecturally isolated.
 
 ```
 /                              → homepage (search-first)
@@ -154,7 +154,7 @@ Only the entities actually needed for Products 1–3 plus the platform foundatio
 | **AnalyticsEvent** | id, event_type, subject_type (link/qr/campaign), subject_id, occurred_at, geo, device, browser, os, referrer, metadata (jsonb) | Single append-only table, shared by every trackable product — see §6. |
 | **File** | id, account_id (nullable), original_name, mime_type, size_bytes, storage_key, status, created_at, expires_at | `expires_at` drives automatic deletion. |
 | **ConversionJob** | id, file_id, operation (jpg_to_png/compress/resize/...), status, output_file_id, error, created_at | Decouples "a file exists" from "a job is transforming it" — needed once batch/queue processing exists. |
-| **Tool** | id, slug, url, primary_category_id, secondary_category_ids[], tool_type, name, description, status (planned/in_development/live), build_priority, seo_title, seo_description, related_tool_ids[], acquisition_role, monetisation_role | Drives `/tools` and `/categories` pages programmatically. `tool_type` determines URL pattern (`/calculators/`, `/generators/`, `/image-tools/`, `/documents/`, `/writing/`); `primary_category_id` determines where it's browsed from. A tool has exactly one record even when discoverable from a secondary category. Full current catalogue: `/docs/products/kaamkit-tool-catalogue.md`. |
+| **Tool** | id, slug, url, primary_category_id, secondary_category_ids[], tool_type, name, description, status (planned/in_development/live), build_priority, seo_title, seo_description, related_tool_ids[], acquisition_role, monetisation_role | Drives `/tools` and `/categories` pages programmatically. `tool_type` determines URL pattern (`/calculators/`, `/generators/`, `/image-tools/`, `/documents/`, `/writing/`); `primary_category_id` determines where it's browsed from. A tool has exactly one record even when discoverable from a secondary category. Full current catalogue: `/docs/products/kaamsolv-tool-catalogue.md`. |
 | **Category** | id, slug, name | The 10 locked names (Money / Work / Business / Documents / Images & Files / Writing / Career / Everyday / India / Creators) — final, not to be renamed or extended without a separate decision. |
 
 ```
@@ -269,7 +269,7 @@ Every `Tool` row drives its page's metadata rather than metadata being hand-writ
 
 Two competing palettes currently exist and need reconciling before Phase 1 starts (see Decision #2):
 
-- **Established KaamKit brand** (brief §24): Deep Navy `#0C2248`, Coral `#FE6336`, Yellow `#FDBD43`, Teal `#38BBAC`, Purple `#6934D0`. Wordmark: "Kaam" navy / "Kit" coral, byline "work smart." No octopus.
+- **Established KaamSolv brand** (brief §24): Deep Navy `#0C2248`, Coral `#FE6336`, Yellow `#FDBD43`, Teal `#38BBAC`, Purple `#6934D0`. Wordmark: "Kaam" navy / "Kit" coral, byline "work smart." No octopus.
 - **Protocol #1's palette**: deep slate `#050B14`, charcoal `#111C30`, electric cyan-to-blue gradient `#06B6D4 → #3B82F6`, strict dark mode.
 
 These aren't reconcilable as-is — one is a warm, multi-hue, brand-driven system; the other is a cyan dark-mode SaaS-dashboard system. Phase 1 will build tokens (color, type, spacing, radii, shadows), core components, and tool-specific components (upload zone, result cards, QR preview, etc.) per brief §25 — but only once this is settled.
@@ -342,7 +342,7 @@ Phase 0 (this doc) → Phase 1 Design System → Phase 2 Website Shell → Phase
 
 1. **Backend vs. "client-only" constraint (§0 above).** Confirm the platform includes a real backend (redirects, auth, billing, analytics ingestion) while individual tool *computations* stay client-side where practical. This is blocking — Phase 3 (URL Shortener) cannot be built as a pure static/localStorage page.
 2. **Design palette: brand navy/coral/teal/purple system vs. protocol #1's slate/cyan dark-mode system.** Which governs Phase 1?
-3. **Short-link routing:** confirm bare-root short codes (`kaamkit.com/x7Kp2`) resolved via edge routing, isolated from the marketing SSR app, as described in §2.
+3. **Short-link routing:** confirm bare-root short codes (`kaamsolv.com/x7Kp2`) resolved via edge routing, isolated from the marketing SSR app, as described in §2.
 4. **SEO metadata source of truth:** server-rendered per canonical `Tool` slug (recommended) vs. client-side `URLSearchParams`-driven title/description swapping (protocol #5) — these can coexist for supplementary on-page copy, but the crawlable `<title>`/meta tags should not depend on client-side JS alone.
 5. **GSTIN/VPA/INR-USD localization (protocol #6):** confirmed deferred to Phase 6 (GST Calculator) and Phase 9 (Billing) rather than built now — please confirm this scheduling is acceptable.
 6. **Technology stack (§5):** approve Next.js + Node + Postgres + Redis + S3-compatible storage, or flag a preferred alternative before Phase 1 tooling is set up.

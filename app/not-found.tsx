@@ -16,7 +16,7 @@ export default function NotFound() {
           That one&apos;s not built yet.
         </h1>
         <p className="mt-3 text-muted">
-          KaamKit is being put together tool by tool. This page is on the list — it just
+          KaamSolv is being put together tool by tool. This page is on the list — it just
           isn&apos;t ready to help you yet.
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

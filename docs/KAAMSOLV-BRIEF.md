@@ -1,13 +1,13 @@
-KAAMKIT — MASTER PRODUCT, BRAND, UX & ENGINEERING BRIEF
+KAAMSOLV — MASTER PRODUCT, BRAND, UX & ENGINEERING BRIEF
 ROLE
 
-You are the lead product strategist, product architect, UX/UI designer, design-system designer, frontend engineer, backend engineer, technical architect and technical product manager for KaamKit.
+You are the lead product strategist, product architect, UX/UI designer, design-system designer, frontend engineer, backend engineer, technical architect and technical product manager for KaamSolv.
 
-You are responsible for helping design and build KaamKit from the ground up.
+You are responsible for helping design and build KaamSolv from the ground up.
 
 Do not treat this as a simple website project.
 
-KaamKit is a scalable digital utility platform.
+KaamSolv is a scalable digital utility platform.
 
 Your job is to create the foundation for a product that can eventually contain hundreds of useful tools while remaining extremely simple for the end user.
 
@@ -15,19 +15,19 @@ You should challenge decisions where appropriate rather than blindly following i
 
 If you believe a technical, UX, product or business decision is weak, explain why and propose a better alternative.
 
-1. WHAT IS KAAMKIT?
+1. WHAT IS KAAMSOLV?
 
-KaamKit is a collection of small, useful digital tools that help people solve everyday problems quickly.
+KaamSolv is a collection of small, useful digital tools that help people solve everyday problems quickly.
 
 The central product thought is:
 
-I have a small problem. KaamKit probably has a tool for it.
+I have a small problem. KaamSolv probably has a tool for it.
 
 The basic experience is:
 
 Find → Do → Done.
 
-KaamKit is inspired by the Indian idea of "kaam ki cheez" — something genuinely useful.
+KaamSolv is inspired by the Indian idea of "kaam ki cheez" — something genuinely useful.
 
 But the brand should not become stereotypically Indian.
 
@@ -62,7 +62,7 @@ The user should ideally feel:
 
 Working positioning:
 
-KaamKit is a digital toolbox for everyday problems: small, useful tools that help people get one thing done quickly.
+KaamSolv is a digital toolbox for everyday problems: small, useful tools that help people get one thing done quickly.
 
 Brand territory:
 
@@ -118,7 +118,7 @@ This is one of the most important instructions.
 
 Do not make a tool feel like software. Make it feel like help.
 
-KaamKit should not make users understand the platform before they can use it.
+KaamSolv should not make users understand the platform before they can use it.
 
 A person should be able to land on a tool and immediately understand:
 
@@ -131,9 +131,9 @@ The architecture can be sophisticated behind the scenes.
 
 The experience should remain simple.
 
-4. KAAMKIT IS NOT JUST AN SEO TOOL WEBSITE
+4. KAAMSOLV IS NOT JUST AN SEO TOOL WEBSITE
 
-Do not build KaamKit as:
+Do not build KaamSolv as:
 
 Homepage
 ↓
@@ -145,7 +145,7 @@ Ads
 
 Instead build:
 
-                KAAMKIT
+                KAAMSOLV
                    │
        ┌───────────┴───────────┐
        │                       │
@@ -162,11 +162,11 @@ Instead build:
                                │
                        Shared Infrastructure
 
-KaamKit should eventually become a destination people remember.
+KaamSolv should eventually become a destination people remember.
 
 The long-term test is:
 
-"I need to get something done. Let me check KaamKit."
+"I need to get something done. Let me check KaamSolv."
 
 5. INITIAL PRODUCT STRATEGY
 
@@ -290,19 +290,19 @@ Then propose the final architecture.
 
 7. PUBLIC WEBSITE VS APPLICATION
 
-KaamKit should have two connected experiences.
+KaamSolv should have two connected experiences.
 
-PUBLIC KAAMKIT
+PUBLIC KAAMSOLV
 
 For discovery and quick utility.
 
 Examples:
 
-kaamkit.com
-kaamkit.com/tools
-kaamkit.com/url-shortener
-kaamkit.com/qr-code-generator
-kaamkit.com/jpg-to-png
+kaamsolv.com
+kaamsolv.com/tools
+kaamsolv.com/url-shortener
+kaamsolv.com/qr-code-generator
+kaamsolv.com/jpg-to-png
 
 Public tools should, wherever possible:
 
@@ -311,13 +311,13 @@ load quickly
 be SEO-friendly
 have minimal friction
 allow the user to complete the basic task immediately
-8. KAAMKIT APP
+8. KAAMSOLV APP
 
 For users who want to save, manage, track or organise their work.
 
 Example:
 
-kaamkit.com/app
+kaamsolv.com/app
 
 Potential structure:
 
@@ -333,13 +333,13 @@ Billing
 Settings
 Account
 
-The app should feel like the same KaamKit brand.
+The app should feel like the same KaamSolv brand.
 
 It should not look like a completely unrelated enterprise SaaS application.
 
 Think:
 
-KaamKit, with your stuff in it.
+KaamSolv, with your stuff in it.
 
 9. HOMEPAGE
 
@@ -385,7 +385,7 @@ Small problem? There's probably a tool for that.
 
 Supporting idea:
 
-KaamKit is a growing collection of simple tools for the little things that get in the way of getting things done.
+KaamSolv is a growing collection of simple tools for the little things that get in the way of getting things done.
 
 No complicated software.
 
@@ -413,7 +413,7 @@ Explore all tools
 
 Do not let the homepage become a long explanation of the company.
 
-The website should never explain KaamKit for longer than it takes to use KaamKit.
+The website should never explain KaamSolv for longer than it takes to use KaamSolv.
 
 10. NAVIGATION
 
@@ -472,7 +472,7 @@ Paste your URL
 
 Your short link
 
-kaamkit.com/x7Kp2
+kaamsolv.com/x7Kp2
 
 [ Copy ]
 
@@ -581,7 +581,7 @@ A restaurant creates:
 
 The QR code is printed on table cards.
 
-KaamKit tracks scans.
+KaamSolv tracks scans.
 
 The owner can see:
 
@@ -632,7 +632,7 @@ Campaign
  ↓
 Analytics Engine
 
-This architecture should allow future trackable KaamKit products to use the same analytics engine.
+This architecture should allow future trackable KaamSolv products to use the same analytics engine.
 
 17. IMAGE TOOLS — PRODUCT 3
 
@@ -791,7 +791,7 @@ Afterwards:
 
 Want to save and track this link? Create a free account.
 
-This keeps KaamKit's low-friction philosophy intact.
+This keeps KaamSolv's low-friction philosophy intact.
 
 21. DASHBOARD
 
@@ -799,13 +799,13 @@ Create a simple central dashboard.
 
 Potential structure:
 
-KAAMKIT
+KAAMSOLV
 
 Dashboard
 
 What do you want to get done?
 
-[ Search KaamKit... ]
+[ Search KaamSolv... ]
 
 --------------------------------
 
@@ -866,7 +866,7 @@ Build a configurable entitlement system rather than hard-coding pricing assumpti
 
 23. MONETISATION PRINCIPLE
 
-Not every KaamKit tool needs to make money directly.
+Not every KaamSolv tool needs to make money directly.
 
 Treat the platform as a portfolio.
 
@@ -890,7 +890,7 @@ This distinction should be reflected in the product architecture.
 
 24. DESIGN SYSTEM
 
-Create a real reusable KaamKit design system.
+Create a real reusable KaamSolv design system.
 
 Existing visual direction:
 
@@ -984,7 +984,7 @@ disabled
 offline/network failure where relevant
 26. PROGRESSIVE DISCLOSURE
 
-This should be a core KaamKit design principle.
+This should be a core KaamSolv design principle.
 
 Do not show every feature immediately.
 
@@ -1092,7 +1092,7 @@ Utility first. SEO second.
 
 29. CONTENT ARCHITECTURE
 
-KaamKit should eventually support:
+KaamSolv should eventually support:
 
 tool pages
 category pages
@@ -1169,7 +1169,7 @@ Create a central architecture document.
 
 It should contain:
 
-KaamKit Architecture
+KaamSolv Architecture
 
 01 Product Architecture
 02 Website Architecture
@@ -1282,7 +1282,7 @@ Do not leave security until launch.
 
 35. PERFORMANCE
 
-KaamKit is a utility website.
+KaamSolv is a utility website.
 
 Speed is part of the product.
 
@@ -1367,7 +1367,7 @@ If a decision can be deferred, defer it rather than introducing unnecessary comp
 
 This is extremely important.
 
-KaamKit's architecture should be sophisticated enough to support a large platform.
+KaamSolv's architecture should be sophisticated enough to support a large platform.
 
 But the user experience should remain simple.
 
@@ -1399,7 +1399,7 @@ Do NOT build substantial UI yet.
 First document and design:
 
 Product architecture
-KaamKit ecosystem
+KaamSolv ecosystem
 initial products
 future product expansion
 Website
@@ -1455,7 +1455,7 @@ backups
 logging
 Documentation
 
-Create the central KaamKit architecture documentation.
+Create the central KaamSolv architecture documentation.
 
 At the end of Phase 0 provide:
 
@@ -1478,7 +1478,7 @@ Do not proceed to Phase 1 without approval.
 
 PHASE 1 — DESIGN SYSTEM
 
-Build the KaamKit design system.
+Build the KaamSolv design system.
 
 Create:
 
@@ -1785,7 +1785,7 @@ Maintain a living dependency map.
 
 For example:
 
-KAAMKIT FOUNDATION
+KAAMSOLV FOUNDATION
 │
 ├── Design System
 │
@@ -1885,7 +1885,7 @@ Can someone use it without instructions?
 Are states clear?
 Are errors helpful?
 Design
-Does it feel like KaamKit?
+Does it feel like KaamSolv?
 Is it visually coherent?
 Does it avoid generic SaaS aesthetics?
 Mobile
@@ -1910,9 +1910,9 @@ Documentation
 Is the architecture documented?
 46. VISUAL REFERENCE
 
-A KaamKit homepage design has already been established as the visual direction.
+A KaamSolv homepage design has already been established as the visual direction.
 
-Use the supplied KaamKit design reference as inspiration for the visual language, not as a pixel-perfect specification.
+Use the supplied KaamSolv design reference as inspiration for the visual language, not as a pixel-perfect specification.
 
 Recreate the design as a real responsive design system using:
 
@@ -1928,7 +1928,7 @@ The design should evolve naturally as the product becomes more complex.
 
 47. FINAL INSTRUCTION
 
-Think about KaamKit as a product that could eventually contain hundreds of tools.
+Think about KaamSolv as a product that could eventually contain hundreds of tools.
 
 Every architectural decision should therefore answer:
 
@@ -1948,7 +1948,7 @@ Experience:
 
 Built to disappear.
 
-The ultimate KaamKit experience is:
+The ultimate KaamSolv experience is:
 
 I needed something.
 I found it.
@@ -1965,7 +1965,7 @@ Do not build the URL Shortener.
 
 Do not start coding the product.
 
-First analyse the entire brief and produce the KaamKit Product & Technical Architecture Document.
+First analyse the entire brief and produce the KaamSolv Product & Technical Architecture Document.
 
 Identify any important decisions that I need to make before development begins.
 

@@ -2,9 +2,9 @@ import type { QrDesign, QrExportOptions } from './design';
 import { createMatrixForDesign } from './matrix';
 import { renderArtboardCanvas, renderArtboardSvg } from './compositor';
 
-export const DOWNLOAD_PNG = 'kaamkit-qr-code.png';
-export const DOWNLOAD_SVG = 'kaamkit-qr-code.svg';
-export const DOWNLOAD_JPG = 'kaamkit-qr-code.jpg';
+export const DOWNLOAD_PNG = 'kaamsolv-qr-code.png';
+export const DOWNLOAD_SVG = 'kaamsolv-qr-code.svg';
+export const DOWNLOAD_JPG = 'kaamsolv-qr-code.jpg';
 
 export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);

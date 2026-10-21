@@ -31,9 +31,9 @@ export function encodeEventPayload(
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//KaamKit//QR Generator//EN',
+    'PRODID:-//KaamSolv//QR Generator//EN',
     'BEGIN:VEVENT',
-    `UID:${dtStart}-${summary.replace(/\s+/g, '-').slice(0, 40)}@kaamkit.com`,
+    `UID:${dtStart}-${summary.replace(/\s+/g, '-').slice(0, 40)}@kaamsolv.com`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,
     `SUMMARY:${escapeIcalText(summary)}`,

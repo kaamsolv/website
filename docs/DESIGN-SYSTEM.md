@@ -1,6 +1,6 @@
-# KaamKit — Design system in production
+# KaamSolv — Design system in production
 
-**Status:** Living. Started as the Phase 1 reference (`kaamkit-design-system.html`),
+**Status:** Living. Started as the Phase 1 reference (`kaamsolv-design-system.html`),
 now being translated into real Next.js/Tailwind code section by section. Updated: Phase 2
 (homepage).
 
@@ -23,7 +23,7 @@ states) still lives in the Phase 1 reference and `app/design-system/`.
 
 ## 2. Theme selection — how it works now
 
-- Preference is stored in `localStorage['kaamkit-theme']` as `light` | `dark` |
+- Preference is stored in `localStorage['kaamsolv-theme']` as `light` | `dark` |
   `system`. `system` (the default) removes `data-theme` and lets the
   `prefers-color-scheme` media query decide.
 - A tiny **blocking inline script in `app/layout.tsx`** applies a stored
@@ -84,7 +84,7 @@ popular tools rather than nothing. Used in the hero and (after scroll) in the he
 ## 9. Catalogue data
 
 `app/lib/catalogue.ts` is the homepage-facing slice of
-`docs/kaamkit-tool-catalogue.md`: 10 locked categories + 60 tools with
+`docs/kaamsolv-tool-catalogue.md`: 10 locked categories + 60 tools with
 `status: 'live' | 'planned'`, keywords, and a `popularRank`. **The homepage never
 presents a `planned` tool as usable** — cards carry a "Soon" tag and links land on
 the shared `app/not-found.tsx` ("that one's not built yet") until the route exists.

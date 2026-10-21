@@ -97,7 +97,7 @@ export function QrDownload({ encodedText, design, exportOptions, disabled }: Pro
       const blob = await canvasToPngBlob(canvas);
       const file = new File([blob], DOWNLOAD_PNG, { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'QR code from KaamKit' });
+        await navigator.share({ files: [file], title: 'QR code from KaamSolv' });
       } else {
         setNote('Sharing isn’t available here — download the PNG instead.');
       }

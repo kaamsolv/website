@@ -5,7 +5,7 @@ import { Icon } from './icons';
 
 type Pref = 'light' | 'dark' | 'system';
 
-const KEY = 'kaamkit-theme';
+const KEY = 'kaamsolv-theme';
 const OPTIONS: { value: Pref; label: string; icon: 'sun' | 'moon' | 'monitor' }[] = [
   { value: 'light', label: 'Light', icon: 'sun' },
   { value: 'dark', label: 'Dark', icon: 'moon' },

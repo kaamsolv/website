@@ -52,9 +52,9 @@ export function SiteHeader() {
   return (
     <header className="site-header sticky top-0 z-50 border-b border-hair backdrop-blur">
       <div className="kk-container flex h-16 items-center gap-4">
-        <a href="/" aria-label="KaamKit home" className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
+        <a href="/" aria-label="KaamSolv home" className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
           <span className="font-display text-2xl font-extrabold tracking-tight text-ink">
-            Kaam<span className="text-coral-500">Kit</span>
+            Kaam<span className="text-coral-500">Solv</span>
           </span>
         </a>
 

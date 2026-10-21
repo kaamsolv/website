@@ -188,7 +188,7 @@ export function canonicalPayload(payload: QrPayload): EncodeResult {
 /**
  * Maps a canonical payload string to what is actually drawn in the QR.
  * Phase 1 always returns the payload unchanged. A later dynamic QR path
- * would return a KaamKit tracking URL here instead.
+ * would return a KaamSolv tracking URL here instead.
  */
 export function resolveEncodeTarget(canonicalText: string): { text: string; mode: 'static' } {
   return { text: canonicalText, mode: 'static' };

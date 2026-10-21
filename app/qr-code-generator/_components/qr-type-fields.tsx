@@ -687,7 +687,7 @@ export function QrTypeFields({ kind, payload, onChange, fieldErrors, touched }: 
           </div>
         </div>
         <p id="qr-upi-help" className="text-xs text-muted">
-          Generates a payment QR — not a receipt. KaamKit doesn&apos;t process or verify payments.
+          Generates a payment QR — not a receipt. KaamSolv doesn&apos;t process or verify payments.
         </p>
       </div>
     );
