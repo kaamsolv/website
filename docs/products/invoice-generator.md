@@ -1,7 +1,7 @@
 # Invoice Generator
 
-**Route:** `/invoice-generator` · **Category:** Business · **Status:** Phase 1
-(free tier) built, awaiting approval. Decisions: [`DECISIONS.md`](../DECISIONS.md)
+**Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — Phase 1
+(free tier), deployed 2026-10-21. Decisions: [`DECISIONS.md`](../DECISIONS.md)
 (2026-10-21 entry).
 
 ## What it is
