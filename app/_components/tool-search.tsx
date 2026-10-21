@@ -190,7 +190,7 @@ export function ToolSearch({
               <p className="font-semibold text-ink">No tool for “{trimmed}” yet.</p>
               <p className="mt-1 text-muted">
                 It might be on the way —{' '}
-                <a href="/suggest-a-tool" className="font-semibold text-coral-600 hover:underline">
+                <a href="/contact#suggest" className="font-semibold text-coral-600 hover:underline">
                   tell us what you need
                 </a>
                 .

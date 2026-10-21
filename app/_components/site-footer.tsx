@@ -17,8 +17,8 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
     heading: 'KaamSolv',
     links: [
       { label: 'About', href: '/about' },
-      { label: 'Suggest a tool', href: '/suggest-a-tool' },
-      { label: 'Feedback', href: '/feedback' },
+      { label: 'Suggest a tool', href: '/contact#suggest' },
+      { label: 'Feedback', href: '/contact#feedback' },
       { label: 'Contact', href: '/contact' },
     ],
   },
@@ -27,7 +27,7 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
     links: [
       { label: 'Privacy', href: '/privacy' },
       { label: 'Terms', href: '/terms' },
-      { label: 'Cookies', href: '/cookies' },
+      { label: 'Cookies', href: '/privacy#cookies' },
     ],
   },
 ];

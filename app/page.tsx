@@ -303,7 +303,7 @@ export default function HomePage() {
                 Explore all tools
               </a>
               <a
-                href="/suggest-a-tool"
+                href="/contact#suggest"
                 className="inline-flex h-12 items-center rounded-full border border-navy-900/25 px-7 text-sm font-semibold text-navy-900 transition-colors hover:bg-navy-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-900 focus-visible:ring-offset-2 focus-visible:ring-offset-coral-500"
               >
                 Suggest a tool

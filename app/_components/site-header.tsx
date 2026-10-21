@@ -84,14 +84,9 @@ export function SiteHeader() {
           <div className="hidden sm:block">
             <ThemeToggle />
           </div>
+          {/* "Log in" returns when accounts exist (docs/DECISIONS.md). */}
           <a
-            href="/login"
-            className="hidden rounded-lg px-3 py-2 text-sm font-medium text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 sm:inline-block"
-          >
-            Log in
-          </a>
-          <a
-            href="/suggest-a-tool"
+            href="/contact#suggest"
             className="inline-flex h-10 items-center rounded-full bg-coral-500 px-3.5 text-sm font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:px-4"
           >
             <span className="sm:hidden">Suggest</span>
@@ -126,13 +121,6 @@ export function SiteHeader() {
                 {item.label}
               </a>
             ))}
-            <a
-              href="/login"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-strong hover:bg-wash sm:hidden"
-            >
-              Log in
-            </a>
             <div className="flex items-center justify-between px-3 pt-2">
               <span className="text-sm font-medium text-muted">Theme</span>
               <ThemeToggle />

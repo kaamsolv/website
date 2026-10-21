@@ -27,7 +27,7 @@ export default function NotFound() {
             Back to the toolbox
           </a>
           <a
-            href="/suggest-a-tool"
+            href="/contact#suggest"
             className="inline-flex h-11 items-center rounded-full border border-ink px-6 text-sm font-semibold text-ink transition-colors hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
           >
             Ask for it

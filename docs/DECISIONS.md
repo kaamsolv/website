@@ -5,6 +5,30 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Basic pages: Privacy, Terms, About, Contact
+
+**Decided by:** product owner. **Status: drafts — owner to review before
+deploy; ideally a legal review of Privacy and Terms.**
+
+- New pages `/privacy`, `/terms`, `/about`, `/contact` on a shared `TextPage`
+  shell. Contact email: **kaamsolv@gmail.com** (mailto links pre-fill a subject:
+  Tool suggestion, Feedback, Privacy request).
+- Privacy describes only what the code does today: no cookies, no analytics or
+  ad trackers; theme choice in local storage; image + QR tools run in the
+  browser; URL Shortener stores destination, salted IP hash, and per-click
+  time/device class/referrer domain/country; reports; rate-limit counters;
+  Cloudflare (hosting) and Neon (Singapore) as processors. **Rule: any change
+  that adds a cookie, tracker, third party or stored field updates
+  `app/privacy/page.tsx` in the same change.**
+- "Log in" removed from the header and phone menu until accounts exist.
+  "Suggest a tool" → `/contact#suggest`, "Feedback" → `/contact#feedback`,
+  "Cookies" → `/privacy#cookies`. No broken internal links remain.
+- Open points for the owner: legal entity name and address (Terms/Privacy say
+  just "KaamSolv"); which city's courts for disputes (Terms say only "laws of
+  India"); confirm the 18+ audience statement.
+
+---
+
 ## 2026-10-21 — All tools page, "coming soon" entries, shorter short links
 
 **Decided by:** product owner.

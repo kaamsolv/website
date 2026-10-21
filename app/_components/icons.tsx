@@ -30,6 +30,7 @@ type IconName =
   | 'chevron-right'
   | 'alert-triangle'
   | 'flag'
+  | 'mail'
   | 'scissors'
   | 'download'
   | 'share'
@@ -170,6 +171,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   flag: <path d="M4 21V4h13l-2 4 2 4H4" />,
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </>
+  ),
   scissors: (
     <>
       <circle cx="6" cy="6" r="3" />
