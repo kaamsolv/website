@@ -181,11 +181,11 @@ export const TOOLS: Tool[] = [
   { name: 'Image Compressor', slug: 'image-compressor', url: '/image-compressor', category: 'Images & Files', blurb: 'Shrink file size, keep it looking right.', keywords: ['compress', 'reduce size', 'optimise', 'smaller'], status: 'live' },
 
   // Writing
-  { name: 'Word Counter', slug: 'word-counter', url: '/writing/word-counter', category: 'Writing', blurb: 'Words, characters, sentences and reading time.', keywords: ['word count', 'characters', 'essay', 'limit'], status: 'planned' },
-  { name: 'Character Counter', slug: 'character-counter', url: '/writing/character-counter', category: 'Writing', blurb: 'Stay under the limit for bios, posts and meta tags.', keywords: ['character count', 'twitter', 'limit', 'sms'], status: 'planned' },
-  { name: 'Case Converter', slug: 'case-converter', url: '/writing/case-converter', category: 'Writing', blurb: 'UPPER, lower, Title and Sentence case in a click.', keywords: ['uppercase', 'lowercase', 'title case', 'capitalise'], status: 'planned' },
-  { name: 'Text Cleaner', slug: 'text-cleaner', url: '/writing/text-cleaner', category: 'Writing', blurb: 'Strip odd spacing, line breaks and formatting.', keywords: ['clean text', 'remove line breaks', 'whitespace', 'format'], status: 'planned' },
-  { name: 'Lorem Ipsum Generator', slug: 'lorem-ipsum-generator', url: '/generators/lorem-ipsum-generator', category: 'Writing', blurb: 'Placeholder text, by the paragraph or word.', keywords: ['lorem', 'placeholder', 'dummy text', 'filler'], status: 'planned' },
+  { name: 'Word Counter', slug: 'word-counter', url: '/word-counter', category: 'Writing', blurb: 'Words, characters, sentences and reading time.', keywords: ['word count', 'characters', 'essay', 'limit'], status: 'live' },
+  { name: 'Character Counter', slug: 'character-counter', url: '/character-counter', category: 'Writing', blurb: 'Stay under the limit for bios, posts and meta tags.', keywords: ['character count', 'twitter', 'limit', 'sms'], status: 'live' },
+  { name: 'Case Converter', slug: 'case-converter', url: '/case-converter', category: 'Writing', blurb: 'UPPER, lower, Title and Sentence case in a click.', keywords: ['uppercase', 'lowercase', 'title case', 'capitalise'], status: 'live' },
+  { name: 'Text Cleaner', slug: 'text-cleaner', url: '/text-cleaner', category: 'Writing', blurb: 'Strip odd spacing, line breaks and formatting.', keywords: ['clean text', 'remove line breaks', 'whitespace', 'format'], status: 'live' },
+  { name: 'Lorem Ipsum Generator', slug: 'lorem-ipsum-generator', url: '/lorem-ipsum-generator', category: 'Writing', blurb: 'Placeholder text, by the paragraph or word.', keywords: ['lorem', 'placeholder', 'dummy text', 'filler'], status: 'live' },
 
   // Career
   { name: 'Resume Builder', slug: 'resume-builder', url: '/generators/resume-builder', category: 'Career', blurb: 'A guided, step-by-step build for your resume.', keywords: ['resume', 'cv', 'builder', 'job'], status: 'planned' },

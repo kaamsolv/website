@@ -1,5 +1,5 @@
-/** "Processed on your device" reassurance shared by the Image Kit tools. */
-export function OnDeviceNote() {
+/** "Processed on your device" reassurance shared by in-browser tools. */
+export function OnDeviceNote({ subject = 'image' }: { subject?: 'image' | 'text' }) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-teal-300 bg-tealx-100 p-4">
       <svg
@@ -14,7 +14,9 @@ export function OnDeviceNote() {
       </svg>
       <div>
         <p className="text-sm font-semibold text-ink">Processed on your device</p>
-        <p className="text-sm text-strong">Your image isn&apos;t uploaded to KaamSolv.</p>
+        <p className="text-sm text-strong">
+          {subject === 'text' ? 'Your text isn’t sent to KaamSolv or saved anywhere.' : 'Your image isn’t uploaded to KaamSolv.'}
+        </p>
       </div>
     </div>
   );
