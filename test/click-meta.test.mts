@@ -90,6 +90,9 @@ test('countryFrom accepts only a two-letter code', () => {
   assert.equal(countryFrom('I1'), null);
   assert.equal(countryFrom(''), null);
   assert.equal(countryFrom(null), null);
+  // Cloudflare's "unknown" and Tor markers are not countries.
+  assert.equal(countryFrom('XX'), null);
+  assert.equal(countryFrom('T1'), null);
 });
 
 const headers = (h: Record<string, string>) => ({ get: (n: string) => h[n.toLowerCase()] ?? null });
@@ -107,6 +110,15 @@ test('clickMetaFromRequest builds the designed record from a GET', () => {
     ),
     { deviceClass: 'mobile', referrerHost: 'web.whatsapp.com', country: 'IN' },
   );
+});
+
+test("country comes only from the current host's own geo header", () => {
+  const both = headers({ 'cf-ipcountry': 'IN', 'x-vercel-ip-country': 'US' });
+  assert.equal(clickMetaFromRequest('GET', both, true)?.country, 'IN');
+  assert.equal(clickMetaFromRequest('GET', both, false)?.country, 'US');
+  // A client-sent Vercel header is ignored on Cloudflare, and vice versa.
+  assert.equal(clickMetaFromRequest('GET', headers({ 'x-vercel-ip-country': 'US' }), true)?.country, null);
+  assert.equal(clickMetaFromRequest('GET', headers({ 'cf-ipcountry': 'IN' }), false)?.country, null);
 });
 
 test('clickMetaFromRequest never reads city or region, even when present', () => {

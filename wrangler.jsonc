@@ -1,0 +1,20 @@
+// TEMPORARY — Cloudflare Workers proof-of-concept only (branch cf-workers-poc).
+// Not production configuration. Deploys to *.workers.dev only; no routes, no
+// custom domain, no DNS. Secrets (DATABASE_URL → Neon DEVELOPMENT,
+// KK_IP_HASH_SALT, WEB_RISK_API_KEY) are Worker secrets, never in this file.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kaamkit-cf-poc",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // workers.dev only. No routes / custom domains, and no per-version preview URLs.
+  "workers_dev": true,
+  "preview_urls": false,
+  // Workers Logs: per-request CPU time and wall time for the POC measurements.
+  "observability": { "enabled": true }
+}

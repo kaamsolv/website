@@ -14,6 +14,8 @@
  * URL (paths and query strings can carry personal data), city/region, cookies.
  */
 
+import { isCloudflareWorkers } from './runtime-platform.ts';
+
 export const DEVICE_CLASSES = ['desktop', 'mobile', 'tablet', 'bot', 'unknown'] as const;
 export type DeviceClass = (typeof DEVICE_CLASSES)[number];
 
@@ -62,10 +64,14 @@ export function referrerHostFrom(referer: string | null | undefined): string | n
   }
 }
 
-/** A two-letter country code, or null. Region and city are never read. */
+/**
+ * A two-letter country code, or null. Region and city are never read.
+ * `XX` is Cloudflare's "unknown" (and not an assigned ISO code); Cloudflare's
+ * `T1` (Tor) already fails the letters-only check.
+ */
 export function countryFrom(value: string | null | undefined): string | null {
   const code = (value ?? '').trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(code) ? code : null;
+  return /^[A-Z]{2}$/.test(code) && code !== 'XX' ? code : null;
 }
 
 /**
@@ -76,7 +82,11 @@ export function countryFrom(value: string | null | undefined): string | null {
  *   - browser prefetch / prerender (`Sec-Purpose` / `Purpose` headers) — the
  *     user hasn't gone anywhere yet.
  */
-export function clickMetaFromRequest(method: string, headers: HeaderReader): ClickMeta | null {
+export function clickMetaFromRequest(
+  method: string,
+  headers: HeaderReader,
+  onCloudflare: boolean = isCloudflareWorkers(),
+): ClickMeta | null {
   if (method.toUpperCase() !== 'GET') return null;
 
   const purpose = `${headers.get('sec-purpose') ?? ''} ${headers.get('purpose') ?? ''}`;
@@ -85,7 +95,8 @@ export function clickMetaFromRequest(method: string, headers: HeaderReader): Cli
   return {
     deviceClass: deviceClassFromUserAgent(headers.get('user-agent')),
     referrerHost: referrerHostFrom(headers.get('referer')),
-    // Set by Vercel on every request. Absent locally, which is fine.
-    country: countryFrom(headers.get('x-vercel-ip-country')),
+    // Only the current host's own geo header: on each host the other one is a
+    // plain client-supplied header. Absent locally, which is fine.
+    country: countryFrom(headers.get(onCloudflare ? 'cf-ipcountry' : 'x-vercel-ip-country')),
   };
 }

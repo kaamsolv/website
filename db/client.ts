@@ -8,8 +8,9 @@
  *                            is fine on both the Node and (legacy) Edge runtime.
  *   - `DATABASE_URL` unset → PGlite (real Postgres in WASM), persisted to
  *                            `.pglite/` so links survive `next dev` restarts.
- *                            **Local development only** — on Vercel a missing
- *                            `DATABASE_URL` throws with an actionable message
+ *                            **Local development only** — on any production
+ *                            server (Vercel, Cloudflare Workers, `next start`)
+ *                            a missing `DATABASE_URL` throws with an actionable message
  *                            instead, because PGlite cannot write to a
  *                            read-only filesystem and a silent fallback turns a
  *                            config mistake into an unreadable 500.
@@ -24,6 +25,7 @@
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
 import * as schema from './schema.ts';
 import type { Db } from './links.ts';
+import { deploymentLabel, isProductionServer } from '../app/lib/runtime-platform.ts';
 
 const PGLITE_DIR = '.pglite';
 
@@ -46,28 +48,33 @@ async function createClient(): Promise<Db> {
     return drizzleNeon(url, { schema }) as unknown as Db;
   }
 
-  // No DATABASE_URL. On a deployed environment that is always a
-  // misconfiguration, and the PGlite fallback below cannot work there anyway
-  // (read-only filesystem) — so fail loudly instead of failing obscurely.
-  if (process.env.VERCEL) {
+  // No DATABASE_URL. On any production server (Vercel, Cloudflare Workers,
+  // `next start`) that is always a misconfiguration, and the PGlite fallback
+  // below cannot work there anyway (read-only or no filesystem) — so fail
+  // loudly instead of failing obscurely.
+  if (isProductionServer()) {
     throw new Error(
-      `DATABASE_URL is not set for this deployment (VERCEL_ENV=${
-        process.env.VERCEL_ENV ?? 'unknown'
-      }). Set it on the matching Vercel environment and REDEPLOY — Vercel binds ` +
-        'environment variables when a deployment is created, so editing the ' +
-        'variable does not affect deployments that already exist.',
+      `DATABASE_URL is not set for this deployment (${deploymentLabel()}). ` +
+        'Set it as a server secret for this environment and REDEPLOY — Vercel and ' +
+        'Cloudflare bind environment variables/secrets to a deployment, so editing ' +
+        'the variable does not affect deployments that already exist.',
     );
   }
 
-  // Genuine local development. Imported dynamically so a deployed bundle
-  // (which always has DATABASE_URL) never needs the PGlite WASM payload.
-  const [{ PGlite }, { drizzle: drizzlePglite }] = await Promise.all([
-    import('@electric-sql/pglite'),
-    import('drizzle-orm/pglite'),
-  ]);
+  // Genuine local development. `next build` inlines NODE_ENV, so in a
+  // production bundle this whole branch — and the ~15 MB PGlite WASM/data it
+  // would import — is compiled out rather than shipped as dead weight.
+  if (process.env.NODE_ENV !== 'production') {
+    const [{ PGlite }, { drizzle: drizzlePglite }] = await Promise.all([
+      import('@electric-sql/pglite'),
+      import('drizzle-orm/pglite'),
+    ]);
 
-  const pg = new PGlite(PGLITE_DIR);
-  return drizzlePglite(pg, { schema }) as unknown as Db;
+    const pg = new PGlite(PGLITE_DIR);
+    return drizzlePglite(pg, { schema }) as unknown as Db;
+  }
+
+  throw new Error('DATABASE_URL is not set, and PGlite is only available under `next dev`.');
 }
 
 /** The shared Drizzle instance. `await` it — the PGlite path is async. */

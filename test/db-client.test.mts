@@ -50,6 +50,17 @@ test('throws an actionable error when DATABASE_URL is missing on Vercel', async 
   });
 });
 
+test('throws on any production server without DATABASE_URL, not only Vercel', async () => {
+  // Cloudflare Workers (OpenNext) and `next start`: NODE_ENV=production, no VERCEL.
+  // Must fail loudly, never reach for PGlite.
+  await withEnv({ DATABASE_URL: undefined, VERCEL: undefined, NODE_ENV: 'production' }, async () => {
+    await assert.rejects(getDb(), (err: Error) => {
+      assert.match(err.message, /DATABASE_URL is not set for this deployment \(NODE_ENV=production\)/);
+      return true;
+    });
+  });
+});
+
 test('rejects a truncated or quote-wrapped DATABASE_URL', async () => {
   await withEnv({ DATABASE_URL: '"postgresql://user@host/db"', VERCEL: '1' }, async () => {
     await assert.rejects(getDb(), /not a postgres:\/\/ connection string/);

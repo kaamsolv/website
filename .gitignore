@@ -12,6 +12,12 @@ build/
 # Local PGlite database (dev only — see .env.example)
 .pglite/
 
+# Cloudflare Workers POC (cf-workers-poc): build output and local secrets
+.open-next/
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 *.log
 
 .DS_Store

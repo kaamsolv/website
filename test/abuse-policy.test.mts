@@ -57,6 +57,14 @@ test('the salt is required on Vercel, defaulted locally', () => {
   assert.ok(resolveIpHashSalt({}).length > 0);
 });
 
+test('the salt is required on any production server, not only Vercel', () => {
+  // Cloudflare Workers (OpenNext) and `next start` set NODE_ENV=production but
+  // not VERCEL — they must never fall back to the public dev salt.
+  assert.throws(() => resolveIpHashSalt({ NODE_ENV: 'production' }), /KK_IP_HASH_SALT is not set/);
+  assert.equal(resolveIpHashSalt({ NODE_ENV: 'production', KK_IP_HASH_SALT: 'x' }), 'x');
+  assert.ok(resolveIpHashSalt({ NODE_ENV: 'development' }).length > 0);
+});
+
 test('hashIp is deterministic, salt-dependent, and never contains the IP', async () => {
   const a = await hashIp('203.0.113.7', 'salt-a');
   assert.equal(a, await hashIp('203.0.113.7', 'salt-a'));
@@ -70,6 +78,17 @@ test('clientIp takes the first forwarded address', () => {
   assert.equal(clientIp(h({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1' })), '203.0.113.7');
   assert.equal(clientIp(h({ 'x-real-ip': '198.51.100.2' })), '198.51.100.2');
   assert.equal(clientIp(h({})), 'local');
+});
+
+test('on Cloudflare, clientIp trusts only CF-Connecting-IP', () => {
+  const h = (m: Record<string, string>) => ({ get: (n: string) => m[n] ?? null });
+  // Cloudflare appends to a client-supplied X-Forwarded-For, so its first
+  // entry is attacker-controlled there and must be ignored.
+  const spoofed = h({ 'x-forwarded-for': '6.6.6.6, 203.0.113.7', 'cf-connecting-ip': '203.0.113.7' });
+  assert.equal(clientIp(spoofed, true), '203.0.113.7');
+  assert.equal(clientIp(h({ 'x-forwarded-for': '6.6.6.6' }), true), 'unknown');
+  // …and off Cloudflare a client-sent CF-Connecting-IP is just a header.
+  assert.equal(clientIp(h({ 'x-forwarded-for': '203.0.113.7', 'cf-connecting-ip': '6.6.6.6' }), false), '203.0.113.7');
 });
 
 // ---------------------------------------------------------- destination policy
