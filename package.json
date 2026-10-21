@@ -15,11 +15,13 @@
     "link:reports": "node db/link-reports.mts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "@opennextjs/cloudflare": "^1.20.12",
+    "@react-pdf/renderer": "^4.9.0",
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.3",
     "heic2any": "^0.0.4",
@@ -30,12 +32,14 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^20.0.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.10",
+    "pdfjs-dist": "^6.4.299",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.4",
     "typescript": "^5.5.0",

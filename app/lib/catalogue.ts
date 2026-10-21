@@ -154,7 +154,7 @@ export const TOOLS: Tool[] = [
   { name: 'Meeting Time Converter', slug: 'meeting-time-converter', url: '/calculators/meeting-time-converter', category: 'Work', blurb: 'One meeting time across everyone’s timezones.', keywords: ['timezone', 'time zone', 'ist', 'pst', 'schedule'], status: 'planned' },
 
   // Business
-  { name: 'Invoice Generator', slug: 'invoice-generator', url: '/generators/invoice-generator', category: 'Business', blurb: 'A clean, downloadable invoice in a couple of minutes.', keywords: ['bill', 'invoice', 'gst invoice', 'pdf'], status: 'planned', popularRank: 5 },
+  { name: 'Invoice Generator', slug: 'invoice-generator', url: '/invoice-generator', category: 'Business', blurb: 'A clean, downloadable invoice in a couple of minutes.', keywords: ['bill', 'invoice', 'gst invoice', 'pdf'], status: 'live', popularRank: 5 },
   { name: 'Quotation Generator', slug: 'quotation-generator', url: '/generators/quotation-generator', category: 'Business', blurb: 'Send a tidy quote before you send the invoice.', keywords: ['quote', 'estimate', 'proposal'], status: 'planned' },
   { name: 'Receipt Generator', slug: 'receipt-generator', url: '/generators/receipt-generator', category: 'Business', blurb: 'Proof of payment, formatted and ready to send.', keywords: ['receipt', 'payment', 'acknowledgement'], status: 'planned' },
   { name: 'QR Code Generator', slug: 'qr-code-generator', url: '/qr-code-generator', category: 'Business', blurb: 'QR codes for links, Wi-Fi, contact cards and more.', keywords: ['qr', 'qr code', 'wifi qr', 'vcard', 'scan'], status: 'live' },

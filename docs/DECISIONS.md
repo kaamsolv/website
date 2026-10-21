@@ -5,6 +5,46 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Invoice Generator (Phase 1: free tier)
+
+**Decided by:** product owner (§46 kickoff + plan approved).
+
+- **Dependencies installed before formal approval on 2026-10-21; retroactively
+  approved; process note for future tools.** The next tool waits for explicit
+  approval before any install.
+- **Phasing.** Phase 1 = the free tool only (no account, no saving). The paid
+  tier (Phase 2) needs separate approval of payment provider, auth, database
+  schema/privacy model and pricing (§40). Full spec:
+  [`products/invoice-generator.md`](./products/invoice-generator.md).
+- **PDF library: `@react-pdf/renderer`** over jsPDF + html2canvas. Vector,
+  selectable text and declarative templates outweigh the size (~440 KB gzip),
+  which loads only on the first Download / Preview, never on page load and
+  never in the Worker. Font: Inter Regular + Bold TTF (₹ verified), OFL,
+  served from `public/fonts/`.
+- **Dev-only test deps:** `@playwright/test` (e2e) and `pdfjs-dist` (reads the
+  text inside the downloaded PDF in tests). Neither ships to visitors.
+- **PDFs are made in the browser for everyone, Pro included.** Server-side PDF
+  would send the user's clients' personal data to us (breaks the Privacy
+  page promise; DPDP processor role) and needs paid Workers CPU. Accepted
+  risk: a determined user can strip the free footer via dev tools. What Pro
+  sells that matters (saving, client directory, recurring, CSV export) is
+  server-enforced.
+- **Entitlements:** `app/lib/entitlements.ts` — named keys
+  (`invoice_watermark_remove`, `invoice_unlimited_items`, `invoice_save`, …),
+  `useEntitlements()` / `can(key)`. Everyone gets the empty free set today;
+  Phase 2 swaps only the data source. Never "if paid allow all".
+- **Free line-item cap: 10** (spec changed from 5 with owner's confirmation).
+  10 two-line items + notes verified to fit one A4 page; 5 would feel like a
+  bait paywall. `invoice_unlimited_items` later means multi-page invoices.
+- **Payment provider: TBD.** Stripe is invite-only for Indian businesses
+  (registered business + video KYC). The schema and lookup keys work for
+  Stripe or Razorpay; the drafted webhook is the Razorpay variant
+  (HMAC-SHA256 over the raw body, idempotent on `x-razorpay-event-id`).
+- **Not a GST tax invoice.** No GSTIN/HSN/SAC/e-invoicing checks (§33); the FAQ
+  says so plainly.
+
+---
+
 ## 2026-10-21 — UI audit: one choice control for all tools
 
 **Prompted by:** owner noticed GST's selected options looked like slightly

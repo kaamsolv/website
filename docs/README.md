@@ -17,6 +17,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md).
 | QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md) |
 | Image converters (10) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
 | URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
+| Invoice Generator | **Phase 1 built, not deployed** — [`products/invoice-generator.md`](products/invoice-generator.md) |
 | Everything else in the catalogue | Planned — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack
@@ -63,7 +64,7 @@ Local development needs **no** database configured — the absence of
 | [`infra/deployment.md`](infra/deployment.md) | Hosting, domain, secrets, deploy & migrations |
 | [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) | Production design-system standards |
 | [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) | The tool catalogue, locked categories, build order |
-| [`products/`](products/) | Per-product specs (QR, image kit, URL Shortener) |
+| [`products/`](products/) | Per-product specs (QR, image kit, URL Shortener, Invoice Generator) |
 | [`kaamsolv-design-system.html`](kaamsolv-design-system.html) | Original visual reference prototype (not production code) |
 
 ## Development process
