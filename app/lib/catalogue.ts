@@ -147,7 +147,7 @@ export const TOOLS: Tool[] = [
   { name: 'Discount Calculator', slug: 'discount-calculator', url: '/calculators/discount-calculator', category: 'Money', blurb: 'Final price after a discount, and what you saved.', keywords: ['sale', 'off', 'markdown', 'price'], status: 'planned' },
 
   // Work
-  { name: 'URL Shortener', slug: 'url-shortener', url: '/url-shortener', category: 'Work', blurb: 'Paste a long link, get a short one. Track clicks if you want.', keywords: ['short link', 'link', 'bitly', 'tiny', 'redirect'], status: 'live', popularRank: 0 },
+  { name: 'URL Shortener', slug: 'url-shortener', url: '/url-shortener', category: 'Work', blurb: 'Paste a long link, get a short one you can share anywhere.', keywords: ['short link', 'link', 'bitly', 'tiny', 'redirect'], status: 'live', popularRank: 0 },
   { name: 'UTM Builder', slug: 'utm-builder', url: '/generators/utm-builder', category: 'Work', blurb: 'Build tagged campaign links that analytics can read.', keywords: ['utm', 'campaign', 'tracking', 'source', 'medium'], status: 'planned' },
   { name: 'Time Calculator', slug: 'time-calculator', url: '/calculators/time-calculator', category: 'Work', blurb: 'Add and subtract hours and minutes.', keywords: ['hours', 'duration', 'add time', 'timesheet'], status: 'planned' },
   { name: 'Date Difference Calculator', slug: 'date-difference-calculator', url: '/calculators/date-difference-calculator', category: 'Work', blurb: 'Days, weeks and months between two dates.', keywords: ['days between', 'date diff', 'how long'], status: 'planned' },
