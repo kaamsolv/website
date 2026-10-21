@@ -31,6 +31,8 @@ const ROUTE_SEGMENTS = [
   'tip-calculator',
   'split-bill-calculator',
   'age-calculator',
+  'gst-calculator',
+  'emi-calculator',
   'calculators',
   'converters',
   'generators',

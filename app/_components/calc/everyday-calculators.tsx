@@ -15,15 +15,15 @@ import {
   whatPercent,
 } from '@/app/lib/calc/everyday';
 
-const FIELD =
+export const FIELD =
   'h-12 w-full rounded-xl border border-hair bg-fieldbg px-4 text-base font-semibold text-ink placeholder:font-normal placeholder:text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
-const PILL = (active: boolean) =>
+export const PILL = (active: boolean) =>
   `h-9 rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
     active ? 'bg-navy-900 text-white' : 'border border-hair bg-fieldbg text-strong hover:bg-wash'
   }`;
-const CARD = 'rounded-xl2 border border-hair bg-surface p-5 sm:p-6';
+export const CARD = 'rounded-xl2 border border-hair bg-surface p-5 sm:p-6';
 
-function NumberField({
+export function NumberField({
   id,
   label,
   value,
@@ -79,7 +79,7 @@ function NumberField({
 }
 
 /** The answer line, with copy. Empty until inputs are valid. */
-function Answer({ label, value, copy }: { label: string; value: string | null; copy?: string }) {
+export function Answer({ label, value, copy }: { label: string; value: string | null; copy?: string }) {
   return (
     <div className="rounded-xl border border-teal-300 bg-tealx-100 px-5 py-4" aria-live="polite">
       <p className="text-sm font-medium text-strong">{label}</p>
@@ -91,7 +91,7 @@ function Answer({ label, value, copy }: { label: string; value: string | null; c
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+export function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-hair py-2 text-sm last:border-0">
       <dt className="text-muted">{label}</dt>

@@ -140,8 +140,8 @@ export const CATEGORIES: Category[] = [
 
 export const TOOLS: Tool[] = [
   // Money
-  { name: 'GST Calculator', slug: 'gst-calculator', url: '/calculators/gst-calculator', category: 'Money', blurb: 'Add or remove GST, both ways, in seconds.', keywords: ['tax', 'gst', 'india', 'inclusive', 'exclusive', '18%'], status: 'planned', popularRank: 1 },
-  { name: 'EMI Calculator', slug: 'emi-calculator', url: '/calculators/emi-calculator', category: 'Money', blurb: 'Monthly payment on a loan, plus total interest.', keywords: ['loan', 'interest', 'home loan', 'car loan', 'installment'], status: 'planned', popularRank: 2 },
+  { name: 'GST Calculator', slug: 'gst-calculator', url: '/gst-calculator', category: 'Money', blurb: 'Add or remove GST, both ways, in seconds.', keywords: ['tax', 'gst', 'india', 'inclusive', 'exclusive', '18%'], status: 'live', popularRank: 1 },
+  { name: 'EMI Calculator', slug: 'emi-calculator', url: '/emi-calculator', category: 'Money', blurb: 'Monthly payment on a loan, plus total interest.', keywords: ['loan', 'interest', 'home loan', 'car loan', 'installment'], status: 'live', popularRank: 2 },
   { name: 'Salary Calculator', slug: 'salary-calculator', url: '/calculators/salary-calculator', category: 'Money', blurb: 'Turn a package into monthly take-home.', keywords: ['take home', 'in hand', 'net pay', 'deductions'], status: 'planned' },
   { name: 'Percentage Calculator', slug: 'percentage-calculator', url: '/percentage-calculator', category: 'Money', blurb: 'Percentages, increases and decreases without the second-guess.', keywords: ['percent', '%', 'change', 'of'], status: 'live' },
   { name: 'Discount Calculator', slug: 'discount-calculator', url: '/discount-calculator', category: 'Money', blurb: 'Final price after a discount, and what you saved.', keywords: ['sale', 'off', 'markdown', 'price'], status: 'live' },

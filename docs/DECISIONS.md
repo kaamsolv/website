@@ -24,8 +24,26 @@ infrastructure. Newest first. Detail lives in the linked docs.
   October 2026" date — re-check periodically.
 - Age: 29 Feb birthdays fall on 28 Feb in non-leap years. Money shown with
   Indian grouping (₹1,25,000.00).
-- Deferred on purpose: GST Calculator (rates must be verified against official
-  sources first), EMI Calculator (needs a schedule table).
+- GST and EMI calculators followed the same day (`/gst-calculator`,
+  `/emi-calculator`).
+
+## 2026-10-21 — GST and EMI calculators
+
+- **GST rates source:** PIB release on the 56th GST Council meeting (PRID
+  2163555) — from 22 Sept 2025, 5% merit and 18% standard rates, 40% for a few
+  demerit/luxury items. Presets are 5 / 18 / 40; anything else (special items,
+  older 12% / 28% invoices) uses Custom. Special rates for gold/diamonds were
+  not confirmed from an official source, so they are not stated. Rates are in
+  `app/lib/calc/finance.ts` with a "checked" date — **re-check when the GST
+  Council changes rates.** The page says it's an estimate, not tax advice.
+- Shows both CGST + SGST/UTGST (intra-state, half each; odd paise go to SGST
+  so the two always add up) and IGST (inter-state).
+- **EMI:** standard monthly reducing-balance formula; last instalment absorbs
+  rounding so the schedule ends at ₹0; yearly and monthly schedule. Limits:
+  ₹1 – ₹100 crore, 0–50% a year, 1–480 months.
+- Known dev-only console warning on all pages ("Encountered a script tag while
+  rendering React component"), pre-existing, likely the theme script in
+  `app/layout.tsx`. No user impact; tidy up later.
 
 ---
 
