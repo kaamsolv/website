@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Answer, CARD, FIELD, NumberField, PILL, Row } from './everyday-calculators';
+import { Answer, CARD, FIELD, NumberField, Row } from './everyday-calculators';
+import { Chips, Segmented } from '../choice';
 import { emi, gst, GST_PRESET_RATES, GST_RATES_CHECKED, type GstMode } from '@/app/lib/calc/finance';
 import { formatNumber, formatRupees, parseAmount } from '@/app/lib/calc/everyday';
 
@@ -19,14 +20,16 @@ export function GstCalculator() {
 
   return (
     <div className={`mx-auto max-w-2xl space-y-5 ${CARD}`}>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Add or remove GST">
-        <button type="button" aria-pressed={mode === 'add'} onClick={() => setMode('add')} className={PILL(mode === 'add')}>
-          Add GST
-        </button>
-        <button type="button" aria-pressed={mode === 'remove'} onClick={() => setMode('remove')} className={PILL(mode === 'remove')}>
-          Remove GST
-        </button>
-      </div>
+      <Segmented
+        legend="Add or remove GST"
+        hideLegend
+        options={[
+          { value: 'add' as GstMode, label: 'Add GST' },
+          { value: 'remove' as GstMode, label: 'Remove GST' },
+        ]}
+        value={mode}
+        onChange={setMode}
+      />
 
       <NumberField
         id="gst-amount"
@@ -37,45 +40,41 @@ export function GstCalculator() {
         placeholder="1,000"
       />
 
-      <fieldset>
-        <legend className="mb-1.5 text-sm font-semibold text-ink">GST rate</legend>
-        <div className="flex flex-wrap items-center gap-2">
-          {GST_PRESET_RATES.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={!custom && rateN === p}
-              onClick={() => {
-                setCustom(false);
-                setRate(String(p));
-              }}
-              className={PILL(!custom && rateN === p)}
-            >
-              {p}%
-            </button>
-          ))}
-          <button type="button" aria-pressed={custom} onClick={() => setCustom(true)} className={PILL(custom)}>
-            Custom
-          </button>
-          {custom && (
-            <div className="relative w-28">
-              <input
-                aria-label="Custom GST rate"
-                inputMode="decimal"
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
-                className={`${FIELD} h-9 pr-8 text-sm`}
-                autoFocus
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted">%</span>
-            </div>
-          )}
-        </div>
+      <div>
+        <Chips
+          legend="GST rate"
+          options={[
+            ...GST_PRESET_RATES.map((p) => ({ value: String(p), label: `${p}%` })),
+            { value: 'custom', label: 'Custom' },
+          ]}
+          value={custom ? 'custom' : rate}
+          onChange={(v) => {
+            if (v === 'custom') {
+              setCustom(true);
+              return;
+            }
+            setCustom(false);
+            setRate(v);
+          }}
+        />
+        {custom && (
+          <div className="relative mt-2 w-32">
+            <input
+              aria-label="Custom GST rate in percent"
+              inputMode="decimal"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              className={`${FIELD} pr-8`}
+              autoFocus
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted">%</span>
+          </div>
+        )}
         <p className="mt-1.5 text-xs text-muted">
           Main rates since 22 Sept 2025: 5% and 18%, with 40% for a few items like tobacco and luxury cars. Use Custom
           for anything else.
         </p>
-      </fieldset>
+      </div>
 
       <Answer
         label={mode === 'add' ? `Price with ${rateLabel} GST` : `Price before ${rateLabel} GST`}
@@ -138,13 +137,17 @@ export function EmiCalculator() {
           <NumberField id="emi-rate" label="Interest rate (yearly)" value={rate} onChange={setRate} suffix="%" placeholder="8.5" />
           <div>
             <NumberField id="emi-tenure" label="Loan tenure" value={tenure} onChange={setTenure} placeholder={unit === 'years' ? '20' : '240'} />
-            <div className="mt-2 flex gap-2" role="group" aria-label="Tenure in">
-              {(['years', 'months'] as const).map((u) => (
-                <button key={u} type="button" aria-pressed={unit === u} onClick={() => setUnit(u)} className={PILL(unit === u)}>
-                  {u === 'years' ? 'Years' : 'Months'}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              legend="Tenure in"
+              hideLegend
+              className="mt-2"
+              options={[
+                { value: 'years' as const, label: 'Years' },
+                { value: 'months' as const, label: 'Months' },
+              ]}
+              value={unit}
+              onChange={setUnit}
+            />
           </div>
         </div>
 
@@ -193,14 +196,16 @@ export function EmiCalculator() {
             <h2 id="schedule-title" className="font-display text-lg font-bold text-ink">
               Repayment schedule
             </h2>
-            <div className="flex gap-2" role="group" aria-label="Schedule view">
-              <button type="button" aria-pressed={!monthly} onClick={() => setMonthly(false)} className={PILL(!monthly)}>
-                By year
-              </button>
-              <button type="button" aria-pressed={monthly} onClick={() => setMonthly(true)} className={PILL(monthly)}>
-                By month
-              </button>
-            </div>
+            <Segmented
+              legend="Show the schedule"
+              hideLegend
+              options={[
+                { value: false, label: 'By year' },
+                { value: true, label: 'By month' },
+              ]}
+              value={monthly}
+              onChange={setMonthly}
+            />
           </div>
           <div className="mt-4 max-h-[28rem] overflow-auto rounded-lg border border-hair">
             <table className="w-full min-w-[30rem] text-right text-sm">

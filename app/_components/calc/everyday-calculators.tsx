@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CopyButton } from '../copy-button';
+import { Chips, Segmented } from '../choice';
 import {
   ageOn,
   discount,
@@ -17,10 +18,6 @@ import {
 
 export const FIELD =
   'h-12 w-full rounded-xl border border-hair bg-fieldbg px-4 text-base font-semibold text-ink placeholder:font-normal placeholder:text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
-export const PILL = (active: boolean) =>
-  `h-9 rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
-    active ? 'bg-navy-900 text-white' : 'border border-hair bg-fieldbg text-strong hover:bg-wash'
-  }`;
 export const CARD = 'rounded-xl2 border border-hair bg-surface p-5 sm:p-6';
 
 export function NumberField({
@@ -115,7 +112,7 @@ export function PercentageCalculator() {
   const modes: { id: PercentMode; label: string }[] = [
     { id: 'of', label: 'X% of Y' },
     { id: 'what', label: 'X is what % of Y' },
-    { id: 'change', label: '% increase / decrease' },
+    { id: 'change', label: '% change' },
   ];
 
   let answer: string | null = null;
@@ -139,13 +136,13 @@ export function PercentageCalculator() {
 
   return (
     <div className={`mx-auto max-w-2xl space-y-5 ${CARD}`}>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="What do you want to work out?">
-        {modes.map((m) => (
-          <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => setMode(m.id)} className={PILL(mode === m.id)}>
-            {m.label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        legend="What do you want to work out?"
+        hideLegend
+        options={modes.map((m) => ({ value: m.id, label: m.label }))}
+        value={mode}
+        onChange={setMode}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField id="pc-a" label={fields[0]} value={a} onChange={setA} suffix={fields[2]} placeholder="e.g. 18" />
         <NumberField id="pc-b" label={fields[1]} value={b} onChange={setB} placeholder="e.g. 2500" />
@@ -207,13 +204,14 @@ export function TipSplitCalculator({ defaultTip }: { defaultTip: number }) {
       <NumberField id="tb-bill" label="Bill amount" value={bill} onChange={setBill} prefix="₹" placeholder="1,850" />
       <div>
         <NumberField id="tb-tip" label="Tip" value={tip} onChange={setTip} suffix="%" />
-        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Quick tip">
-          {presets.map((p) => (
-            <button key={p} type="button" aria-pressed={num(tip) === p} onClick={() => setTip(String(p))} className={PILL(num(tip) === p)}>
-              {p === 0 ? 'No tip' : `${p}%`}
-            </button>
-          ))}
-        </div>
+        <Chips
+          legend="Quick tip"
+          hideLegend
+          className="mt-2"
+          options={presets.map((p) => ({ value: p, label: p === 0 ? 'No tip' : `${p}%` }))}
+          value={num(tip)}
+          onChange={(p) => setTip(String(p))}
+        />
       </div>
       <div>
         <p className="mb-1.5 text-sm font-semibold text-ink" id="tb-people-label">

@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { OnDeviceNote } from '../image/on-device-note';
+import { Chips, Segmented } from '../choice';
 import { TextInput, TextOutput } from './text-boxes';
 import { CHARACTER_LIMITS, countCharacters, countWords, formatDuration, LIMITS_CHECKED, textStats } from '@/app/lib/text/count';
 import { CASES, convertCase, type CaseId } from '@/app/lib/text/case';
@@ -9,11 +10,6 @@ import { CLEAN_OPTIONS, cleanText, DEFAULT_CLEAN_OPTIONS, type CleanOptions } fr
 import { clampCount, generateLorem, LOREM_LIMITS, type LoremUnit } from '@/app/lib/text/lorem';
 
 const nf = new Intl.NumberFormat('en-IN');
-
-const PILL = (active: boolean) =>
-  `h-9 rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
-    active ? 'bg-navy-900 text-white' : 'border border-hair bg-fieldbg text-strong hover:bg-wash'
-  }`;
 
 function Stat({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
   return (
@@ -113,23 +109,7 @@ export function CaseConverter() {
     <div className="mx-auto max-w-3xl space-y-5">
       <OnDeviceNote subject="text" />
       <TextInput id="case-text" label="Your text" value={text} onChange={setText} rows={7} />
-      <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-ink">Change to</legend>
-        <div className="flex flex-wrap gap-2">
-          {CASES.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              aria-pressed={mode === c.id}
-              title={c.example}
-              onClick={() => setMode(c.id)}
-              className={PILL(mode === c.id)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      <Chips legend="Change to" options={CASES.map((c) => ({ value: c.id, label: c.label }))} value={mode} onChange={setMode} />
       <TextOutput id="case-output" label="Result" value={output} rows={7} />
     </div>
   );
@@ -221,22 +201,19 @@ export function LoremIpsumGenerator() {
               value={countInput}
               onChange={(e) => setCountInput(e.target.value)}
               onBlur={() => setCountInput(String(count))}
-              className="h-9 w-24 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+              className="h-10 w-24 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
             />
-            {UNITS.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                aria-pressed={unit === u.id}
-                onClick={() => {
-                  setUnit(u.id);
-                  setCountInput(String(LOREM_LIMITS[u.id].default));
-                }}
-                className={PILL(unit === u.id)}
-              >
-                {u.label}
-              </button>
-            ))}
+            <Segmented
+              legend="Unit"
+              hideLegend
+              className="w-full sm:w-auto"
+              options={UNITS.map((u) => ({ value: u.id, label: u.label }))}
+              value={unit}
+              onChange={(u) => {
+                setUnit(u);
+                setCountInput(String(LOREM_LIMITS[u].default));
+              }}
+            />
           </div>
           <p className="mt-1.5 text-xs text-muted">
             {nf.format(limits.min)}–{nf.format(limits.max)} {unit}.

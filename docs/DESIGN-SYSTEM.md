@@ -115,6 +115,29 @@ only when it is accurate — the homepage emits `Organization` + `WebSite` (no
 
 ---
 
+## 13. Choice controls and buttons
+
+**Use `Segmented` / `Chips` from `app/_components/choice.tsx` for every single
+choice.** Never hand-roll a selected state.
+
+- **Segmented** — a joined bar for switching a tool's *mode* (Add / Remove GST,
+  Years / Months, Crop / Fit). 2–3 short options.
+- **Chips** — separate pills for picking a *value* (GST rates, KB sizes, cases,
+  tip %). The selected chip shows a ✓, so selection never relies on colour.
+- Selected = `bg-activebg text-activetext` (theme-aware: navy on light,
+  near-white on dark). **Never `bg-navy-900` for a selected state** — in dark
+  mode it is almost the same colour as unselected (measured 1.1 : 1). With the
+  tokens, selected vs unselected is ≈ 14 : 1 in both themes.
+- Unselected chips sit on `bg-wash` with a hairline border so they read as
+  tappable in dark mode.
+- Native radio inputs inside `fieldset` + `legend` (screen readers announce the
+  group; arrow keys move). Use `hideLegend` only when a visible label is
+  already above.
+- Touch targets ≥ 40 px (`h-10` / `min-h-10`).
+- Action buttons are pills (`rounded-full`); text fields and selects are
+  rounded rectangles (`rounded-lg`).
+- QR Studio chips predate this and use the same tokens via `aria-pressed`.
+
 ## Open decisions (unchanged from earlier phases)
 
 1. Approve the `font-hand` (Caveat) addition beyond marketing pages, or keep it

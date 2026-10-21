@@ -90,14 +90,14 @@ export function ImageResultCard({
         <button
           type="button"
           onClick={onDownload}
-          className="h-11 flex-1 rounded-lg bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+          className="h-11 flex-1 rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
         >
           Download {outLabel}
         </button>
         <button
           type="button"
           onClick={onReset}
-          className="h-11 rounded-lg border border-hair bg-surface px-4 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+          className="h-11 rounded-full border border-hair bg-surface px-4 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
         >
           {resetLabel}
         </button>

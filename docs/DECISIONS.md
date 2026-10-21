@@ -5,6 +5,20 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — UI audit: one choice control for all tools
+
+**Prompted by:** owner noticed GST's selected options looked like slightly
+different blues. Cause: newer tools hard-coded `bg-navy-900` for selected,
+which in dark mode is ~1.1 : 1 against unselected. Fixed with shared
+`Segmented` (modes) and `Chips` (values) on the design system's theme-aware
+`activebg` / `activetext` tokens, ✓ on selected chips, radio semantics, 40 px
+targets. Applied to GST, EMI, Percentage, Tip, Split bill, Case converter,
+Lorem ipsum, Image Compressor, Resize image to KB and the converters' resize
+options. Result-card buttons made pill-shaped like every other action button.
+Rule recorded in `DESIGN-SYSTEM.md` §13.
+
+---
+
 ## 2026-10-21 — Resize image to KB (exact size for forms)
 
 **Decided by:** product owner (plan approved via the §46 kickoff).

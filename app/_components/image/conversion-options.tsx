@@ -1,5 +1,6 @@
 'use client';
 
+import { Segmented } from '../choice';
 import { supportsQualityControl } from '@/app/lib/image/registry/encoding';
 import { labelForFormatId } from '@/app/lib/image/registry/capabilities';
 import {
@@ -105,24 +106,14 @@ export function ConversionOptions({
         >
           <fieldset className="space-y-3" disabled={disabled}>
             <legend className="text-sm font-semibold text-ink">Resize</legend>
-
-            <div className="flex flex-wrap gap-2">
-              {MODE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setMode(opt.value)}
-                  className={`h-9 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
-                    resize.mode === opt.value
-                      ? 'bg-navy-900 text-white'
-                      : 'border border-hair bg-fieldbg text-strong hover:bg-wash'
-                  }`}
-                  aria-pressed={resize.mode === opt.value}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              legend="How to resize"
+              hideLegend
+              options={MODE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              value={resize.mode}
+              onChange={setMode}
+              disabled={disabled}
+            />
 
             {resize.mode === 'scale' && (
               <div>

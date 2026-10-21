@@ -6,6 +6,7 @@ import { ImageFileCard } from './image-file-card';
 import { ImageResultCard } from './image-result-card';
 import { ConversionProgress } from './conversion-progress';
 import { OnDeviceNote } from './on-device-note';
+import { Chips, Segmented } from '../choice';
 import { convertImage, terminateConversionWorker } from '@/app/lib/image/worker-client';
 import { downloadBlob } from '@/app/lib/image/export';
 import {
@@ -48,43 +49,29 @@ function joinOr(items: string[]): string {
   return items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`;
 }
 
+/** A labelled single choice with an optional hint line. */
 function Pills<T extends string | number | null>({
   legend,
   options,
   value,
   onChange,
-  disabled,
   hint,
+  segmented = false,
 }: {
   legend: string;
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
-  disabled?: boolean;
   hint?: string;
+  /** Joined bar for a mode switch; chips for picking a value. */
+  segmented?: boolean;
 }) {
+  const Control = segmented ? Segmented : Chips;
   return (
-    <fieldset className="space-y-2" disabled={disabled}>
-      <legend className="text-sm font-semibold text-ink">{legend}</legend>
-      <div className="flex flex-wrap gap-2">
-        {options.map((opt) => (
-          <button
-            key={String(opt.value)}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            aria-pressed={value === opt.value}
-            className={`h-9 rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60 ${
-              value === opt.value
-                ? 'bg-navy-900 text-white'
-                : 'border border-hair bg-fieldbg text-strong hover:bg-wash'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      {hint && <p className="text-xs text-muted">{hint}</p>}
-    </fieldset>
+    <div>
+      <Control legend={legend} options={options} value={value} onChange={onChange} />
+      {hint && <p className="mt-1.5 text-xs text-muted">{hint}</p>}
+    </div>
   );
 }
 
@@ -251,6 +238,7 @@ export function ImageCompressorWorkspace() {
           <div className="space-y-5 rounded-xl border border-hair bg-surface p-4 sm:p-5">
             {lossy ? (
               <Pills
+                segmented
                 legend="Compression"
                 options={COMPRESS_LEVELS.map((l) => ({ value: l.id, label: l.label }))}
                 value={level}

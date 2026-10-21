@@ -5,6 +5,7 @@ import { zipSync } from 'fflate';
 import { ImageDropzone } from './image-dropzone';
 import { OnDeviceNote } from './on-device-note';
 import { CropBox } from './crop-box';
+import { Chips, Segmented } from '../choice';
 import { fitImageToTarget, terminateConversionWorker } from '@/app/lib/image/worker-client';
 import { downloadBlob } from '@/app/lib/image/export';
 import { compressAcceptString, isCompressibleInput } from '@/app/lib/image/compress';
@@ -29,10 +30,6 @@ import { probeImageDimensions } from '@/app/lib/image/probe';
 const MAX_FILES = 20;
 const INPUT_LABELS = ['JPG', 'PNG', 'WebP', 'HEIC', 'AVIF', 'BMP'];
 
-const PILL = (active: boolean) =>
-  `h-9 rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
-    active ? 'bg-navy-900 text-white' : 'border border-hair bg-fieldbg text-strong hover:bg-wash'
-  }`;
 const FIELD =
   'h-10 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 
@@ -268,15 +265,17 @@ export function ResizeKbWorkspace() {
           </legend>
           {limitOn && (
             <>
-              <div className="flex flex-wrap items-center gap-2">
-                {KB_PICKS.map((kb) => (
-                  <button key={kb} type="button" aria-pressed={maxKb === kb} onClick={() => setKbInput(String(kb))} className={PILL(maxKb === kb)}>
-                    {kbLabel(kb)}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-3">
+                <Chips
+                  legend="Quick sizes"
+                  hideLegend
+                  options={KB_PICKS.map((kb) => ({ value: kb as number, label: kbLabel(kb) }))}
+                  value={maxKb ?? undefined}
+                  onChange={(kb) => setKbInput(String(kb))}
+                />
                 <label className="flex items-center gap-2 text-sm text-muted">
                   <span className="sr-only">Maximum size in KB</span>
-                  <input value={kbInput} onChange={(e) => setKbInput(e.target.value)} inputMode="decimal" className={`${FIELD} w-24`} />
+                  <input value={kbInput} onChange={(e) => setKbInput(e.target.value)} inputMode="decimal" className={`${FIELD} h-10 w-24`} />
                   KB max
                 </label>
               </div>
@@ -302,24 +301,23 @@ export function ResizeKbWorkspace() {
           </legend>
           {sizeOn && (
             <>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  aria-pressed={preset === 'passport'}
-                  onClick={() => {
-                    setPreset('passport');
+              <Chips
+                legend="Size preset"
+                hideLegend
+                options={[
+                  { value: 'passport' as Preset, label: 'Passport photo 3.5 × 4.5 cm' },
+                  { value: 'custom' as Preset, label: 'Custom' },
+                ]}
+                value={preset}
+                onChange={(p) => {
+                  setPreset(p);
+                  if (p === 'passport') {
                     setUnit('cm');
                     setWInput('3.5');
                     setHInput('4.5');
-                  }}
-                  className={PILL(preset === 'passport')}
-                >
-                  Passport photo 3.5 × 4.5 cm
-                </button>
-                <button type="button" aria-pressed={preset === 'custom'} onClick={() => setPreset('custom')} className={PILL(preset === 'custom')}>
-                  Custom
-                </button>
-              </div>
+                  }
+                }}
+              />
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <label className="text-xs font-medium text-muted">
                   Width
@@ -350,14 +348,15 @@ export function ResizeKbWorkspace() {
                   = {outW} × {outH} px at {dpiInput} DPI
                 </p>
               )}
-              <div className="flex flex-wrap gap-2" role="group" aria-label="If the shape is different">
-                <button type="button" aria-pressed={fit === 'crop'} onClick={() => setFit('crop')} className={PILL(fit === 'crop')}>
-                  Crop to fill
-                </button>
-                <button type="button" aria-pressed={fit === 'pad'} onClick={() => setFit('pad')} className={PILL(fit === 'pad')}>
-                  Fit with white border
-                </button>
-              </div>
+              <Segmented
+                legend="If your photo is a different shape"
+                options={[
+                  { value: 'crop' as const, label: 'Crop to fill' },
+                  { value: 'pad' as const, label: 'Fit with white border' },
+                ]}
+                value={fit}
+                onChange={setFit}
+              />
             </>
           )}
         </fieldset>
@@ -581,7 +580,7 @@ function ResultPanel({
           <button
             type="button"
             onClick={() => downloadBlob(r.blob, filename)}
-            className="h-11 w-full rounded-lg bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+            className="h-11 w-full rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
           >
             Download JPG
           </button>
@@ -599,7 +598,7 @@ function ResultPanel({
           <button
             type="button"
             onClick={() => downloadBlob(r.blob, filename)}
-            className="h-11 w-full rounded-lg border border-hair bg-surface px-4 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+            className="h-11 w-full rounded-full border border-hair bg-surface px-4 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
           >
             Download anyway ({formatBytes(size)} — over the limit)
           </button>
