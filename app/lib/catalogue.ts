@@ -168,10 +168,16 @@ export const TOOLS: Tool[] = [
   { name: 'Resume Generator', slug: 'resume-generator-documents', url: '/generators/resume-generator', category: 'Documents', blurb: 'Fill a clean template, download a polished resume.', keywords: ['resume', 'cv', 'template'], status: 'planned' },
 
   // Images & Files
-  { name: 'JPG to PNG', slug: 'jpg-to-png', url: '/image-tools/jpg-to-png', category: 'Images & Files', blurb: 'Convert JPG images to PNG in your browser.', keywords: ['jpg', 'jpeg', 'png', 'convert', 'transparent'], status: 'planned', popularRank: 3 },
-  { name: 'PNG to JPG', slug: 'png-to-jpg', url: '/image-tools/png-to-jpg', category: 'Images & Files', blurb: 'Convert PNG images to smaller JPGs.', keywords: ['png', 'jpg', 'jpeg', 'compress'], status: 'planned' },
-  { name: 'JPG to WEBP', slug: 'jpg-to-webp', url: '/image-tools/jpg-to-webp', category: 'Images & Files', blurb: 'Lighter images for the web, same picture.', keywords: ['webp', 'jpg', 'optimise', 'web'], status: 'planned' },
-  { name: 'WEBP to JPG', slug: 'webp-to-jpg', url: '/image-tools/webp-to-jpg', category: 'Images & Files', blurb: 'Get a WEBP into a format everything opens.', keywords: ['webp', 'jpg', 'jpeg', 'convert'], status: 'planned' },
+  { name: 'JPG to PNG', slug: 'jpg-to-png', url: '/jpg-to-png', category: 'Images & Files', blurb: 'Convert JPG images to PNG in your browser.', keywords: ['jpg', 'jpeg', 'png', 'convert', 'transparent'], status: 'live', popularRank: 3 },
+  { name: 'PNG to JPG', slug: 'png-to-jpg', url: '/png-to-jpg', category: 'Images & Files', blurb: 'Convert PNG images to smaller JPGs.', keywords: ['png', 'jpg', 'jpeg', 'compress'], status: 'live' },
+  { name: 'JPG to WEBP', slug: 'jpg-to-webp', url: '/jpg-to-webp', category: 'Images & Files', blurb: 'Lighter images for the web, same picture.', keywords: ['webp', 'jpg', 'optimise', 'web'], status: 'live' },
+  { name: 'PNG to WEBP', slug: 'png-to-webp', url: '/png-to-webp', category: 'Images & Files', blurb: 'PNG to WEBP for smaller web images.', keywords: ['png', 'webp', 'convert', 'web'], status: 'live' },
+  { name: 'WEBP to JPG', slug: 'webp-to-jpg', url: '/webp-to-jpg', category: 'Images & Files', blurb: 'Get a WEBP into a format everything opens.', keywords: ['webp', 'jpg', 'jpeg', 'convert'], status: 'live' },
+  { name: 'WEBP to PNG', slug: 'webp-to-png', url: '/webp-to-png', category: 'Images & Files', blurb: 'WEBP to PNG, processed on your device.', keywords: ['webp', 'png', 'convert'], status: 'live' },
+  { name: 'HEIC to JPG', slug: 'heic-to-jpg', url: '/heic-to-jpg', category: 'Images & Files', blurb: 'iPhone HEIC photos to JPG, locally.', keywords: ['heic', 'heif', 'iphone', 'jpg', 'convert'], status: 'live' },
+  { name: 'HEIC to PNG', slug: 'heic-to-png', url: '/heic-to-png', category: 'Images & Files', blurb: 'HEIC to PNG without uploading your photo.', keywords: ['heic', 'heif', 'iphone', 'png', 'convert'], status: 'live' },
+  { name: 'AVIF to JPG', slug: 'avif-to-jpg', url: '/avif-to-jpg', category: 'Images & Files', blurb: 'AVIF to JPG in your browser.', keywords: ['avif', 'jpg', 'convert'], status: 'live' },
+  { name: 'AVIF to PNG', slug: 'avif-to-png', url: '/avif-to-png', category: 'Images & Files', blurb: 'AVIF to PNG on your device.', keywords: ['avif', 'png', 'convert'], status: 'live' },
   { name: 'Image Compressor', slug: 'image-compressor', url: '/image-tools/image-compressor', category: 'Images & Files', blurb: 'Shrink file size, keep it looking right.', keywords: ['compress', 'reduce size', 'optimise', 'smaller'], status: 'planned' },
 
   // Writing

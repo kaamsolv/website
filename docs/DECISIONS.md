@@ -5,6 +5,27 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Image converters live
+
+**Decided by:** product owner.
+
+- `feature/image-converters` merged into `main` and deployed: 10 converters
+  (JPG, PNG, WEBP, HEIC, AVIF pairs) at `/{from}-to-{to}`, processed in the
+  browser. Old `/image-tools/{slug}` paths redirect there. Image Compressor is
+  still planned. Product docs: [`products/image-kit.md`](products/image-kit.md).
+- Fixed on merge: the result card showed "Original: 0 B" because the input
+  buffer was read after being transferred to the Web Worker.
+- **Heads-up for the URL Shortener merge:** converters use a root-level
+  dynamic route `app/(image-converters)/[slug]`, and the shortener uses
+  `app/[shortCode]`. Next.js won't allow both at the root. One must give way
+  (e.g. converters as static routes, or the shortener checks converter slugs
+  first) — decide at that merge.
+- Polish backlog: a non-image file shows a broken preview and the error
+  "The source image could not be decoded." — should be caught on drop with
+  friendlier copy.
+
+---
+
 ## 2026-10-21 — Hosting: Cloudflare Workers
 
 **Decided by:** product owner.
