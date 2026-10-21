@@ -24,6 +24,16 @@ export const ANONYMOUS_LIMITS = {
   ],
   /** Reporting a link. */
   report: [{ limit: 5, windowSeconds: 60 * 60, window: '1h' }],
+  /** Sign-in link emails, per caller (salted IP hash). */
+  signInLinkIp: [
+    { limit: 5, windowSeconds: 10 * 60, window: '10m' },
+    { limit: 20, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
+  /** Sign-in link emails, per address (salted hash of the email) — stops mail-bombing one inbox. */
+  signInLinkEmail: [
+    { limit: 3, windowSeconds: 10 * 60, window: '10m' },
+    { limit: 10, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
 } as const satisfies Record<string, readonly RateLimitRule[]>;
 
 export type RateLimitAction = keyof typeof ANONYMOUS_LIMITS;

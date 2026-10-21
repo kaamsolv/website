@@ -1,13 +1,14 @@
 /**
  * Entitlements — the single way any tool asks "may this user do X?" (§25).
  *
- * Keys match the Pro features' lookup keys in the payment provider (Stripe
- * Entitlements features, or our `plan_features` table for Razorpay). Tools
- * call `can(key)` for each paid action — never "if paid, allow everything".
+ * Keys match the Pro features' keys in `plan_features` (db/entitlements.ts
+ * resolves them on the server). Tools call `can(key)` for each paid action —
+ * never "if paid, allow everything" — and `limit(key)` for countable ones.
  *
- * Phase 1: there are no accounts yet, so everyone has the free set (none).
- * Phase 2 swaps `useEntitlements()`'s data source to GET /api/me/entitlements;
- * no tool code changes. Server-side actions re-check on the server.
+ * In the browser, `useEntitlements()` (app/lib/me-client.ts) reads GET /api/me.
+ * Anonymous visitors get the empty set. Server-side actions always re-check on
+ * the server; the browser copy only decides what to show. This module stays
+ * framework-free so db/ and tests can import it.
  */
 
 export const ENTITLEMENT_KEYS = [
@@ -25,20 +26,29 @@ export const ENTITLEMENT_KEYS = [
 
 export type EntitlementKey = (typeof ENTITLEMENT_KEYS)[number];
 
-export type Entitlements = {
-  /** True while the list is loading (always false in Phase 1). */
-  loading: boolean;
-  can: (key: EntitlementKey) => boolean;
+/** Wire format (GET /api/me) — `limits[key]` null means unlimited. */
+export type ResolvedEntitlements = {
+  keys: EntitlementKey[];
+  limits: Partial<Record<EntitlementKey, number | null>>;
 };
 
-export function entitlementsFrom(keys: Iterable<string>): Entitlements {
-  const set = new Set(keys);
-  return { loading: false, can: (key) => set.has(key) };
+export type Entitlements = {
+  /** True while /api/me is loading. */
+  loading: boolean;
+  can: (key: EntitlementKey) => boolean;
+  /** Cap for a countable feature: a number, null = unlimited, 0 = not granted. */
+  limit: (key: EntitlementKey) => number | null;
+};
+
+export function entitlementsFrom(resolved: ResolvedEntitlements | Iterable<string>, loading = false): Entitlements {
+  const limits: Partial<Record<string, number | null>> =
+    Symbol.iterator in Object(resolved) ? Object.fromEntries([...(resolved as Iterable<string>)].map((k) => [k, null])) : (resolved as ResolvedEntitlements).limits;
+  return {
+    loading,
+    can: (key) => key in limits,
+    limit: (key) => (key in limits ? (limits[key] ?? null) : 0),
+  };
 }
 
-const FREE = entitlementsFrom([]);
-
-/** Phase 1: the free tier for everyone. */
-export function useEntitlements(): Entitlements {
-  return FREE;
-}
+/** Anonymous visitors, and the server's answer for no user. */
+export const NO_ENTITLEMENTS: ResolvedEntitlements = { keys: [], limits: {} };

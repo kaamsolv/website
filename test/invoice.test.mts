@@ -4,7 +4,7 @@ import { computeTotals, lineAmount, parseNumber } from '../app/lib/invoice/total
 import { formatMoney } from '../app/lib/invoice/money.ts';
 import { addDays, hasContent, isoDate, newInvoice, newInvoiceNumber, newLineItem } from '../app/lib/invoice/defaults.ts';
 import { MAX_FREE_ITEMS } from '../app/lib/invoice/limits.ts';
-import { ENTITLEMENT_KEYS, entitlementsFrom, useEntitlements } from '../app/lib/entitlements.ts';
+import { ENTITLEMENT_KEYS, NO_ENTITLEMENTS, entitlementsFrom } from '../app/lib/entitlements.ts';
 
 const item = (qty: string, rate: string) => ({ ...newLineItem(), qty, rate });
 const base = { discountType: 'percent' as const, discountValue: '', taxRate: '' };
@@ -69,7 +69,7 @@ test('invoice number and dates', () => {
 
 test('free tier: 10 items, and no paid entitlements by default', () => {
   assert.equal(MAX_FREE_ITEMS, 10);
-  const free = useEntitlements();
+  const free = entitlementsFrom(NO_ENTITLEMENTS);
   for (const key of ENTITLEMENT_KEYS) assert.equal(free.can(key), false, key);
   assert.equal(entitlementsFrom(['invoice_save']).can('invoice_save'), true);
   assert.equal(entitlementsFrom(['invoice_save']).can('invoice_watermark_remove'), false);

@@ -10,6 +10,10 @@
  * Deliberately framework-free (no `next/*`) so it can move into a shared
  * `packages/link-core` if/when the Cloudflare Worker redirect lands.
  *
+ *   Accounts   `auth_*`, `plans`, `plan_features`, `subscriptions`,
+ *              `business_profiles`, `invoices`                    (migration 0003)
+ *              — see docs/products/accounts.md.
+ *
  * Deferred, additive-only later migrations (documented in
  * docs/products/url-shortener.md §10): `campaign_id`, `accounts` /
  * `entitlements` / `usage`. No QR tables here — dynamic QR will reference
@@ -21,10 +25,14 @@ import {
   bigint,
   boolean,
   check,
+  date,
   index,
   integer,
+  jsonb,
+  numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -180,3 +188,188 @@ export const linkReports = pgTable(
 );
 
 export type LinkReportRow = typeof linkReports.$inferSelect;
+
+// ─── Accounts (migration 0003) ───────────────────────────────────────────────
+//
+// The `auth_*` tables belong to better-auth (app/lib/auth.ts). Object keys are
+// better-auth's field names — its Drizzle adapter looks columns up by them — and
+// the SQL names are snake_case. Prefixed `auth_` so "account" stays free for
+// our own meaning later. Ids are UUIDs (`advanced.database.generateId: 'uuid'`).
+
+export const authUsers = pgTable('auth_users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const authSessions = pgTable(
+  'auth_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+  },
+  (table) => [index('auth_sessions_user_id_idx').on(table.userId)],
+);
+
+/** Sign-in methods linked to a user (Google, and the email sign-in link). */
+export const authAccounts = pgTable(
+  'auth_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    /** OAuth tokens — always null: app/lib/auth.ts strips them before insert/update (we never call Google's APIs). */
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('auth_accounts_user_id_idx').on(table.userId)],
+);
+
+/**
+ * Short-lived tokens: sign-in links (stored hashed) and OAuth state. Keyed by
+ * token, not user, so there is no user FK — account deletion removes this
+ * user's rows by the email inside `value` (db/accounts.ts).
+ */
+export const authVerifications = pgTable(
+  'auth_verifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('auth_verifications_identifier_idx').on(table.identifier)],
+);
+
+/** A plan is a named bundle of features. Seeded in migration 0003. */
+export const plans = pgTable('plans', {
+  planKey: text('plan_key').primaryKey(),
+  name: text('name').notNull(),
+});
+
+/**
+ * What each plan grants. `limitValue` null = unlimited; a number caps a
+ * countable feature (e.g. `invoice_save: 20` on `free_account`).
+ */
+export const planFeatures = pgTable(
+  'plan_features',
+  {
+    planKey: text('plan_key')
+      .notNull()
+      .references(() => plans.planKey, { onDelete: 'cascade' }),
+    featureKey: text('feature_key').notNull(),
+    limitValue: integer('limit_value'),
+  },
+  (table) => [primaryKey({ columns: [table.planKey, table.featureKey] })],
+);
+
+export const subscriptionProvider = pgEnum('subscription_provider', ['razorpay', 'manual']);
+
+/**
+ * Paid access. `manual` rows are hand grants (testing, support); `razorpay`
+ * rows arrive with payments (Stage 3). Entitlements are computed from these on
+ * each request (db/entitlements.ts) — never copied elsewhere.
+ */
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    provider: subscriptionProvider('provider').notNull(),
+    /** Provider subscription id; for `manual`, a note such as `manual:<date>:<reason>`. */
+    providerRef: text('provider_ref').notNull().unique(),
+    planKey: text('plan_key')
+      .notNull()
+      .references(() => plans.planKey),
+    /** Provider status; only `active` grants features. */
+    status: text('status').notNull(),
+    /** Access ends after this. Null = no end (manual grants). */
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('subscriptions_user_id_idx').on(table.userId)],
+);
+
+/** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
+export const LOGO_MAX_STORED_CHARS = 280_000;
+
+/** The seller details a signed-in user's new invoices start with. */
+export const businessProfiles = pgTable(
+  'business_profiles',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull().default(''),
+    address: text('address').notNull().default(''),
+    email: text('email').notNull().default(''),
+    phone: text('phone').notNull().default(''),
+    logo: text('logo'),
+    /** Next sequential number, printed as INV-0001. */
+    nextNumber: integer('next_number').notNull().default(1),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('business_profiles_logo_len', sql`char_length(${table.logo}) <= ${sql.raw(String(LOGO_MAX_STORED_CHARS))}`),
+    check('business_profiles_next_number', sql`${table.nextNumber} >= 1`),
+  ],
+);
+
+/** Max size of a stored invoice document (without logo). */
+export const INVOICE_DATA_MAX_CHARS = 64_000;
+
+/**
+ * A saved invoice. `data` is the whole editor document minus the logo (the
+ * logo lives once, on the business profile). The summary columns copy parts of
+ * `data` for the list view, so lists never read `data`.
+ */
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    number: text('number').notNull(),
+    clientName: text('client_name').notNull().default(''),
+    currency: text('currency').notNull(),
+    total: numeric('total', { precision: 14, scale: 2, mode: 'number' }).notNull().default(0),
+    issueDate: date('issue_date'),
+    data: jsonb('data').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('invoices_user_id_updated_at_idx').on(table.userId, table.updatedAt.desc()),
+    check('invoices_data_len', sql`length(${table.data}::text) <= ${sql.raw(String(INVOICE_DATA_MAX_CHARS))}`),
+  ],
+);
+
+export type InvoiceRow = typeof invoices.$inferSelect;

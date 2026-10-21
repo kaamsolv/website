@@ -23,6 +23,11 @@ export function newLineItem(): LineItem {
   return { id: `item-${++itemSeq}`, description: '', qty: '1', rate: '' };
 }
 
+/** New item ids for an invoice restored from a draft or the server (keeps React keys unique). */
+export function withFreshItemIds(inv: Invoice): Invoice {
+  return { ...inv, items: inv.items.map((it) => ({ ...it, id: newLineItem().id })) };
+}
+
 export const DEFAULT_DUE_DAYS = 14;
 
 export function newInvoice(now: Date = new Date()): Invoice {

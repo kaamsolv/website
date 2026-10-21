@@ -25,3 +25,6 @@ Thumbs.db
 # Playwright
 test-results/
 playwright-report/
+
+# E2E throwaway database
+.pglite-e2e/

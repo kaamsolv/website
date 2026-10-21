@@ -4,7 +4,7 @@ import { TextPage } from '../_components/text-page';
 export const metadata: Metadata = {
   title: 'Privacy',
   description:
-    'What KaamSolv collects, why, and what it never does. Most tools run in your browser and send us nothing.',
+    'What KaamSolv collects, why, and what it never does. Most tools run in your browser and send us nothing; accounts are optional.',
   alternates: { canonical: '/privacy' },
 };
 
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
   return (
     <TextPage
       title="Privacy"
-      intro="The short version: most KaamSolv tools run entirely in your browser and send us nothing. Where we do keep data, it's the minimum needed to make the tool work and keep it safe."
+      intro="The short version: most KaamSolv tools run entirely in your browser and send us nothing. You don't need an account. If you create one, we keep only what you save and what signing in needs."
       updated="2026-10-21"
     >
       <h2>Who we are</h2>
@@ -37,7 +37,45 @@ export default function PrivacyPage() {
           <strong>QR Code Generator.</strong> The QR code is built in your browser. Links, Wi-Fi passwords,
           contact details and UPI IDs you enter are not sent to us or to any QR service.
         </li>
+        <li>
+          <strong>Invoice Generator, when you&apos;re not signed in.</strong> The invoice and its PDF are made in
+          your browser. Your draft is kept on your device (in local storage) so a refresh doesn&apos;t lose it —
+          it isn&apos;t sent to us.
+        </li>
       </ul>
+
+      <h2 id="accounts">Accounts (optional)</h2>
+      <p>
+        You can create a free account to save invoices and reuse your business details. If you do, we store:
+      </p>
+      <ul>
+        <li>
+          <strong>Your email address</strong>, and your name if you sign in with Google. We don&apos;t keep your
+          Google profile photo or any Google access tokens — we never act on your Google account.
+        </li>
+        <li>
+          <strong>How you sign in</strong>: that your account is linked to Google (Google&apos;s ID for you), or
+          that you use email links.
+        </li>
+        <li>
+          <strong>Your sign-in sessions</strong>: a random session code, when it expires, and the type of browser
+          you used (its “user agent”). Not your IP address.
+        </li>
+        <li>
+          <strong>What you choose to save</strong>: your invoices and your business details (name, address,
+          email, phone and logo). Invoices include your clients&apos; details that you type in — please only save
+          client information you&apos;re allowed to keep for your business.
+        </li>
+        <li>
+          <strong>Sign-in links</strong>: when you ask for one, we store a scrambled (hashed) copy of the link
+          code and your email address until it&apos;s used or expires 15 minutes later. We count requests per
+          email address and per IP code to stop people flooding an inbox.
+        </li>
+      </ul>
+      <p>
+        We use this only to run your account. Nobody else can see your saved invoices, and we don&apos;t look
+        at them unless you ask us to help with a problem.
+      </p>
 
       <h2>The URL Shortener</h2>
       <p>A short link has to live on our server so it can work for anyone who clicks it. So we store:</p>
@@ -78,12 +116,20 @@ export default function PrivacyPage() {
 
       <h2 id="cookies">Cookies and browser storage</h2>
       <p>
-        <strong>We don&apos;t use cookies</strong>, and there are no advertising or analytics trackers on
-        KaamSolv.
+        There are <strong>no advertising or analytics trackers</strong> on KaamSolv. If you don&apos;t sign in,
+        we don&apos;t set any cookies.
       </p>
       <p>
-        If you pick light or dark mode, your browser remembers that choice on your device (in local storage).
-        It never leaves your device and you can clear it in your browser settings.
+        If you sign in, we set <strong>one session cookie</strong> (<code>kk.session_token</code>) that keeps you
+        signed in for up to 30 days. It&apos;s strictly necessary for your account and can&apos;t be read by other
+        websites. Signing in with Google also sets short-lived cookies that protect the sign-in itself and are
+        removed when it finishes.
+      </p>
+      <p>
+        Your browser also keeps a few things on your device (in local storage): your light/dark choice, your
+        Invoice Generator draft, and a note that this browser has signed in before (so the site knows to show
+        your account menu). They never leave your device unless you save an invoice to your account, and you can
+        clear them in your browser settings.
       </p>
       <p>
         Our hosting provider, Cloudflare, may in some cases set a strictly necessary security cookie, for
@@ -97,7 +143,15 @@ export default function PrivacyPage() {
           (including your IP address) to do that. It keeps short-term technical logs.
         </li>
         <li>
-          <strong>Neon</strong> hosts the URL Shortener&apos;s database, in Singapore.
+          <strong>Neon</strong> hosts our database, in Singapore — the URL Shortener and accounts, including
+          saved invoices.
+        </li>
+        <li>
+          <strong>Google</strong>, only if you choose “Continue with Google”, to confirm who you are. Google sees
+          that you signed in to KaamSolv.
+        </li>
+        <li>
+          <strong>Resend</strong> sends our sign-in emails, so it handles your email address and the link.
         </li>
       </ul>
       <p>
@@ -110,11 +164,23 @@ export default function PrivacyPage() {
         <li>Short links and their click counts: for as long as the link exists.</li>
         <li>Reports: as long as we need them to deal with the link.</li>
         <li>Abuse-protection counters: they reset within minutes to a day.</li>
+        <li>
+          Your account, saved invoices and business details: until you delete them or your account. Deleting an
+          invoice or your account removes it from our database straight away; our database provider&apos;s
+          short-term backups are overwritten within days.
+        </li>
+        <li>Sign-in sessions: 30 days after you last used KaamSolv, or when you sign out.</li>
+        <li>Sign-in links: 15 minutes, or until used.</li>
       </ul>
 
       <h2>Your choices and rights</h2>
       <p>
-        You can ask us what data we hold about you, ask us to correct it, or ask us to delete it. Because short
+        If you have an account, you can delete any saved invoice yourself, and delete your whole account at{' '}
+        <a href="/app/account">Account → Delete my account</a>. That removes your account, invoices and business
+        details.
+      </p>
+      <p>
+        You can also ask us what data we hold about you, ask us to correct it, or ask us to delete it. Because short
         links are anonymous, tell us the short link and anything that helps us confirm it&apos;s yours, and
         we&apos;ll take it down. Email{' '}
         <a href="mailto:kaamsolv@gmail.com?subject=Privacy%20request">kaamsolv@gmail.com</a> and we&apos;ll reply
@@ -129,7 +195,7 @@ export default function PrivacyPage() {
 
       <h2>Changes</h2>
       <p>
-        If we add something that changes what we collect (for example accounts, analytics or ads), we&apos;ll
+        If we add something that changes what we collect (for example payments, analytics or ads), we&apos;ll
         update this page first and change the date at the top.
       </p>
     </TextPage>

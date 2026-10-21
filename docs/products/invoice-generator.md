@@ -1,14 +1,29 @@
 # Invoice Generator
 
 **Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — Phase 1
-(free tier), deployed 2026-10-21. Decisions: [`DECISIONS.md`](../DECISIONS.md)
-(2026-10-21 entry).
+(free tier), deployed 2026-10-21. Pro Stage 1 (accounts + saving) built, not
+deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
 
 Type straight onto a white invoice "paper" and download a one-page A4 PDF. No
-sign-up, nothing uploaded, nothing saved. Totals update as you type (§45); there
-is no Generate button.
+sign-up, nothing uploaded. Totals update as you type (§45); there is no Generate
+button. The draft is kept in this browser (localStorage) so a refresh doesn't
+lose it. With a free account, invoices can be saved (up to 20).
+
+## Saving (Pro Stage 1 — free account)
+
+| | |
+|---|---|
+| Anonymous | Draft kept in this browser only (`app/lib/invoice/draft.ts`, `kk.invoice.draft.v1`), written 400 ms after typing stops and on `pagehide`. A quiet "Sign in to save invoices and reuse your details — free" link. No leave-page warning (nothing is lost). |
+| Signing in | The draft survives the trip to `/login` and back, so it can be saved straight away. |
+| Signed in, new | Starts from the business profile (seller details, logo, `INV-0001`-style next number). **Save** creates it (`POST /api/invoices`); the URL becomes `?id=…`; the draft is cleared. |
+| Signed in, saved | Autosaves 1.5 s after typing stops (`PUT`). Status: Saved / Unsaved changes / Saving… / Not saved + Retry save. Leave-page warning only while changes haven't reached the server. Seller details + logo are saved to the profile when they change. |
+| Free limit (20) | Save disabled with "You've saved 20 invoices — the free limit. Delete one to save another. You can still download this one as a PDF." No Pro mention until Stage 2. |
+| `/app/invoices` | List (number, client, total, date) with Open, PDF, Copy, Delete; "3 of 20 saved". |
+
+The logo is stored once, on the business profile — never inside an invoice.
 
 ## Free tier (Phase 1)
 
@@ -69,16 +84,18 @@ npm run test:e2e
 E2E saves screenshots and sample PDFs to `test-results/screenshots/`
 (gitignored).
 
-## Paid tier (Phase 2 — not built, needs approval)
+## Paid tier (Stages 2–3 — not built)
 
 Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_save`, `invoice_client_directory`, `invoice_templates`,
 `invoice_brand_color`, `invoice_quote_mode`, `invoice_recurring`,
-`invoice_csv_export`, `invoice_batch_csv`.
+`invoice_csv_export`, `invoice_batch_csv`. All seeded on the `invoice_pro` plan.
 
-Approval gates: payment provider (Stripe India is invite-only; Razorpay
-alternative), auth model, schema + privacy model (saved invoices hold personal
-data → Privacy/Terms update), pricing and GST on our own sales.
+- Stage 2 (Pro features, tested with a `manual` subscription): needs a short
+  plan for templates and the upgrade UI.
+- Stage 3 (payments): Razorpay (registered business); needs prices, Razorpay
+  activation, and the GST status of the business.
+- Recurring = reminder + one-click copy each period; no emails to clients.
 
 PDF generation stays in the browser for Pro too; server checks guard saving,
 client directory, recurring and CSV export of saved history.

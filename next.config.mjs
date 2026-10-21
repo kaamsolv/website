@@ -1,3 +1,5 @@
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants.js';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /**
@@ -39,4 +41,11 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * `next dev` only: load PGlite (the local stand-in database, db/client.ts) with
+ * Node's own `require` instead of bundling it. Bundled, its start-up file reads
+ * fail when the first query happens inside some routes (sign-in). Production
+ * builds never include PGlite (Neon is used), so they are unchanged.
+ */
+export default (phase) =>
+  phase === PHASE_DEVELOPMENT_SERVER ? { ...nextConfig, serverExternalPackages: ['@electric-sql/pglite'] } : nextConfig;

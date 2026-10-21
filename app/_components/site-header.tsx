@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { HeaderAccount, MobileAccountLinks } from './account/header-account';
 import { Icon } from './icons';
 import { ThemeToggle } from './theme-toggle';
 import { ToolSearch } from './tool-search';
@@ -84,7 +85,7 @@ export function SiteHeader() {
           <div className="hidden sm:block">
             <ThemeToggle />
           </div>
-          {/* "Log in" returns when accounts exist (docs/DECISIONS.md). */}
+          <HeaderAccount />
           <a
             href="/contact#suggest"
             className="inline-flex h-10 items-center rounded-full bg-coral-500 px-3.5 text-sm font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:px-4"
@@ -121,6 +122,7 @@ export function SiteHeader() {
                 {item.label}
               </a>
             ))}
+            <MobileAccountLinks onNavigate={() => setMenuOpen(false)} />
             <div className="flex items-center justify-between px-3 pt-2">
               <span className="text-sm font-medium text-muted">Theme</span>
               <ThemeToggle />

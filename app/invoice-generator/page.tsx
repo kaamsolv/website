@@ -21,7 +21,7 @@ const FAQ = [
   },
   {
     q: 'Is my invoice saved?',
-    a: 'No. It stays in this browser tab and isn’t uploaded or saved anywhere — refreshing the page clears it. Download the PDF when you’re done.',
+    a: 'Without an account, your draft stays in this browser only — it isn’t uploaded, and a refresh doesn’t lose it. With a free account you can save up to 20 invoices, and your business details and logo are filled in for the next one.',
   },
   {
     q: 'Is this a GST-compliant tax invoice?',

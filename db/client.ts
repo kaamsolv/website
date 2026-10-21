@@ -27,7 +27,8 @@ import * as schema from './schema.ts';
 import type { Db } from './links.ts';
 import { deploymentLabel, isProductionServer } from '../app/lib/runtime-platform.ts';
 
-const PGLITE_DIR = '.pglite';
+/** Dev only. E2E runs point this at a throwaway `.pglite-e2e` (tests/e2e/start-server.mts). */
+const PGLITE_DIR = process.env.KK_PGLITE_DIR || '.pglite';
 
 // Cache the instance across HMR reloads in dev (each reload re-evaluates the
 // module, and PGlite holds an exclusive lock on its data directory).

@@ -5,6 +5,39 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Invoice Pro, Stage 1: accounts + saving
+
+**Decided by:** product owner (plan approved after two review rounds).
+Detail: [`products/accounts.md`](./products/accounts.md).
+
+- **Pro ships in three stages**, each approved separately: 1 accounts + saving;
+  2 Pro features (tested with hand grants); 3 payments.
+- **Payments: Razorpay** (registered business; Stripe India is invite-only).
+  Prices decided before Stage 3.
+- **Sign-in: Google + email sign-in link**, no passwords. **better-auth 1.7.12,
+  pinned exactly** (Auth.js is security- and critical-fixes-only under the
+  Better Auth team, per its own announcement, nextauthjs/next-auth discussion
+  #13252). Fallback: Arctic + our own sessions; only auth files change.
+- **Email: Resend**, plain `fetch`, from `login@send.kaamsolv.com`. No SDK.
+- **Free account saves 20 invoices** (first draft said 5; 20 chosen so the
+  limit isn't a bait paywall — the real Pro hooks are features, not the count).
+  Hitting the limit never blocks making or downloading a PDF.
+- **Anonymous drafts kept in the browser** (localStorage) so a refresh doesn't
+  lose work.
+- **Entitlements computed per request** from `plan_features` + active
+  subscriptions — not synced into a table (changed from the Phase 1 design).
+- **Recurring (Stage 2) = reminder + one-click copy**; no automatic emails to
+  clients.
+- **Stored minimum**: no raw IPs, no Google tokens or photo; logo stored once on
+  the business profile.
+- **Test-only sign-in route** with three locks (compile-out, `KK_E2E=1`,
+  per-run secret header); never a Worker secret.
+- **E2E runs on a throwaway database**; the free limit is lowered to 3 there
+  only, and the database is deleted on teardown.
+- Privacy and Terms updated for accounts (owner to review the wording).
+
+---
+
 ## 2026-10-21 — Invoice Generator (Phase 1: free tier)
 
 **Decided by:** product owner (§46 kickoff + plan approved).

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../icons';
 import { PAPER_MUTED, PAPER_TEXT, PaperCaption, PaperInput, PaperTextarea } from './paper-fields';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from './generate-pdf';
-import { useEntitlements } from '@/app/lib/entitlements';
+import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
-import { addDays, DEFAULT_DUE_DAYS, hasContent, newInvoice, newLineItem } from '@/app/lib/invoice/defaults';
+import { addDays, DEFAULT_DUE_DAYS, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
+import { clearInvoiceDraft, loadInvoiceDraft, saveInvoiceDraft } from '@/app/lib/invoice/draft';
 import { LOGO_MAX_BYTES, LOGO_MAX_PX, LOGO_TYPES, MAX_FREE_ITEMS, MAX_LEN } from '@/app/lib/invoice/limits';
 import { CURRENCY_LABELS, currencySymbol, formatMoney } from '@/app/lib/invoice/money';
 import { computeTotals } from '@/app/lib/invoice/totals';
@@ -33,11 +34,129 @@ async function readLogo(file: File): Promise<string> {
   return file.type === 'image/jpeg' ? canvas.toDataURL('image/jpeg', 0.9) : canvas.toDataURL('image/png');
 }
 
+type Profile = { name: string; address: string; email: string; phone: string; logo: string | null; nextNumber: string };
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+/** What gets saved for the invoice itself (the logo lives on the profile). */
+const docKey = (inv: Invoice) => JSON.stringify({ ...inv, logo: null, items: inv.items.map(({ id: _id, ...rest }) => rest) });
+/** What gets saved as the business profile (fixed field order — stored JSON can reorder keys). */
+const sellerKey = (s: Invoice['seller'], logo: string | null) => JSON.stringify([s.name, s.address, s.email, s.phone, logo]);
+const profileKey = (inv: Invoice) => sellerKey(inv.seller, inv.logo);
+
+async function api<T>(path: string, init?: RequestInit): Promise<{ ok: boolean; status: number; body: T }> {
+  const res = await fetch(path, {
+    ...init,
+    credentials: 'same-origin',
+    headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+  });
+  return { ok: res.ok, status: res.status, body: (await res.json().catch(() => ({}))) as T };
+}
+
+/** A new invoice that starts from the saved business details. */
+function fromProfile(p: Profile): Invoice {
+  const base = newInvoice();
+  return { ...base, number: p.nextNumber, seller: { name: p.name, address: p.address, email: p.email, phone: p.phone }, logo: p.logo };
+}
+
 export function InvoiceEditor() {
-  const { can } = useEntitlements();
-  // Built after mount so the invoice number and dates use the visitor's clock.
+  const me = useMe();
+  const { can, limit } = useEntitlements();
+  const signedIn = me.status === 'signed-in';
+
+  // Built after mount (and once we know who's here) so numbers and dates use
+  // the visitor's clock, and a draft or saved invoice can be restored.
   const [inv, setInv] = useState<Invoice | null>(null);
-  useEffect(() => setInv(newInvoice()), []);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const profile = useRef<Profile | null>(null);
+  const lastSaved = useRef('');
+  const lastProfile = useRef('');
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (me.status === 'loading' || started.current) return;
+    started.current = true;
+    void (async () => {
+      const draft = loadInvoiceDraft();
+      if (me.status !== 'signed-in') {
+        setInv(draft ? withFreshItemIds(draft) : newInvoice());
+        return;
+      }
+      const p = await api<{ profile?: Profile }>('/api/business-profile');
+      profile.current = p.body.profile ?? null;
+      if (profile.current) lastProfile.current = sellerKey(profile.current, profile.current.logo);
+      const id = new URLSearchParams(window.location.search).get('id');
+      if (id) {
+        const r = await api<{ invoice?: Invoice }>(`/api/invoices/${encodeURIComponent(id)}`);
+        if (r.ok && r.body.invoice) {
+          const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null });
+          lastSaved.current = docKey(loaded);
+          setSavedId(id);
+          setSaveState('saved');
+          setInv(loaded);
+          return;
+        }
+        setSaveMsg('That invoice isn’t in your account any more — here’s a new one instead.');
+        window.history.replaceState(null, '', '/invoice-generator');
+      }
+      // Carried over from before signing in? Keep it; otherwise start from the profile.
+      if (draft && hasContent(draft)) setInv(withFreshItemIds(draft));
+      else setInv(profile.current ? fromProfile(profile.current) : newInvoice());
+    })();
+  }, [me.status]);
+
+  const save = useCallback(async () => {
+    if (!inv || saveState === 'saving') return;
+    const key = docKey(inv);
+    setSaveState('saving');
+    setSaveMsg(null);
+    const payload = JSON.stringify({ invoice: { ...inv, logo: null } });
+    const r = await api<{ id?: string; message?: string }>(savedId ? `/api/invoices/${savedId}` : '/api/invoices', {
+      method: savedId ? 'PUT' : 'POST',
+      body: payload,
+    }).catch(() => ({ ok: false, status: 0, body: {} as { id?: string; message?: string } }));
+    if (!r.ok) {
+      setSaveState('error');
+      setSaveMsg(r.body.message ?? 'Couldn’t save — check your connection and try again.');
+      return;
+    }
+    const newId = r.body.id;
+    if (!savedId && newId) {
+      setSavedId(newId);
+      window.history.replaceState(null, '', `/invoice-generator?id=${newId}`);
+      clearInvoiceDraft();
+      void refreshMe();
+    }
+    lastSaved.current = key;
+    // Remember the business details and logo for the next invoice.
+    const pk = profileKey(inv);
+    if (pk !== lastProfile.current) {
+      const pr = await api('/api/business-profile', { method: 'PUT', body: JSON.stringify({ ...inv.seller, logo: inv.logo }) });
+      if (pr.ok) lastProfile.current = pk;
+    }
+    setSaveState('saved');
+  }, [inv, saveState, savedId]);
+
+  // Not signed in, or not saved yet: keep a draft in this browser.
+  useEffect(() => {
+    if (!inv || savedId) return;
+    const t = setTimeout(() => (hasContent(inv) ? saveInvoiceDraft(inv) : clearInvoiceDraft()), 400);
+    const flush = () => hasContent(inv) && saveInvoiceDraft(inv);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [inv, savedId]);
+
+  // Saved invoices autosave 1.5 s after typing stops.
+  const pending = Boolean(inv && savedId && docKey(inv) !== lastSaved.current) || Boolean(inv && savedId && profileKey(inv) !== lastProfile.current);
+  useEffect(() => {
+    if (!pending || saveState === 'saving' || saveState === 'error') return;
+    const t = setTimeout(() => void save(), 1500);
+    return () => clearTimeout(t);
+  }, [pending, inv, saveState, save]);
 
   const [busy, setBusy] = useState<'download' | 'preview' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -62,14 +181,19 @@ export function InvoiceEditor() {
     return () => clearTimeout(t);
   }, [inv, totals]);
 
-  // Nothing is saved: warn before leaving only if there's something to lose.
+  // Drafts survive a refresh, so only warn when saved changes haven't reached the server yet.
   const dirty = inv ? hasContent(inv) : false;
+  const unsynced = pending || saveState === 'saving';
   useEffect(() => {
-    if (!dirty) return;
+    if (!unsynced) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [dirty]);
+  }, [unsynced]);
+
+  const saveLimit = limit('invoice_save');
+  const savedCount = me.status === 'signed-in' ? me.usage.invoiceSave : 0;
+  const atLimit = signedIn && !savedId && saveLimit !== null && savedCount >= saveLimit;
 
   if (!inv || !totals) {
     return <div className="mx-auto min-h-[60vh] max-w-[794px] animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
@@ -119,12 +243,31 @@ export function InvoiceEditor() {
     }
   }
 
-  function startNew() {
-    if (dirty && !window.confirm('Start a new invoice? This one will be cleared — it isn’t saved.')) return;
-    setInv(newInvoice());
+  async function startNew() {
+    if (!savedId && dirty && !window.confirm('Start a new invoice? This one will be cleared — it isn’t saved.')) return;
+    clearInvoiceDraft();
+    setSavedId(null);
+    setSaveState('idle');
+    setSaveMsg(null);
     setMessage(null);
     setLogoError(null);
+    lastSaved.current = '';
+    if (savedId) window.history.replaceState(null, '', '/invoice-generator');
+    if (!signedIn) {
+      setInv(newInvoice());
+      return;
+    }
+    // Fresh profile: the business details just saved, and the next number.
+    const p = await api<{ profile?: Profile }>('/api/business-profile').catch(() => null);
+    if (p?.body.profile) {
+      profile.current = p.body.profile;
+      lastProfile.current = sellerKey(p.body.profile, p.body.profile.logo);
+    }
+    setInv(profile.current ? fromProfile(profile.current) : newInvoice());
   }
+
+  const saveStatus =
+    saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Not saved' : savedId && !pending ? 'Saved' : savedId ? 'Unsaved changes' : null;
 
   const currencySelect = (id: string) => (
     <label className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -152,7 +295,18 @@ export function InvoiceEditor() {
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 border border-hair bg-surface p-3 md:sticky md:top-20 md:z-20">
         {currencySelect('currency-top')}
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {signedIn && saveStatus && (
+            <span className={`text-sm font-medium ${saveState === 'error' ? 'text-[#B42318] dark:text-coral-400' : 'text-muted'}`} role="status">
+              {saveState === 'saved' && !pending && <Icon name="check" className="mr-1 inline h-4 w-4 text-teal-500" />}
+              {saveStatus}
+            </span>
+          )}
+          {signedIn && (!savedId || saveState === 'error') && (
+            <button type="button" onClick={() => void save()} disabled={atLimit || saveState === 'saving'} className={SECONDARY}>
+              {saveState === 'error' ? 'Retry save' : 'Save'}
+            </button>
+          )}
           <button type="button" onClick={startNew} className={SECONDARY}>
             Start new
           </button>
@@ -168,9 +322,43 @@ export function InvoiceEditor() {
 
       <p className="mb-4 flex items-start gap-2 text-sm text-muted">
         <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" />
-        Type straight onto the invoice. It stays in this browser — nothing is uploaded, and it isn’t saved, so refreshing
-        clears it.
+        {!signedIn ? (
+          <span>
+            Your draft stays in this browser — nothing is uploaded.{' '}
+            <a href="/login?next=%2Finvoice-generator" className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+              Sign in to save invoices and reuse your details — free.
+            </a>
+          </span>
+        ) : savedId ? (
+          <span>
+            Saved in your account — changes save as you type.{' '}
+            <a href="/app/invoices" className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+              My invoices
+            </a>
+          </span>
+        ) : (
+          <span>
+            Not saved yet — press Save to keep it in your account
+            {saveLimit !== null && ` (${savedCount} of ${saveLimit} saved)`}.
+          </span>
+        )}
       </p>
+
+      {atLimit && (
+        <p className="mb-4 rounded-lg border border-hair bg-wash p-3 text-sm text-ink" role="status">
+          You’ve saved {saveLimit} invoices — the free limit. Delete one to save another. You can still download this one as a
+          PDF.{' '}
+          <a href="/app/invoices" className="font-semibold underline underline-offset-2">
+            My invoices
+          </a>
+        </p>
+      )}
+
+      {saveMsg && !atLimit && (
+        <p className={`mb-4 text-sm font-semibold ${saveState === 'error' ? 'text-[#B42318] dark:text-coral-400' : 'text-ink'}`} role="alert">
+          {saveMsg}
+        </p>
+      )}
 
       {message && (
         <p className="mb-4 text-sm font-semibold text-ink" role="status">

@@ -1,6 +1,11 @@
 // KaamSolv production Worker — Next.js via OpenNext (`npm run cf:deploy`).
 // Hosting decision and DNS notes: docs/infra/deployment.md.
-// Secrets (none needed yet) are Worker secrets, never in this file.
+// Secrets are Worker secrets (`npx wrangler secret put NAME`), never in this file:
+//   DATABASE_URL, KK_IP_HASH_SALT                       (URL Shortener, all DB use)
+//   BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID,
+//   GOOGLE_CLIENT_SECRET, RESEND_API_KEY                (accounts — docs/products/accounts.md)
+// NEVER set KK_E2E or KK_E2E_SECRET here: they unlock test-only sign-in and
+// exist only in local / CI env (app/lib/e2e-gate.ts).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kaamsolv",
