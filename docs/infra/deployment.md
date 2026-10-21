@@ -3,9 +3,8 @@
 **Updated:** 2026-10-21 · Source of truth for how KaamSolv is hosted, deployed
 and wired to its domain. Decision history: [`../DECISIONS.md`](../DECISIONS.md).
 
-> The `url-shortener` branch carries an older, Vercel-based version of this
-> file (`kaamkit.com`). This version supersedes it — keep this one when that
-> branch merges `main`, and carry over its Neon / env-var / migration sections.
+> Supersedes the older Vercel-based version that lived on the `url-shortener`
+> branch; its Neon, secrets and migration sections are carried over in §7–§9.
 
 ---
 
@@ -97,3 +96,60 @@ setup. Decide separately whether it should 301 to `kaamsolv.com`.
 - CI (GitHub Actions: typecheck, tests, `cf:build` on PRs).
 - Cloudflare WAF / rate-limiting rules (now possible — traffic is proxied).
 - Analytics (GA4, Search Console for `kaamsolv.com`).
+
+---
+
+## 7. URL Shortener — how a short link is served
+
+`kaamsolv.com/{shortCode}` is a Next.js Route Handler (`app/[shortCode]/route.ts`)
+running inside the same `kaamsolv` Worker.
+
+- Static routes win over the dynamic `[shortCode]` segment, so every real page
+  (`/qr-code-generator`, `/png-to-jpg`, …) is safe. The image converters are
+  static folders for exactly this reason.
+- `app/lib/reserved-routes.ts` is the second guard: reserved words can never
+  become short codes.
+- The handler looks the code up in Neon (`db/links.ts`) and returns `302` for an
+  active link, `404` for an unknown or reserved code, or redirects to
+  `/link-unavailable?reason=disabled|expired`. Clicks are recorded best-effort via
+  `after()`, so analytics never slow the redirect.
+- On Workers the click country comes from `cf-ipcountry` and the client IP from
+  `cf-connecting-ip` (`app/lib/runtime-platform.ts` detects the host).
+
+## 8. Secrets & environment variables
+
+Worker secrets (`npx wrangler secret put NAME`, list with `npx wrangler secret list`).
+Local dev needs none of them — see [`.env.example`](../../.env.example).
+
+| Variable | Status | Purpose |
+|---|---|---|
+| `DATABASE_URL` | **set** (2026-10-21) | Neon pooled connection string. On a production server a missing value fails loudly; locally its absence selects PGlite. |
+| `KK_IP_HASH_SALT` | **set** (2026-10-21) | Salt for every caller hash (`SHA-256(ip + salt)`): rate limits, `links.created_ip_hash`, `link_reports.reporter_ip_hash`. Changing it resets rate-limit windows. |
+| `WEB_RISK_API_KEY` | not set | Optional Google Web Risk key for destination screening. Unset → screening skipped (fail-open, logged once). Needs a Google Cloud project with billing; free to 100k lookups/month. |
+| `NEXT_PUBLIC_SITE_URL` | not set | Optional canonical base; defaults to `https://kaamsolv.com`. |
+
+A secret takes effect immediately: `wrangler secret put` rolls out a new Worker
+version with the same code.
+
+## 9. Database migrations
+
+- Schema: Drizzle ORM ([`db/schema.ts`](../../db/schema.ts)); migrations in
+  `db/migrations/` (SQL + `meta/`), committed.
+- `npm run db:generate` — write a new migration from `db/schema.ts` (no DB needed).
+- `npm run db:migrate` — apply pending migrations: to Neon when `DATABASE_URL` is
+  set, else to local PGlite (`.pglite/`).
+- **Production migrations are a manual, deliberate step**, never part of the
+  build. For the first setup `db/setup-production.mjs` did migrations + secrets in
+  one go (it asks for the connection string with hidden input). For later
+  migrations, run `npm run db:migrate` with `DATABASE_URL` set only for that
+  command — don't leave the production string in `.env.local`.
+
+| Migration | Creates | Neon production |
+|---|---|---|
+| `0000_powerful_masque.sql` | `link_status` enum, `links` | applied 2026-10-21 |
+| `0001_aberrant_medusa.sql` | `device_class` enum, `click_events` | applied 2026-10-21 |
+| `0002_yellow_arachne.sql` | `report_reason` enum, `rate_limits`, `link_reports`, `links.screened_at` | applied 2026-10-21 |
+
+Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
+(status, clicks, reports; `disable --confirm` takes a link down) and
+`npm run link:reports`.

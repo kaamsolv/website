@@ -5,6 +5,23 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — URL Shortener merged into `main` (not yet deployed)
+
+**Decided by:** product owner (merge + local test; deploy waits for approval).
+
+- `cf-workers-poc` (URL Shortener + Cloudflare runtime changes) merged into
+  `main` and renamed to KaamSolv. Catalogue stays `planned` until launch.
+- **Route clash resolved:** image converters are now ten static folders under
+  `app/(image-converters)/` sharing `converterMetadata` / `ConverterRoute`, so the
+  shortener's `app/[shortCode]` owns the root dynamic segment. URLs unchanged.
+  Converter slugs are reserved short codes; `test/reserved-routes.test.mts` fails
+  if any top-level route folder isn't reserved.
+- Known issue: `npm run link:status` / `link:reports` print their result but
+  don't exit when run against local PGlite (stop with Ctrl-C). Not seen with Neon
+  yet; tool-only, no effect on the site.
+
+---
+
 ## 2026-10-21 — New Neon database for the URL Shortener
 
 **Decided by:** product owner.

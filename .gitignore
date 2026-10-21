@@ -9,6 +9,9 @@ build/
 .env.local
 .env.*.local
 
+# Local PGlite database (dev only — see .env.example)
+.pglite/
+
 # Cloudflare Workers (OpenNext) build output and local secrets
 .open-next/
 .wrangler/
