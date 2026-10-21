@@ -178,7 +178,7 @@ export const TOOLS: Tool[] = [
   { name: 'HEIC to PNG', slug: 'heic-to-png', url: '/heic-to-png', category: 'Images & Files', blurb: 'HEIC to PNG without uploading your photo.', keywords: ['heic', 'heif', 'iphone', 'png', 'convert'], status: 'live' },
   { name: 'AVIF to JPG', slug: 'avif-to-jpg', url: '/avif-to-jpg', category: 'Images & Files', blurb: 'AVIF to JPG in your browser.', keywords: ['avif', 'jpg', 'convert'], status: 'live' },
   { name: 'AVIF to PNG', slug: 'avif-to-png', url: '/avif-to-png', category: 'Images & Files', blurb: 'AVIF to PNG on your device.', keywords: ['avif', 'png', 'convert'], status: 'live' },
-  { name: 'Image Compressor', slug: 'image-compressor', url: '/image-tools/image-compressor', category: 'Images & Files', blurb: 'Shrink file size, keep it looking right.', keywords: ['compress', 'reduce size', 'optimise', 'smaller'], status: 'planned' },
+  { name: 'Image Compressor', slug: 'image-compressor', url: '/image-compressor', category: 'Images & Files', blurb: 'Shrink file size, keep it looking right.', keywords: ['compress', 'reduce size', 'optimise', 'smaller'], status: 'live' },
 
   // Writing
   { name: 'Word Counter', slug: 'word-counter', url: '/writing/word-counter', category: 'Writing', blurb: 'Words, characters, sentences and reading time.', keywords: ['word count', 'characters', 'essay', 'limit'], status: 'planned' },

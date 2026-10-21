@@ -15,6 +15,10 @@ type Props = {
   transparent?: boolean;
   onDownload: () => void;
   onReset: () => void;
+  /** Label for the second button. */
+  resetLabel?: string;
+  /** Small print under the buttons; `null` hides it. */
+  footnote?: React.ReactNode | null;
 };
 
 export function ImageResultCard({
@@ -28,6 +32,13 @@ export function ImageResultCard({
   transparent,
   onDownload,
   onReset,
+  resetLabel = 'Convert another',
+  footnote = (
+    <>
+      Need a different size or smaller file? Open <span className="text-strong">More options</span> before
+      converting.
+    </>
+  ),
 }: Props) {
   const delta = sizeDeltaLabel(inputBytes, outputBytes);
   const outLabel = labelForFormat(outputFormat);
@@ -88,14 +99,11 @@ export function ImageResultCard({
           onClick={onReset}
           className="h-11 rounded-lg border border-hair bg-surface px-4 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
         >
-          Convert another
+          {resetLabel}
         </button>
       </div>
 
-      <p className="mt-4 text-xs text-muted">
-        Need a different size or smaller file? Open{' '}
-        <span className="text-strong">More options</span> before converting.
-      </p>
+      {footnote && <p className="mt-4 text-xs text-muted">{footnote}</p>}
     </div>
   );
 }

@@ -20,6 +20,7 @@ const ROUTE_SEGMENTS = [
   'qr-code-generator',
   'qr-generator',
   'image-tools',
+  'image-compressor',
   'calculators',
   'converters',
   'generators',

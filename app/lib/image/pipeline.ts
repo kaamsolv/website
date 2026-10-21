@@ -3,7 +3,7 @@
  */
 import { decodeFormat } from './codecs/decode';
 import { encodeFormat } from './codecs/encode';
-import { canConvert } from './registry/capabilities';
+import { canProcess } from './registry/capabilities';
 import { extensionForFormatId } from './registry/capabilities';
 import type { FormatId } from './registry/format-registry';
 import { mapThrownError, userMessageForCode, type ImageErrorCode } from './errors';
@@ -39,7 +39,7 @@ export async function runConversionPipeline(
   options: ConvertOptions,
   onProgress?: PipelineProgress,
 ): Promise<PipelineResult> {
-  if (!canConvert(from, to)) {
+  if (!canProcess(from, to)) {
     return {
       ok: false,
       code: 'unsupported-format',

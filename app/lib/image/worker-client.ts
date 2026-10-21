@@ -1,6 +1,6 @@
 import { userMessageForCode, type ImageErrorCode } from './errors';
 import { runConversionPipeline, supportsWebpEncodeInContext } from './pipeline';
-import { canConvert } from './registry/capabilities';
+import { canProcess } from './registry/capabilities';
 import type { FormatId } from './registry/format-registry';
 import type { ConvertOptions, ConvertProgress, ConvertResult, OutputFormat } from './types';
 import { DEFAULT_CONVERT_OPTIONS } from './types';
@@ -123,7 +123,7 @@ export async function convertImage(
     };
   }
 
-  if (!canConvert(from, to)) {
+  if (!canProcess(from, to)) {
     return {
       ok: false,
       code: 'unsupported-format',

@@ -11,7 +11,7 @@ The Image Kit is KaamSolv's unified workspace for image tasks — not a wall of 
 | Module | Purpose | Status |
 |--------|---------|--------|
 | **Convert** | Format conversion | Live |
-| **Compress** | Reduce file size | Planned |
+| **Compress** | Reduce file size | Live — `/image-compressor` |
 | **Resize** | Change dimensions | Planned |
 | **Edit** | Crop, rotate, flip | Planned |
 | **Clean** | Remove metadata | Planned |
@@ -19,6 +19,31 @@ The Image Kit is KaamSolv's unified workspace for image tasks — not a wall of 
 | **Create** | Favicon, PDF, contact sheet | Planned |
 
 Module registry: `app/lib/image/kit/modules.ts`
+
+## Compress module (`/image-compressor`)
+
+Single image, processed in the browser through the same pipeline (decode →
+resize → encode). Decisions live in `app/lib/image/compress.ts` (tested in
+`test/image-compress.test.mts`); UI in `app/_components/image/image-compressor-workspace.tsx`.
+
+- **Inputs:** JPG, PNG, WebP, HEIC, AVIF, BMP. GIF/SVG/ICO are refused with a
+  clear message (animation / vector / icon need their own handling).
+- **Levels:** Smaller file 0.6 · **Balanced 0.75 (default)** · Best quality 0.88
+  (lossy encoder quality).
+- **Save as:** JPG → JPG/WebP; WebP → WebP/JPG; **PNG → WebP by default**
+  (keeps transparency), JPG or PNG offered; HEIC/AVIF/BMP → JPG/WebP. PNG→PNG
+  has no quality control (lossless) — only Max size shrinks it.
+- **Max size:** longest side 3840 / 2560 / 1920 / 1280 px, only values smaller
+  than the image (never upscales), aspect ratio kept.
+- **Never offers a bigger file:** if the result isn't smaller, the user is told
+  to keep the original and given only the tips that apply.
+- Output named `<name>-compressed.<ext>`. Re-encoding through canvas drops
+  EXIF (camera data, GPS).
+- The engine's `canProcess()` allows same-format re-encode (JPG→JPG); the
+  converter UI still uses `canConvert()`, which doesn't.
+- Measured locally: 4000×3000 JPG 5.8 MB → 2.2 MB (Balanced), → 89.8 KB as
+  WebP at 1920 px; transparent PNG 974 KB → 56.5 KB WebP with alpha intact.
+- Not yet: batch (several images at once), target file size ("under 200 KB").
 
 ## Architecture
 

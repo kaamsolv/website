@@ -130,6 +130,14 @@ export async function detectImageFile(file: File): Promise<DetectFileResult> {
     return { ok: false, code: 'unsupported-format', message: userMessageForCode('unsupported-format') };
   }
 
+  // Binary formats always carry a signature. If the name or MIME type claims
+  // one but the bytes don't match any image, it's renamed or damaged — say so
+  // now instead of failing later with a broken preview. SVG is text, so its
+  // name/MIME fallback stays (the header sniff can miss a long XML prolog).
+  if (!fromHeader && format !== 'svg') {
+    return { ok: false, code: 'corrupted', message: userMessageForCode('corrupted') };
+  }
+
   // TIFF detected but not yet implemented — honest error.
   if (format === 'tiff') {
     return {

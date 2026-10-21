@@ -79,6 +79,17 @@ export function canConvert(from: FormatId, to: FormatId): boolean {
   return true;
 }
 
+/**
+ * Whether the engine can run this job. Same as `canConvert`, plus re-encoding
+ * into the same raster format (JPG → JPG), which compression needs. The
+ * converter UI keeps using `canConvert`, where a same-format pair is a no-op.
+ */
+export function canProcess(from: FormatId, to: FormatId): boolean {
+  if (canConvert(from, to)) return true;
+  const fmt = FORMAT_REGISTRY[from];
+  return from === to && Boolean(fmt?.canDecode && fmt.canEncode && !fmt.vector);
+}
+
 /** Pick a sensible default output when input changes. */
 export function defaultOutputForInput(from: FormatId, currentTo: FormatId): FormatId {
   if (canConvert(from, currentTo)) return currentTo;

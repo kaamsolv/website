@@ -94,3 +94,17 @@ test('detectFormatFromHeader identifies AVIF ftyp', () => {
   ]);
   assert.equal(detectFormatFromHeader(header), 'avif');
 });
+
+test('rejects a text file renamed to .png (no image signature)', async () => {
+  const file = new File(['this is not an image'], 'notes.png', { type: 'image/png' });
+  const result = await detectImageFile(file);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.code, 'corrupted');
+});
+
+test('still accepts an SVG identified only by its name / MIME type', async () => {
+  const svg = `<?xml version="1.0"?>\n<!-- ${'x'.repeat(200)} -->\n<svg xmlns="http://www.w3.org/2000/svg"/>`;
+  const file = new File([svg], 'logo.svg', { type: 'image/svg+xml' });
+  const result = await detectImageFile(file);
+  assert.equal(result.ok, true);
+});
