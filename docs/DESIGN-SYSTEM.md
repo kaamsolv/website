@@ -130,6 +130,9 @@ choice.** Never hand-roll a selected state.
   tokens, selected vs unselected is ≈ 14 : 1 in both themes.
 - Unselected chips sit on `bg-wash` with a hairline border so they read as
   tappable in dark mode.
+- **Hover never changes a selected option.** Each hover colour has a
+  `peer-checked:hover:` twin that restores the selected colours (otherwise
+  `hover:text-ink` made the selected text the same colour as its background).
 - Native radio inputs inside `fieldset` + `legend` (screen readers announce the
   group; arrow keys move). Use `hideLegend` only when a visible label is
   already above.

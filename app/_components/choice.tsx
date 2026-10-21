@@ -16,6 +16,9 @@ import { Icon } from './icons';
  * readers announce "radio, 2 of 3, selected", and arrow keys move between
  * options. Selected colours use the theme-aware `activebg` / `activetext`
  * tokens from the design system (navy on light, near-white on dark).
+ * Hover only changes *unselected* options: every hover colour has a
+ * `peer-checked:hover:` twin that keeps the selected colours, which win on
+ * specificity — otherwise hovering the selected option hid its text.
  * `value` may match no option (e.g. a custom amount) — then nothing is selected.
  */
 
@@ -51,7 +54,7 @@ export function Segmented<T>({ legend, hideLegend, options, value, onChange, dis
               className="peer sr-only"
             />
             <span
-              className={`flex min-h-10 cursor-pointer items-center justify-center rounded-full px-4 py-1.5 text-center text-sm font-semibold leading-tight text-strong transition-colors hover:text-ink peer-checked:bg-activebg peer-checked:text-activetext peer-checked:shadow-soft peer-disabled:cursor-not-allowed peer-disabled:opacity-60 ${FOCUS}`}
+              className={`flex min-h-10 cursor-pointer items-center justify-center rounded-full px-4 py-1.5 text-center text-sm font-semibold leading-tight text-strong transition-colors hover:bg-surface hover:text-ink peer-checked:bg-activebg peer-checked:text-activetext peer-checked:shadow-soft peer-checked:hover:bg-activebg peer-checked:hover:text-activetext peer-disabled:cursor-not-allowed peer-disabled:opacity-60 ${FOCUS}`}
             >
               {o.label}
             </span>
@@ -80,7 +83,7 @@ export function Chips<T>({ legend, hideLegend, options, value, onChange, disable
                 className="peer sr-only"
               />
               <span
-                className={`inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border border-hair bg-wash px-4 text-sm font-semibold text-strong transition-colors hover:border-muted peer-checked:border-activebg peer-checked:bg-activebg peer-checked:text-activetext peer-disabled:cursor-not-allowed peer-disabled:opacity-60 ${FOCUS}`}
+                className={`inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border border-hair bg-wash px-4 text-sm font-semibold text-strong transition-colors hover:border-muted hover:text-ink peer-checked:border-activebg peer-checked:bg-activebg peer-checked:text-activetext peer-checked:hover:border-activebg peer-checked:hover:text-activetext peer-disabled:cursor-not-allowed peer-disabled:opacity-60 ${FOCUS}`}
               >
                 {checked && <Icon name="check" className="-ml-1 h-4 w-4" />}
                 {o.label}
