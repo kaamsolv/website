@@ -16,7 +16,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md).
 | Homepage | **Live** |
 | QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md) |
 | Image converters (10) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
-| URL Shortener | **On `main`, not deployed or listed yet** — database ready; launch pending approval. [`products/url-shortener.md`](products/url-shortener.md) |
+| URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
 | Everything else in the catalogue | Planned — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack

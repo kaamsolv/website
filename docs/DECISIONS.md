@@ -5,6 +5,21 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — URL Shortener live
+
+**Decided by:** product owner.
+
+- Deployed to `kaamsolv.com` and listed: first card in the homepage's Popular
+  tools. Percentage Calculator (planned) left the rail to keep six cards and
+  one fewer "Soon" placeholder.
+- Verified with real links on production (see `products/url-shortener.md` §11).
+  Test links `kaamsolv.com/hmTfloG` and `kaamsolv.com/883xfqy` remain — harmless,
+  or disable with `npm run link:status -- <code> disable --confirm`.
+- Homepage card copy changed to "Paste a long link, get a short one you can
+  share anywhere." — click stats aren't built yet.
+
+---
+
 ## 2026-10-21 — URL Shortener merged into `main` (not yet deployed)
 
 **Decided by:** product owner (merge + local test; deploy waits for approval).
