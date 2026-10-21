@@ -21,6 +21,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@opennextjs/cloudflare": "^1.20.12",
     "drizzle-orm": "^0.45.2",
+    "fflate": "^0.8.3",
     "heic2any": "^0.0.4",
     "next": "^16.4.2",
     "qrcode": "^1.5.4",

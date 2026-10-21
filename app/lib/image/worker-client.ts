@@ -1,5 +1,6 @@
 import { userMessageForCode, type ImageErrorCode } from './errors';
 import { runConversionPipeline, supportsWebpEncodeInContext } from './pipeline';
+import { runTargetPipeline, type TargetJob } from './target-pipeline';
 import { canProcess } from './registry/capabilities';
 import type { FormatId } from './registry/format-registry';
 import type { ConvertOptions, ConvertProgress, ConvertResult, OutputFormat } from './types';
@@ -62,6 +63,7 @@ function convertInWorker(
         });
         return;
       }
+      if (event.data.type !== 'done') return;
 
       resolve({
         ok: true,
@@ -145,4 +147,69 @@ export async function convertImage(
 
 export function suggestedDownloadName(inputName: string, to: OutputFormat): string {
   return outputFilename(inputName, to);
+}
+
+// ------------------------------------------------- Resize image to KB (target)
+
+export type TargetResult =
+  | {
+      ok: true;
+      blob: Blob;
+      width: number;
+      height: number;
+      quality: number;
+      outcome: 'fits' | 'too-big' | 'too-small';
+      inputBytes: number;
+    }
+  | { ok: false; code: ImageErrorCode; message: string };
+
+/**
+ * Resize/compress one image to a byte limit and/or exact pixel size, in the
+ * worker when available. See target-pipeline.ts.
+ */
+export async function fitImageToTarget(
+  file: File,
+  job: TargetJob,
+  onProgress?: (stage: string) => void,
+): Promise<TargetResult> {
+  const detected = await detectImageFile(file);
+  if (!detected.ok) return { ok: false, code: detected.code, message: detected.message };
+  const from = detected.detected.format;
+  const buffer = await file.arrayBuffer();
+  const inputBytes = buffer.byteLength;
+
+  const w = getWorker();
+  if (!w) {
+    const res = await runTargetPipeline(buffer, from, job, onProgress);
+    return res.ok ? { ...res, inputBytes } : res;
+  }
+
+  const id = `target-${++jobCounter}`;
+  return new Promise((resolve) => {
+    const handler = (event: MessageEvent<WorkerResponse>) => {
+      const msg = event.data;
+      if (msg.id !== id) return;
+      if (msg.type === 'progress') {
+        onProgress?.(msg.stage);
+        return;
+      }
+      w.removeEventListener('message', handler);
+      if (msg.type === 'error') {
+        resolve({ ok: false, code: msg.code as ImageErrorCode, message: msg.message });
+      } else if (msg.type === 'target-done') {
+        resolve({
+          ok: true,
+          blob: msg.blob,
+          width: msg.width,
+          height: msg.height,
+          quality: msg.quality,
+          outcome: msg.outcome,
+          inputBytes,
+        });
+      }
+    };
+    w.addEventListener('message', handler);
+    const req: WorkerRequest = { kind: 'target', id, buffer, from, job };
+    w.postMessage(req, [buffer]);
+  });
 }

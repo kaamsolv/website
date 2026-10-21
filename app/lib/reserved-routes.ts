@@ -21,6 +21,7 @@ const ROUTE_SEGMENTS = [
   'qr-generator',
   'image-tools',
   'image-compressor',
+  'resize-image-in-kb',
   'word-counter',
   'character-counter',
   'case-converter',

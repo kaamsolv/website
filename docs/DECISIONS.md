@@ -5,6 +5,22 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Resize image to KB (exact size for forms)
+
+**Decided by:** product owner (plan approved via the §46 kickoff).
+
+- New page `/resize-image-in-kb` (not a mode of the compressor) — matches how
+  people search. Draggable crop box; batch up to 20.
+- **New dependency: `fflate` ^0.8.3** for the "Download all" ZIP, built in the
+  browser. Small, maintained, no audit advisories at install.
+- Output JPG only; KB limit treated as ≤ N × 1000 bytes; files are never
+  padded to meet a minimum; an oversized result is never labelled as fitting.
+- No exam-specific presets (requirements change) — generic KB picks and a
+  passport 3.5 × 4.5 cm preset; users type what their notice says.
+- Details: `products/image-kit.md` → "Exact size module".
+
+---
+
 ## 2026-10-21 — Image Compressor, Writing pack, Everyday calculators
 
 **Decided by:** product owner.

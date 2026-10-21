@@ -7,17 +7,22 @@ type Props = {
   extensions: readonly string[];
   disabled?: boolean;
   onFile: (file: File) => void;
+  /** Accept several files at once; each is passed to `onFiles` (falls back to `onFile`). */
+  multiple?: boolean;
+  onFiles?: (files: File[]) => void;
 };
 
-export function ImageDropzone({ accept, extensions, disabled, onFile }: Props) {
+export function ImageDropzone({ accept, extensions, disabled, onFile, multiple = false, onFiles }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const pick = useCallback(
-    (file: File | undefined) => {
-      if (file && !disabled) onFile(file);
+    (list: FileList | null | undefined) => {
+      if (!list || list.length === 0 || disabled) return;
+      if (multiple && onFiles) onFiles(Array.from(list));
+      else onFile(list[0]);
     },
-    [disabled, onFile],
+    [disabled, onFile, multiple, onFiles],
   );
 
   const onDrop = useCallback(
@@ -25,7 +30,7 @@ export function ImageDropzone({ accept, extensions, disabled, onFile }: Props) {
       e.preventDefault();
       setDragOver(false);
       if (disabled) return;
-      pick(e.dataTransfer.files[0]);
+      pick(e.dataTransfer.files);
     },
     [disabled, pick],
   );
@@ -65,7 +70,7 @@ export function ImageDropzone({ accept, extensions, disabled, onFile }: Props) {
         <path d="M12 16V4M8 8l4-4 4 4" />
         <path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
       </svg>
-      <p className="font-display font-bold text-ink">Drop your image here</p>
+      <p className="font-display font-bold text-ink">{multiple ? 'Drop your images here' : 'Drop your image here'}</p>
       <p className="mt-1 text-sm text-muted">
         or{' '}
         <span className="font-semibold text-coral-600 underline">browse your device</span>
@@ -75,10 +80,11 @@ export function ImageDropzone({ accept, extensions, disabled, onFile }: Props) {
         ref={inputRef}
         type="file"
         accept={accept}
+        multiple={multiple}
         className="sr-only"
         disabled={disabled}
         onChange={(e) => {
-          pick(e.target.files?.[0]);
+          pick(e.target.files);
           e.target.value = '';
         }}
       />

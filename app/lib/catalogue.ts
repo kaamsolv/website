@@ -179,6 +179,7 @@ export const TOOLS: Tool[] = [
   { name: 'AVIF to JPG', slug: 'avif-to-jpg', url: '/avif-to-jpg', category: 'Images & Files', blurb: 'AVIF to JPG in your browser.', keywords: ['avif', 'jpg', 'convert'], status: 'live' },
   { name: 'AVIF to PNG', slug: 'avif-to-png', url: '/avif-to-png', category: 'Images & Files', blurb: 'AVIF to PNG on your device.', keywords: ['avif', 'png', 'convert'], status: 'live' },
   { name: 'Image Compressor', slug: 'image-compressor', url: '/image-compressor', category: 'Images & Files', blurb: 'Shrink file size, keep it looking right.', keywords: ['compress', 'reduce size', 'optimise', 'smaller'], status: 'live' },
+  { name: 'Resize Image to KB', slug: 'resize-image-in-kb', url: '/resize-image-in-kb', category: 'Images & Files', blurb: 'Hit the exact KB and size exam and job forms ask for.', keywords: ['resize image to kb', 'compress image to 50kb', '20kb', 'photo size', 'signature', 'passport size photo', 'exam form', 'kb'], status: 'live' },
 
   // Writing
   { name: 'Word Counter', slug: 'word-counter', url: '/word-counter', category: 'Writing', blurb: 'Words, characters, sentences and reading time.', keywords: ['word count', 'characters', 'essay', 'limit'], status: 'live' },

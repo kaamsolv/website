@@ -12,6 +12,7 @@ The Image Kit is KaamSolv's unified workspace for image tasks — not a wall of 
 |--------|---------|--------|
 | **Convert** | Format conversion | Live |
 | **Compress** | Reduce file size | Live — `/image-compressor` |
+| **Exact size** | Hit a KB limit / exact px or cm for forms | Live — `/resize-image-in-kb` |
 | **Resize** | Change dimensions | Planned |
 | **Edit** | Crop, rotate, flip | Planned |
 | **Clean** | Remove metadata | Planned |
@@ -44,6 +45,30 @@ resize → encode). Decisions live in `app/lib/image/compress.ts` (tested in
 - Measured locally: 4000×3000 JPG 5.8 MB → 2.2 MB (Balanced), → 89.8 KB as
   WebP at 1920 px; transparent PNG 974 KB → 56.5 KB WebP with alpha intact.
 - Not yet: batch (several images at once), target file size ("under 200 KB").
+
+## Exact size module (`/resize-image-in-kb`)
+
+For exam, job and government forms. Engine: `target-size.ts` (units, KB rule,
+quality/scale search with an injected encoder), `crop.ts` (centre + zoom crop
+state, contain rect), `jpeg-dpi.ts` (JFIF density), `target-pipeline.ts`
+(decode once → crop/fit → search → DPI). Worker message `kind: 'target'`;
+client `fitImageToTarget()`. UI: `resize-kb-workspace.tsx`, `crop-box.tsx`.
+Tests: `test/image-target-size.test.mts`.
+
+- **Output is always JPG** (white background), what forms accept.
+- **KB rule:** aim ≤ N × 1000 bytes, so it passes forms counting 1 KB as 1000 or 1024.
+- **Search:** top quality first; else binary search quality 0.2–0.95 (8 steps);
+  if still too big and the pixel size isn't fixed, scale down and retry. With a
+  fixed pixel size, the smallest result is shown as "can't get under", with a
+  clearly labelled "Download anyway". Below a minimum → explained; **never
+  padded** with junk bytes.
+- **Exact size:** px / cm / mm / in at a DPI (default 300; passport preset
+  3.5 × 4.5 cm = 413 × 531 px). Crop to fill (draggable, arrow keys, zoom 1–5×)
+  or fit with white border. DPI written into the JPG when not using px.
+- **Batch:** up to 20 images, shared settings, own crop each; "Download all"
+  ZIP (fflate, stored uncompressed) contains only images that fit.
+- Measured: 6 MB 4000×3000 → 47.5 KB @ 50 KB (scaled to 1244×933);
+  → 19.4 KB @ 20 KB; passport 413×531 at 18.5 KB, 300 DPI.
 
 ## Architecture
 

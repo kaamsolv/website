@@ -48,6 +48,10 @@ const FAQ = [
     a: 'Some images are already well compressed. If ours isn’t smaller, we tell you and don’t offer it — keep your original.',
   },
   {
+    q: 'I need it under an exact size, like 50 KB.',
+    a: 'Use Resize image to KB — set the limit (and an exact size like 3.5 × 4.5 cm if your form needs one) and it finds the best quality that fits.',
+  },
+  {
     q: 'Is there a size limit?',
     a: 'Up to 25 MB per image. Very large images can be slow on older phones.',
   },
@@ -61,7 +65,7 @@ export default function ImageCompressorPage() {
       intro="Make photos and images smaller without the guesswork — right in your browser."
       steps={STEPS}
       faq={FAQ}
-      related={['jpg-to-webp', 'png-to-jpg', 'heic-to-jpg']}
+      related={['resize-image-in-kb', 'jpg-to-webp', 'heic-to-jpg']}
     >
       <ImageCompressorWorkspace />
     </ToolPageShell>
