@@ -1,17 +1,4 @@
-import type { Metadata } from 'next';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
-
-/** Shared metadata shape for the writing tools. */
-export function writingMetadata(path: string, title: string, description: string): Metadata {
-  return {
-    title,
-    description,
-    alternates: { canonical: path },
-    openGraph: { type: 'website', url: `${SITE_URL}${path}`, title: `${title} · KaamSolv`, description },
-    twitter: { card: 'summary_large_image', title: `${title} · KaamSolv`, description },
-  };
-}
+export { toolMetadata as writingMetadata } from '@/app/lib/tool-metadata';
 
 export const TEXT_PRIVACY_FAQ = {
   q: 'Is my text saved or sent anywhere?',

@@ -5,6 +5,30 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Image Compressor, Writing pack, Everyday calculators
+
+**Decided by:** product owner.
+
+- New live tools (23 total): `/image-compressor` (see `products/image-kit.md`);
+  writing — `/word-counter`, `/character-counter`, `/case-converter`,
+  `/text-cleaner`, `/lorem-ipsum-generator`; calculators —
+  `/percentage-calculator`, `/discount-calculator`, `/tip-calculator`,
+  `/split-bill-calculator`, `/age-calculator`.
+- **Tools live at top-level URLs**, like the converters — not under
+  `/writing/…` or `/calculators/…` (those segments were never approved). Every
+  new route is reserved against short codes (enforced by test).
+- Shared `ToolPageShell` + `toolMetadata` for new tool pages; logic is
+  framework-free in `app/lib/text` and `app/lib/calc` with unit tests.
+- Word counting follows Microsoft Word (punctuation-joined tokens are one word;
+  CJK/Thai via Intl.Segmenter). Character limits list carries a "checked
+  October 2026" date — re-check periodically.
+- Age: 29 Feb birthdays fall on 28 Feb in non-leap years. Money shown with
+  Indian grouping (₹1,25,000.00).
+- Deferred on purpose: GST Calculator (rates must be verified against official
+  sources first), EMI Calculator (needs a schedule table).
+
+---
+
 ## 2026-10-21 — Basic pages: Privacy, Terms, About, Contact
 
 **Decided by:** product owner. **Status: drafts — owner to review before

@@ -143,8 +143,8 @@ export const TOOLS: Tool[] = [
   { name: 'GST Calculator', slug: 'gst-calculator', url: '/calculators/gst-calculator', category: 'Money', blurb: 'Add or remove GST, both ways, in seconds.', keywords: ['tax', 'gst', 'india', 'inclusive', 'exclusive', '18%'], status: 'planned', popularRank: 1 },
   { name: 'EMI Calculator', slug: 'emi-calculator', url: '/calculators/emi-calculator', category: 'Money', blurb: 'Monthly payment on a loan, plus total interest.', keywords: ['loan', 'interest', 'home loan', 'car loan', 'installment'], status: 'planned', popularRank: 2 },
   { name: 'Salary Calculator', slug: 'salary-calculator', url: '/calculators/salary-calculator', category: 'Money', blurb: 'Turn a package into monthly take-home.', keywords: ['take home', 'in hand', 'net pay', 'deductions'], status: 'planned' },
-  { name: 'Percentage Calculator', slug: 'percentage-calculator', url: '/calculators/percentage-calculator', category: 'Money', blurb: 'Percentages, increases and decreases without the second-guess.', keywords: ['percent', '%', 'change', 'of'], status: 'planned' },
-  { name: 'Discount Calculator', slug: 'discount-calculator', url: '/calculators/discount-calculator', category: 'Money', blurb: 'Final price after a discount, and what you saved.', keywords: ['sale', 'off', 'markdown', 'price'], status: 'planned' },
+  { name: 'Percentage Calculator', slug: 'percentage-calculator', url: '/percentage-calculator', category: 'Money', blurb: 'Percentages, increases and decreases without the second-guess.', keywords: ['percent', '%', 'change', 'of'], status: 'live' },
+  { name: 'Discount Calculator', slug: 'discount-calculator', url: '/discount-calculator', category: 'Money', blurb: 'Final price after a discount, and what you saved.', keywords: ['sale', 'off', 'markdown', 'price'], status: 'live' },
 
   // Work
   { name: 'URL Shortener', slug: 'url-shortener', url: '/url-shortener', category: 'Work', blurb: 'Paste a long link, get a short one you can share anywhere.', keywords: ['short link', 'link', 'bitly', 'tiny', 'redirect'], status: 'live', popularRank: 0 },
@@ -195,9 +195,9 @@ export const TOOLS: Tool[] = [
   { name: 'LinkedIn Bio Generator', slug: 'linkedin-bio-generator', url: '/generators/linkedin-bio-generator', category: 'Career', blurb: 'A headline and About section that sound like you.', keywords: ['linkedin', 'bio', 'headline', 'about', 'profile'], status: 'planned' },
 
   // Everyday
-  { name: 'Age Calculator', slug: 'age-calculator', url: '/calculators/age-calculator', category: 'Everyday', blurb: 'Your exact age — years, months and days.', keywords: ['age', 'birthday', 'date of birth', 'how old'], status: 'planned' },
-  { name: 'Tip Calculator', slug: 'tip-calculator', url: '/calculators/tip-calculator', category: 'Everyday', blurb: 'Tip and total, split however many ways.', keywords: ['tip', 'gratuity', 'restaurant', 'service'], status: 'planned' },
-  { name: 'Split Bill Calculator', slug: 'split-bill-calculator', url: '/calculators/split-bill-calculator', category: 'Everyday', blurb: 'Who owes what when the bill isn’t even.', keywords: ['split', 'bill', 'share', 'group', 'dinner'], status: 'planned' },
+  { name: 'Age Calculator', slug: 'age-calculator', url: '/age-calculator', category: 'Everyday', blurb: 'Your exact age — years, months and days.', keywords: ['age', 'birthday', 'date of birth', 'how old'], status: 'live' },
+  { name: 'Tip Calculator', slug: 'tip-calculator', url: '/tip-calculator', category: 'Everyday', blurb: 'Tip and total, split however many ways.', keywords: ['tip', 'gratuity', 'restaurant', 'service'], status: 'live' },
+  { name: 'Split Bill Calculator', slug: 'split-bill-calculator', url: '/split-bill-calculator', category: 'Everyday', blurb: 'Who owes what when the bill isn’t even.', keywords: ['split', 'bill', 'share', 'group', 'dinner'], status: 'live' },
   { name: 'Countdown Timer', slug: 'countdown-timer', url: '/generators/countdown-timer', category: 'Everyday', blurb: 'A full-screen countdown to any moment.', keywords: ['countdown', 'timer', 'new year', 'event'], status: 'planned' },
   { name: 'Random Number Generator', slug: 'random-number-generator', url: '/generators/random-number-generator', category: 'Everyday', blurb: 'Pick a number in a range — draws, raffles, decisions.', keywords: ['random', 'number', 'dice', 'pick', 'raffle'], status: 'planned' },
 
