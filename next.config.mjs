@@ -12,6 +12,20 @@ const nextConfig = {
    */
   allowedDevOrigins: ['192.168.1.11'],
 
+  /**
+   * Invoice PDFs are made in the browser only. Give the server build a stub
+   * instead of @react-pdf/renderer so the PDF engine stays out of the
+   * Cloudflare Worker bundle (free plan: 3 MB gzip).
+   */
+  turbopack: {
+    resolveAlias: {
+      '@react-pdf/renderer': {
+        browser: '@react-pdf/renderer/lib/react-pdf.browser.js',
+        default: './app/_components/invoice/react-pdf-server-stub.ts',
+      },
+    },
+  },
+
   /** Canonical host is the apex: www.kaamsolv.com → kaamsolv.com (308). */
   async redirects() {
     return [

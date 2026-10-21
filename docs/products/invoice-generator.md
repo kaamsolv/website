@@ -49,6 +49,7 @@ Field lengths (`app/lib/invoice/limits.ts`) keep a full invoice on one page.
 | `app/_components/invoice/paper-fields.tsx` | Paper input/textarea styles |
 | `app/_components/invoice/invoice-pdf.tsx` | react-pdf A4 template (lazy) |
 | `app/_components/invoice/generate-pdf.tsx` | Dynamic import, filename, page count |
+| `app/_components/invoice/react-pdf-server-stub.ts` | Server stand-in for `@react-pdf/renderer` (via `turbopack.resolveAlias` in `next.config.mjs`) so the PDF engine stays out of the Worker bundle (−587 KiB gzip) |
 | `public/fonts/` | Inter Regular/Bold TTF + `OFL.txt` (PDF font; has ₹) |
 | `tests/e2e/invoice.spec.ts` | Playwright: desktop/phone × light/dark, PDF text, 10-item one-page, currency, a11y |
 
