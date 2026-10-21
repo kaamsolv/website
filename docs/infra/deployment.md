@@ -24,7 +24,8 @@ and wired to its domain. Decision history: [`../DECISIONS.md`](../DECISIONS.md).
 | Cloudflare account | `prabhatbhatnagar@gmail.com`'s Account (`wrangler whoami`) |
 | Live since | **2026-10-21** — first deploy, version `12640492-b39a-4067-ac04-c1044dfb9bda` |
 | Cache | Pre-rendered pages served from Worker static assets (`open-next.config.ts`) — no R2/KV/D1 |
-| Database | None on `main` yet. The URL Shortener (Neon Postgres) brings it — set `DATABASE_URL` etc. as Worker secrets then. |
+| Database | **Neon Postgres**, project `kaamsolv` (`spring-wave-63290734`), **AWS ap-southeast-1 (Singapore)**, branch `production`, pooled endpoint. Neon account: the kaamsolv Gmail. Migrations `0000`–`0002` applied 2026-10-21. Used only by the URL Shortener (not yet on `main`). |
+| Worker secrets | `DATABASE_URL`, `KK_IP_HASH_SALT` — set 2026-10-21 with `db/setup-production.mjs` (`cf-workers-poc` branch). `WEB_RISK_API_KEY` not set: link screening is skipped (fail-open). List names with `npx wrangler secret list`. |
 
 Config files: [`wrangler.jsonc`](../../wrangler.jsonc),
 [`open-next.config.ts`](../../open-next.config.ts).

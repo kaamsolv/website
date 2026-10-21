@@ -5,6 +5,20 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — New Neon database for the URL Shortener
+
+**Decided by:** product owner.
+
+- New Neon account (kaamsolv Gmail) and project `kaamsolv` in **Singapore**,
+  replacing the old KaamKit database in `us-east-2`: every short-link redirect
+  queries it, so it sits near Indian visitors. An accidental Ohio project was
+  deleted.
+- Tables created and Worker secrets set — see
+  [`infra/deployment.md`](infra/deployment.md). The old database and the old
+  `.env.local` in the `url-shortener` worktree are no longer used.
+
+---
+
 ## 2026-10-21 — Image converters live
 
 **Decided by:** product owner.
