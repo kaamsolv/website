@@ -1,0 +1,25 @@
+// KaamSolv production Worker — Next.js via OpenNext (`npm run cf:deploy`).
+// Hosting decision and DNS notes: docs/infra/deployment.md.
+// Secrets (none needed yet) are Worker secrets, never in this file.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kaamsolv",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Cloudflare creates the DNS records and certificates for these itself.
+  // www is redirected to the apex by next.config.mjs.
+  "routes": [
+    { "pattern": "kaamsolv.com", "custom_domain": true },
+    { "pattern": "www.kaamsolv.com", "custom_domain": true }
+  ],
+  // Keep the *.workers.dev URL as a fallback for checks; pages carry a
+  // kaamsolv.com canonical, so it is not indexed as a duplicate.
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true }
+}

@@ -118,7 +118,7 @@ Approved direction:
 - PostgreSQL
 - Redis where required
 - S3-compatible object storage where required
-- Vercel as a planned hosting option
+- Cloudflare Workers (via OpenNext) for hosting — see `docs/infra/deployment.md`
 - Server-side services/workers only where the product actually requires them
 
 Prefer one Next.js application with appropriate server-side services/workers as needed. Split services only when there is a clear technical or scaling reason.

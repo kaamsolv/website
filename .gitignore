@@ -9,6 +9,12 @@ build/
 .env.local
 .env.*.local
 
+# Cloudflare Workers (OpenNext) build output and local secrets
+.open-next/
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 *.log
 
 .DS_Store

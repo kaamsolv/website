@@ -5,6 +5,23 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-21 — Hosting: Cloudflare Workers
+
+**Decided by:** product owner.
+
+- KaamSolv is hosted on **Cloudflare Workers** via OpenNext, replacing Vercel.
+  Worker `kaamsolv`, Custom Domains `kaamsolv.com` (canonical) and
+  `www.kaamsolv.com` (308 → apex). Detail: [`infra/deployment.md`](infra/deployment.md).
+- Builds on the `cf-workers-poc` proof of concept. Its URL-Shortener-specific
+  runtime changes (Cloudflare geo header, production detection) are still on
+  that branch and must come in with the URL Shortener.
+- Code repository is now `github.com/kaamsolv/website`; the old one stays as
+  remote `kaamkit-old`.
+- Upgraded Next.js 16.3.4 → 16.4.2 for a critical advisory (GHSA-vcvr-r3jv-pc5j)
+  and because OpenNext requires ≥ 16.4.1.
+
+---
+
 ## 2026-10-21 — Rebrand: KaamKit → KaamSolv
 
 **Decided by:** product owner.
@@ -18,9 +35,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
   supplied, the existing palette and the text wordmark stay — now
   "Kaam**Solv**" with the coral accent on the second half. The old
   `assets/KaamKit — Logo …` files are kept for reference only.
-- **Source repo:** moving to a new GitHub account. The old remote
-  (`github.com/kaamkitdigital/Website`) is still `origin` until the new
-  repository URL is confirmed.
+- **Source repo:** moved to a new GitHub account (see Hosting entry above).
 - **Working folder:** renamed `KaamKit` → `KaamSolv`. The folder name has no
   effect on the build. It did break the git worktree links
   (`../KaamKit-*`), which were repaired with `git worktree repair`.

@@ -91,3 +91,12 @@ change:
 Once you're happy this renders identically to the CDN prototype, this is
 ready to sit under Phase 2 (Website Shell) as the actual codebase, rather
 than a throwaway reference file.
+
+## Deploying (Cloudflare Workers)
+
+```bash
+npm run cf:preview   # run the production Worker locally (localhost:8787)
+npm run cf:deploy    # deploy to kaamsolv.com (needs `npx wrangler login`)
+```
+
+Full setup: [`docs/infra/deployment.md`](docs/infra/deployment.md).

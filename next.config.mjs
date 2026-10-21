@@ -11,6 +11,18 @@ const nextConfig = {
    * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
    */
   allowedDevOrigins: ['192.168.1.11'],
+
+  /** Canonical host is the apex: www.kaamsolv.com → kaamsolv.com (308). */
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.kaamsolv.com' }],
+        destination: 'https://kaamsolv.com/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
