@@ -57,12 +57,16 @@ export function HeaderAccount() {
       {open && (
         <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-xl2 border border-hair bg-surface p-2 shadow-lift">
           <p className="truncate px-3 py-2 text-xs text-muted">{me.user.email}</p>
-          <a role="menuitem" href="/app/invoices" className={`block rounded-lg px-3 py-2 text-sm font-medium text-strong hover:bg-wash ${FOCUS}`}>
-            My invoices
-          </a>
-          <a role="menuitem" href="/app/account" className={`block rounded-lg px-3 py-2 text-sm font-medium text-strong hover:bg-wash ${FOCUS}`}>
-            Account
-          </a>
+          {[
+            ...(me.entitlements.keys.includes('invoice_dashboard') ? [['/app', 'Dashboard']] : []),
+            ['/app/invoices', 'My invoices'],
+            ['/app/settings', 'Settings'],
+            ['/app/account', 'Account'],
+          ].map(([href, label]) => (
+            <a key={href} role="menuitem" href={href} className={`block rounded-lg px-3 py-2 text-sm font-medium text-strong hover:bg-wash ${FOCUS}`}>
+              {label}
+            </a>
+          ))}
           <button
             role="menuitem"
             type="button"
@@ -97,6 +101,9 @@ export function MobileAccountLinks({ onNavigate }: { onNavigate: () => void }) {
     <>
       <a href="/app/invoices" onClick={onNavigate} className={row}>
         My invoices
+      </a>
+      <a href="/app/settings" onClick={onNavigate} className={row}>
+        Settings
       </a>
       <a href="/app/account" onClick={onNavigate} className={row}>
         Account

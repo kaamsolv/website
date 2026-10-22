@@ -12,7 +12,7 @@ export default async function AccountPage() {
   const user = await getCurrentUser(await headers());
   if (!user) redirect('/login?next=%2Fapp%2Faccount');
   return (
-    <AccountShell title="Account" narrow>
+    <AccountShell title="Account" narrow workspace>
       <AccountPanel email={user.email} />
     </AccountShell>
   );

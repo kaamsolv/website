@@ -4,37 +4,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../icons';
 import { PAPER_MUTED, PAPER_TEXT, PaperCaption, PaperInput, PaperTextarea } from './paper-fields';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from './generate-pdf';
+import { SavedDatalists, useSavedLists } from './saved-lists';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
 import { addDays, DEFAULT_DUE_DAYS, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
 import { clearInvoiceDraft, loadInvoiceDraft, saveInvoiceDraft } from '@/app/lib/invoice/draft';
+import { readLogo } from '@/app/lib/invoice/logo';
+import { GST_RATES, GST_RATES_NOTE, isListedGstRate, TAX_LABELS } from '@/app/lib/invoice/gst';
 import { LOGO_MAX_BYTES, LOGO_MAX_PX, LOGO_TYPES, MAX_FREE_ITEMS, MAX_LEN } from '@/app/lib/invoice/limits';
 import { CURRENCY_LABELS, currencySymbol, formatMoney } from '@/app/lib/invoice/money';
 import { computeTotals } from '@/app/lib/invoice/totals';
-import { CURRENCIES, type CurrencyCode, type Invoice, type LineItem } from '@/app/lib/invoice/types';
+import { CURRENCIES, EMPTY_PAYMENT, hasPaymentDetails, type CurrencyCode, type Invoice, type LineItem, type PaymentDetails } from '@/app/lib/invoice/types';
+import { gstinProblem, ifscProblem, normalizeGstin, upiProblem } from '@/app/lib/invoice/india';
+import type { Settings } from '@/app/lib/invoice/settings';
 
 const BTN =
   'inline-flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60';
-const PRIMARY = `${BTN} bg-coral-500 text-navy-900 hover:bg-coral-400`;
+const PRIMARY = `${BTN} bg-coral-500 text-navy-900 hover:bg-coral-600 hover:text-white`;
 const SECONDARY = `${BTN} border border-hair bg-surface text-strong hover:bg-wash`;
+/** Selects on the white paper (fixed colours in both themes). */
+const PAPER_SELECT =
+  'h-9 rounded-md border border-[#AEB6C6] bg-white px-1.5 text-sm text-[#0C2248] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FE6336]/40';
 
-/** Downscale a logo in the browser; PNG keeps transparency. Never uploaded. */
-async function readLogo(file: File): Promise<string> {
-  if (!(LOGO_TYPES as readonly string[]).includes(file.type)) throw new Error('Use a PNG, JPG or WebP logo.');
-  if (file.size > LOGO_MAX_BYTES) throw new Error('That logo is over 2 MB — try a smaller file.');
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, LOGO_MAX_PX / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const ctx = canvas.getContext('2d')!;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return file.type === 'image/jpeg' ? canvas.toDataURL('image/jpeg', 0.9) : canvas.toDataURL('image/png');
-}
-
-type Profile = { name: string; address: string; email: string; phone: string; logo: string | null; nextNumber: string };
+/** GET /api/business-profile — Settings + logo + next number. */
+type Profile = Settings & { logo: string | null; nextNumber: string };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /** What gets saved for the invoice itself (the logo lives on the profile). */
@@ -53,9 +46,37 @@ async function api<T>(path: string, init?: RequestInit): Promise<{ ok: boolean; 
 }
 
 /** A new invoice that starts from the saved business details. */
+/** A new invoice that starts from Settings: details, numbering, defaults, payment details. */
 function fromProfile(p: Profile): Invoice {
   const base = newInvoice();
-  return { ...base, number: p.nextNumber, seller: { name: p.name, address: p.address, email: p.email, phone: p.phone }, logo: p.logo };
+  const dueDays = Number.isInteger(p.defaultDueDays) ? p.defaultDueDays : DEFAULT_DUE_DAYS;
+  const payment: PaymentDetails = {
+    accountName: p.bankAccountName ?? '',
+    accountNumber: p.bankAccountNumber ?? '',
+    ifsc: p.bankIfsc ?? '',
+    bankName: p.bankName ?? '',
+    upiId: p.upiId ?? '',
+    showUpiQr: !!p.showUpiQr,
+  };
+  return {
+    ...base,
+    number: p.nextNumber,
+    dueDate: addDays(base.issueDate, dueDays),
+    currency: p.defaultCurrency ?? base.currency,
+    taxLabel: p.defaultTaxLabel ?? base.taxLabel,
+    taxRate: p.defaultTaxRate ?? base.taxRate,
+    notes: p.defaultNotes ?? '',
+    seller: {
+      name: p.name,
+      address: p.address,
+      email: p.email,
+      phone: p.phone,
+      ...(p.stateCode ? { state: p.stateCode } : {}),
+      ...(p.gstin ? { gstin: p.gstin } : {}),
+    },
+    logo: p.logo,
+    ...(hasPaymentDetails(payment) ? { payment } : {}),
+  };
 }
 
 export function InvoiceEditor() {
@@ -88,10 +109,11 @@ export function InvoiceEditor() {
       if (profile.current) lastProfile.current = sellerKey(profile.current, profile.current.logo);
       const id = new URLSearchParams(window.location.search).get('id');
       if (id) {
-        const r = await api<{ invoice?: Invoice }>(`/api/invoices/${encodeURIComponent(id)}`);
+        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid' }>(`/api/invoices/${encodeURIComponent(id)}`);
         if (r.ok && r.body.invoice) {
           const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null });
           lastSaved.current = docKey(loaded);
+          setPaid(r.body.status ?? 'unpaid');
           setSavedId(id);
           setSaveState('saved');
           setInv(loaded);
@@ -191,9 +213,27 @@ export function InvoiceEditor() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [unsynced]);
 
+  // Tax row: GST shows the rate dropdown (Other… opens a number box); VAT/Tax a number box.
+  const [gstOther, setGstOther] = useState(false);
+  const taxType = !inv ? 'GST' : inv.taxLabel.trim() === '' && inv.taxRate.trim() === '' ? 'none' : (TAX_LABELS as readonly string[]).includes(inv.taxLabel.trim()) ? inv.taxLabel.trim() : 'Tax';
+  const showOtherRate = gstOther || (!!inv && inv.taxRate.trim() !== '' && !isListedGstRate(inv.taxRate));
+
   const saveLimit = limit('invoice_save');
   const savedCount = me.status === 'signed-in' ? me.usage.invoiceSave : 0;
   const atLimit = signedIn && !savedId && saveLimit !== null && savedCount >= saveLimit;
+
+  // Saved customers and items (signed in), offered as suggestions.
+  const canCustomers = signedIn && can('invoice_client_directory');
+  const canItems = signedIn && can('invoice_item_catalogue');
+  const saved = useSavedLists({ customers: canCustomers, items: canItems });
+  const [customerMsg, setCustomerMsg] = useState<string | null>(null);
+  const customerLimit = limit('invoice_client_directory');
+  const customersAtLimit =
+    canCustomers && customerLimit !== null && me.status === 'signed-in' && me.usage.customers >= customerLimit;
+
+  // Paid / unpaid (Pro), for saved invoices.
+  const canTrack = signedIn && can('invoice_dashboard');
+  const [paid, setPaid] = useState<'unpaid' | 'paid'>('unpaid');
 
   if (!inv || !totals) {
     return <div className="mx-auto min-h-[60vh] max-w-[794px] animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
@@ -205,6 +245,60 @@ export function InvoiceEditor() {
   const setItem = (id: string, patch: Partial<LineItem>) =>
     setInv((cur) => (cur ? { ...cur, items: cur.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) } : cur));
   const money = (n: number) => formatMoney(n, inv.currency);
+  const setPayment = (patch: Partial<PaymentDetails>) =>
+    setInv((cur) => (cur ? { ...cur, payment: { ...(cur.payment ?? EMPTY_PAYMENT), ...patch } } : cur));
+
+  /** Typing a saved customer's name (from the suggestions) fills "Bill to". */
+  function onClientName(name: string) {
+    const match = saved.customers.find((c) => c.name === name);
+    if (!match) {
+      // A different name than the linked customer: it's no longer that customer.
+      setInv((cur) => (cur ? { ...cur, client: { ...cur.client, name }, customerId: cur.customerId && cur.client.name !== name ? null : cur.customerId } : cur));
+      return;
+    }
+    const address = [match.contactName && `Attn: ${match.contactName}`, match.address].filter(Boolean).join('\n');
+    set({
+      client: {
+        name: match.name,
+        address,
+        email: match.email,
+        ...(match.stateCode ? { state: match.stateCode } : {}),
+        ...(match.gstin ? { gstin: match.gstin } : {}),
+      },
+      customerId: match.id,
+    });
+    setCustomerMsg(null);
+  }
+
+  async function saveAsCustomer() {
+    setCustomerMsg(null);
+    const c = inv!.client;
+    const r = await api<{ id?: string; message?: string; errors?: Record<string, string> }>('/api/customers', {
+      method: 'POST',
+      body: JSON.stringify({ name: c.name, address: c.address, email: c.email, stateCode: c.state ?? '', gstin: c.gstin ?? '' }),
+    }).catch(() => null);
+    if (!r?.ok || !r.body.id) {
+      setCustomerMsg(r?.body.errors ? Object.values(r.body.errors)[0] : (r?.body.message ?? 'Couldn’t save the customer. Try again.'));
+      return;
+    }
+    set({ customerId: r.body.id });
+    setCustomerMsg(`Saved ${c.name} to your customers.`);
+    void saved.reload();
+    void refreshMe();
+  }
+
+  /** Picking a saved item from the suggestions fills its rate, HSN/SAC and unit. */
+  function onItemDescription(id: string, description: string) {
+    const match = saved.items.find((it) => it.name === description);
+    setItem(id, match ? { description, rate: match.rate || '', ...(match.hsnSac ? { hsn: match.hsnSac } : {}), ...(match.unit ? { unit: match.unit } : {}) } : { description });
+  }
+
+  async function togglePaid() {
+    const next = paid === 'paid' ? 'unpaid' : 'paid';
+    const r = await api(`/api/invoices/${savedId}/status`, { method: 'PUT', body: JSON.stringify({ status: next }) }).catch(() => null);
+    if (r?.ok) setPaid(next);
+    else setSaveMsg('Couldn’t change the paid status. Try again.');
+  }
 
   function addItem() {
     if (inv!.items.length >= itemLimit) return;
@@ -297,10 +391,21 @@ export function InvoiceEditor() {
         {currencySelect('currency-top')}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {signedIn && saveStatus && (
-            <span className={`text-sm font-medium ${saveState === 'error' ? 'text-[#B42318] dark:text-coral-400' : 'text-muted'}`} role="status">
+            <span className={`text-sm font-medium ${saveState === 'error' ? 'text-danger-600' : 'text-muted'}`} role="status">
               {saveState === 'saved' && !pending && <Icon name="check" className="mr-1 inline h-4 w-4 text-teal-500" />}
               {saveStatus}
             </span>
+          )}
+          {savedId && canTrack && (
+            <button type="button" onClick={() => void togglePaid()} className={SECONDARY} aria-pressed={paid === 'paid'}>
+              {paid === 'paid' ? (
+                <>
+                  <Icon name="check" className="h-4 w-4 text-teal-500" /> Paid
+                </>
+              ) : (
+                'Mark as paid'
+              )}
+            </button>
           )}
           {signedIn && (!savedId || saveState === 'error') && (
             <button type="button" onClick={() => void save()} disabled={atLimit || saveState === 'saving'} className={SECONDARY}>
@@ -355,7 +460,7 @@ export function InvoiceEditor() {
       )}
 
       {saveMsg && !atLimit && (
-        <p className={`mb-4 text-sm font-semibold ${saveState === 'error' ? 'text-[#B42318] dark:text-coral-400' : 'text-ink'}`} role="alert">
+        <p className={`mb-4 text-sm font-semibold ${saveState === 'error' ? 'text-danger-600' : 'text-ink'}`} role="alert">
           {saveMsg}
         </p>
       )}
@@ -419,6 +524,7 @@ export function InvoiceEditor() {
             <PaperTextarea label="Your address" placeholder="Address" value={inv.seller.address} maxLength={MAX_LEN.address} onChange={(e) => setSeller({ address: e.target.value })} rows={2} />
             <PaperInput label="Your email" type="email" inputMode="email" placeholder="Email" value={inv.seller.email} maxLength={MAX_LEN.email} onChange={(e) => setSeller({ email: e.target.value })} />
             <PaperInput label="Your phone" type="tel" inputMode="tel" placeholder="Phone" value={inv.seller.phone} maxLength={MAX_LEN.phone} onChange={(e) => setSeller({ phone: e.target.value })} />
+            <GstinField label="Your GSTIN" value={inv.seller.gstin ?? ''} onChange={(gstin) => setSeller({ gstin })} />
           </section>
 
           {/* Invoice meta */}
@@ -456,9 +562,38 @@ export function InvoiceEditor() {
           <h2 id="to-h" className={`text-[11px] font-semibold uppercase tracking-wide ${PAPER_MUTED}`}>
             Bill to
           </h2>
-          <PaperInput label="Client name" placeholder="Client name" value={inv.client.name} maxLength={MAX_LEN.name} onChange={(e) => setClient({ name: e.target.value })} className="font-semibold" />
+          <PaperInput
+            label="Client name"
+            placeholder={canCustomers && saved.customers.length ? 'Client name — or pick a saved customer' : 'Client name'}
+            value={inv.client.name}
+            maxLength={MAX_LEN.name}
+            list={canCustomers ? 'saved-customers' : undefined}
+            autoComplete="off"
+            onChange={(e) => onClientName(e.target.value)}
+            className="font-semibold"
+          />
           <PaperTextarea label="Client address" placeholder="Client address" value={inv.client.address} maxLength={MAX_LEN.address} onChange={(e) => setClient({ address: e.target.value })} rows={2} />
           <PaperInput label="Client email" type="email" inputMode="email" placeholder="Client email" value={inv.client.email} maxLength={MAX_LEN.email} onChange={(e) => setClient({ email: e.target.value })} />
+          <GstinField label="Client GSTIN" value={inv.client.gstin ?? ''} onChange={(gstin) => setClient({ gstin })} />
+          {canCustomers && inv.client.name.trim() && !inv.customerId && (
+            <div className="pt-1">
+              {customersAtLimit ? (
+                <p className={`text-xs ${PAPER_MUTED}`}>
+                  You’ve saved {customerLimit} customers — the free limit. Saving more than {customerLimit} customers is part of Pro — coming
+                  soon. You can still type any customer straight onto an invoice.
+                </p>
+              ) : (
+                <button type="button" onClick={() => void saveAsCustomer()} className="text-xs font-semibold text-[#0C2248] underline underline-offset-2 hover:text-[#C2410C]">
+                  Save as customer
+                </button>
+              )}
+            </div>
+          )}
+          {customerMsg && (
+            <p className={`text-xs ${PAPER_MUTED}`} role="status">
+              {customerMsg}
+            </p>
+          )}
         </section>
 
         {/* Items */}
@@ -480,7 +615,16 @@ export function InvoiceEditor() {
                 <li key={it.id} className="grid grid-cols-[1fr_1fr_2.75rem] gap-x-2 gap-y-1 py-3 md:grid-cols-[1fr_4.5rem_7rem_7.5rem_2.5rem] md:items-center md:px-2 md:py-1.5">
                   <div className="col-span-3 md:col-span-1">
                     <span className={`text-xs font-semibold md:hidden ${PAPER_MUTED}`}>Item {i + 1}</span>
-                    <PaperInput data-item-desc label={`Item ${i + 1} description`} placeholder="What you did or sold" value={it.description} maxLength={MAX_LEN.description} onChange={(e) => setItem(it.id, { description: e.target.value })} />
+                    <PaperInput
+                      data-item-desc
+                      label={`Item ${i + 1} description`}
+                      placeholder="What you did or sold"
+                      value={it.description}
+                      maxLength={MAX_LEN.description}
+                      list={canItems ? 'saved-items' : undefined}
+                      autoComplete="off"
+                      onChange={(e) => onItemDescription(it.id, e.target.value)}
+                    />
                   </div>
                   <div>
                     <span className={`text-xs md:hidden ${PAPER_MUTED}`}>Qty</span>
@@ -553,13 +697,60 @@ export function InvoiceEditor() {
               <dd className="shrink-0 whitespace-nowrap tabular-nums">{totals.discount > 0 ? `−${money(totals.discount)}` : money(0)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <dt className={`flex items-center gap-2 ${PAPER_MUTED}`}>
-                <PaperInput label="Tax name" value={inv.taxLabel} maxLength={MAX_LEN.taxLabel} onChange={(e) => set({ taxLabel: e.target.value })} className="w-16" />
-                <PaperInput label="Tax rate in percent" inputMode="decimal" placeholder="0" value={inv.taxRate} onChange={(e) => set({ taxRate: e.target.value })} className="w-16 text-right" />
-                <span aria-hidden="true">%</span>
+              <dt className={`flex flex-wrap items-center gap-2 ${PAPER_MUTED}`}>
+                <select
+                  aria-label="Tax type"
+                  value={taxType}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setGstOther(false);
+                    set(v === 'none' ? { taxLabel: '', taxRate: '' } : { taxLabel: v, taxRate: v === 'GST' && !isListedGstRate(inv.taxRate) ? '' : inv.taxRate });
+                  }}
+                  className={PAPER_SELECT}
+                >
+                  {TAX_LABELS.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                  <option value="none">No tax</option>
+                </select>
+                {taxType === 'GST' && !showOtherRate && (
+                  <select
+                    aria-label="GST rate"
+                    value={inv.taxRate.trim()}
+                    onChange={(e) => {
+                      if (e.target.value === 'other') {
+                        setGstOther(true);
+                        requestAnimationFrame(() => document.getElementById('tax-rate-other')?.focus());
+                      } else set({ taxRate: e.target.value });
+                    }}
+                    className={PAPER_SELECT}
+                  >
+                    <option value="">Choose rate</option>
+                    {GST_RATES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}%
+                      </option>
+                    ))}
+                    <option value="other">Other…</option>
+                  </select>
+                )}
+                {taxType !== 'none' && (taxType !== 'GST' || showOtherRate) && (
+                  <>
+                    <PaperInput id="tax-rate-other" label="Tax rate in percent" inputMode="decimal" placeholder="0" value={inv.taxRate} onChange={(e) => set({ taxRate: e.target.value })} className="w-16 text-right" />
+                    <span aria-hidden="true">%</span>
+                    {taxType === 'GST' && (
+                      <button type="button" onClick={() => { setGstOther(false); if (!isListedGstRate(inv.taxRate)) set({ taxRate: '' }); }} className="text-xs underline">
+                        List
+                      </button>
+                    )}
+                  </>
+                )}
               </dt>
-              <dd className="shrink-0 whitespace-nowrap tabular-nums">{money(totals.tax)}</dd>
+              <dd className="shrink-0 whitespace-nowrap tabular-nums">{taxType === 'none' ? '—' : money(totals.tax)}</dd>
             </div>
+            {taxType === 'GST' && <p className={`text-xs ${PAPER_MUTED}`}>{GST_RATES_NOTE}</p>}
             <div className="flex justify-between gap-3 border-t-2 border-[#0C2248] pt-3 text-lg font-bold">
               <dt>Total</dt>
               <dd className="tabular-nums" data-testid="invoice-total">
@@ -580,7 +771,57 @@ export function InvoiceEditor() {
           <h2 id="notes-h" className={`text-[11px] font-semibold uppercase tracking-wide ${PAPER_MUTED}`}>
             Notes
           </h2>
-          <PaperTextarea label="Notes or payment details" placeholder="Payment details (bank, UPI), thank-you note or terms" value={inv.notes} maxLength={MAX_LEN.notes} onChange={(e) => set({ notes: e.target.value })} rows={4} />
+          <PaperTextarea label="Notes or payment details" placeholder="Thank-you note, terms, or anything else" value={inv.notes} maxLength={MAX_LEN.notes} onChange={(e) => set({ notes: e.target.value })} rows={3} />
+
+          <div className="mt-4">
+            {!inv.payment ? (
+              <button type="button" onClick={() => set({ payment: { ...EMPTY_PAYMENT } })} className="text-sm font-semibold text-[#0C2248] underline underline-offset-2 hover:text-[#C2410C]">
+                + Add payment details (bank / UPI)
+              </button>
+            ) : (
+              <fieldset className="space-y-1">
+                <legend className={`flex w-full items-center justify-between text-[11px] font-semibold uppercase tracking-wide ${PAPER_MUTED}`}>
+                  Payment details
+                  <button type="button" onClick={() => set({ payment: undefined })} className="text-xs font-medium normal-case tracking-normal underline">
+                    Remove
+                  </button>
+                </legend>
+                <PaperInput label="Bank account name" placeholder="Account name" value={inv.payment.accountName} maxLength={MAX_LEN.bankAccountName} onChange={(e) => setPayment({ accountName: e.target.value })} />
+                <PaperInput label="Bank account number" placeholder="Account number" inputMode="numeric" value={inv.payment.accountNumber} maxLength={MAX_LEN.bankAccountNumber} onChange={(e) => setPayment({ accountNumber: e.target.value })} />
+                <div className="grid grid-cols-2 gap-2">
+                  <PaperInput
+                    label="IFSC"
+                    placeholder="IFSC"
+                    value={inv.payment.ifsc}
+                    maxLength={MAX_LEN.ifsc}
+                    aria-invalid={(inv.payment.ifsc.trim() !== '' && !!ifscProblem(inv.payment.ifsc)) || undefined}
+                    onChange={(e) => setPayment({ ifsc: e.target.value.toUpperCase() })}
+                  />
+                  <PaperInput label="Bank name" placeholder="Bank" value={inv.payment.bankName} maxLength={MAX_LEN.bankName} onChange={(e) => setPayment({ bankName: e.target.value })} />
+                </div>
+                <PaperInput
+                  label="UPI ID"
+                  placeholder="UPI ID (name@bank)"
+                  value={inv.payment.upiId}
+                  maxLength={MAX_LEN.upiId}
+                  aria-invalid={(inv.payment.upiId.trim() !== '' && !!upiProblem(inv.payment.upiId)) || undefined}
+                  onChange={(e) => setPayment({ upiId: e.target.value })}
+                />
+                {inv.payment.ifsc.trim() !== '' && ifscProblem(inv.payment.ifsc) && <p className="text-xs font-medium text-[#B42318]">{ifscProblem(inv.payment.ifsc)}</p>}
+                {inv.payment.upiId.trim() !== '' && upiProblem(inv.payment.upiId) && <p className="text-xs font-medium text-[#B42318]">{upiProblem(inv.payment.upiId)}</p>}
+                <label className={`flex min-h-11 items-center gap-2 text-sm md:min-h-9 ${PAPER_MUTED}`}>
+                  <input
+                    type="checkbox"
+                    checked={inv.payment.showUpiQr}
+                    onChange={(e) => setPayment({ showUpiQr: e.target.checked })}
+                    className="h-4 w-4 accent-[#FE6336]"
+                  />
+                  Show a “Scan to pay” UPI QR on the PDF
+                </label>
+                {inv.payment.showUpiQr && inv.currency !== 'INR' && <p className={`text-xs ${PAPER_MUTED}`}>UPI QR codes are for rupee invoices only.</p>}
+              </fieldset>
+            )}
+          </div>
         </section>
         </div>
 
@@ -588,6 +829,8 @@ export function InvoiceEditor() {
           <p className="mt-10 text-center text-xs text-[#5B6478]">Made with KaamSolv · kaamsolv.com</p>
         )}
       </article>
+
+      {(canCustomers || canItems) && <SavedDatalists customers={saved.customers} items={saved.items} />}
 
       {/* Screen-reader total, announced 800 ms after typing stops */}
       <div role="status" aria-live="polite" className="sr-only">
@@ -608,5 +851,31 @@ export function InvoiceEditor() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** An optional GSTIN on the paper: upper-cased as you type, checked once it's 15 characters. */
+function GstinField({ label, value, onChange }: { label: string; value: string; onChange: (gstin: string) => void }) {
+  const problem = value.trim().length >= 15 ? gstinProblem(value) : null;
+  const id = label.toLowerCase().replace(/\s+/g, '-');
+  return (
+    <>
+      <PaperInput
+        label={label}
+        placeholder="GSTIN (optional)"
+        value={value}
+        maxLength={15}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={problem ? true : undefined}
+        aria-describedby={problem ? `${id}-problem` : undefined}
+        onChange={(e) => onChange(normalizeGstin(e.target.value))}
+      />
+      {problem && (
+        <p id={`${id}-problem`} className="text-xs font-medium text-[#B42318]">
+          {problem}
+        </p>
+      )}
+    </>
   );
 }

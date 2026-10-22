@@ -157,7 +157,8 @@ version with the same code.
 | `0000_powerful_masque.sql` | `link_status` enum, `links` | applied 2026-10-21 |
 | `0001_aberrant_medusa.sql` | `device_class` enum, `click_events` | applied 2026-10-21 |
 | `0002_yellow_arachne.sql` | `report_reason` enum, `rate_limits`, `link_reports`, `links.screened_at` | applied 2026-10-21 |
-| `0003_accounts.sql` | `auth_users`, `auth_sessions`, `auth_accounts`, `auth_verifications`, `plans`, `plan_features` (+ seed), `subscription_provider` enum, `subscriptions`, `business_profiles`, `invoices` | **not yet** — apply with the accounts deploy |
+| `0003_accounts.sql` | `auth_users`, `auth_sessions`, `auth_accounts`, `auth_verifications`, `plans`, `plan_features` (+ seed), `subscription_provider` enum, `subscriptions`, `business_profiles`, `invoices` | applied 2026-10-21 |
+| `0004_workspace.sql` | `customers`, `items`, `invoice_status` enum; Settings columns on `business_profiles`; `invoices.status/paid_at/due_date/customer_id`; plan seed (customers 3 free, items free, dashboard/fx Pro); due-date backfill | **not yet** — apply with the Stage 2A deploy |
 
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and

@@ -22,7 +22,16 @@ export const ENTITLEMENT_KEYS = [
   'invoice_recurring',
   'invoice_csv_export',
   'invoice_batch_csv',
+  /** Saved items (free account: unlimited). */
+  'invoice_item_catalogue',
+  /** Dashboard + paid/unpaid tracking (Pro). */
+  'invoice_dashboard',
+  /** Currency reference rates on invoices (Pro, Stage 2C). */
+  'invoice_fx_rates',
 ] as const;
+
+/** Hidden anti-abuse ceiling on saved customers/items, for every plan. Not a paywall. */
+export const DIRECTORY_HARD_CAP = 1000;
 
 export type EntitlementKey = (typeof ENTITLEMENT_KEYS)[number];
 

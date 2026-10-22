@@ -79,7 +79,7 @@ export function AccountPanel({ email }: { email: string }) {
           Delete my account
         </h2>
         <p className="mt-2 text-sm text-strong">
-          This deletes your account, saved invoices and business details for good. PDFs you’ve already downloaded aren’t
+          This deletes your account, saved invoices, customers, items and settings for good. PDFs you’ve already downloaded aren’t
           affected.
         </p>
         <form onSubmit={onDelete} className="mt-4 space-y-3">
@@ -102,7 +102,7 @@ export function AccountPanel({ email }: { email: string }) {
             {state === 'deleting' ? 'Deleting…' : 'Delete my account'}
           </button>
           {state === 'error' && (
-            <p className="text-sm font-medium text-[#B42318] dark:text-coral-400" role="alert">
+            <p className="text-sm font-medium text-danger-600" role="alert">
               Couldn’t delete it just now. Try again, or email kaamsolv@gmail.com.
             </p>
           )}

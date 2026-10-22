@@ -14,6 +14,15 @@ export const MAX_LEN = {
   number: 30,
   taxLabel: 12,
   notes: 400,
+  gstin: 15,
+  hsn: 8,
+  unit: 12,
+  bankAccountName: 80,
+  bankAccountNumber: 20,
+  ifsc: 11,
+  bankName: 60,
+  upiId: 100,
+  prefix: 10,
 } as const;
 
 /** Logo: accepted types and limits (processed in the browser). */

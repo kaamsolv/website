@@ -13,6 +13,7 @@ import { getDb } from '@/db/client';
 import { deleteAccount } from '@/db/accounts';
 import { getEntitlements } from '@/db/entitlements';
 import { countInvoices } from '@/db/invoices';
+import { countCustomers } from '@/db/directory';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,12 +22,12 @@ export async function GET(req: Request) {
   const user = await getCurrentUser(req.headers);
   if (!user) return json({ signedIn: false, entitlements: NO_ENTITLEMENTS });
   const db = await getDb();
-  const [entitlements, saved] = await Promise.all([getEntitlements(db, user.id), countInvoices(db, user.id)]);
+  const [entitlements, saved, customers] = await Promise.all([getEntitlements(db, user.id), countInvoices(db, user.id), countCustomers(db, user.id)]);
   return json({
     signedIn: true,
     user: { id: user.id, email: user.email, name: user.name },
     entitlements,
-    usage: { invoiceSave: saved },
+    usage: { invoiceSave: saved, customers },
   });
 }
 

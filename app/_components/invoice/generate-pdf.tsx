@@ -7,8 +7,26 @@ import type { Totals } from '@/app/lib/invoice/totals';
  * page itself stays light. Nothing is uploaded.
  */
 export async function renderInvoicePdf(invoice: Invoice, totals: Totals, opts: { watermark: boolean }): Promise<Blob> {
-  const [{ pdf }, { InvoiceDocument }] = await Promise.all([import('@react-pdf/renderer'), import('./invoice-pdf')]);
-  return pdf(<InvoiceDocument invoice={invoice} totals={totals} watermark={opts.watermark} />).toBlob();
+  const [{ pdf }, { InvoiceDocument }, upiQr] = await Promise.all([
+    import('@react-pdf/renderer'),
+    import('./invoice-pdf'),
+    upiQrDataUrl(invoice, totals.total),
+  ]);
+  return pdf(<InvoiceDocument invoice={invoice} totals={totals} watermark={opts.watermark} upiQr={upiQr} />).toBlob();
+}
+
+/**
+ * "Scan to pay" QR: a standard upi://pay link (the QR tool's own builder) with
+ * the payee, the total and the invoice number. INR only — UPI is rupees.
+ * Null when not asked for or not valid, so a bad UPI ID never breaks the PDF.
+ */
+export async function upiQrDataUrl(invoice: Invoice, total: number): Promise<string | null> {
+  const p = invoice.payment;
+  if (!p?.showUpiQr || !p.upiId.trim() || invoice.currency !== 'INR' || !(total > 0)) return null;
+  const [{ encodeUpiPayload }, QRCode] = await Promise.all([import('@/app/lib/qr/payloads/upi'), import('qrcode')]);
+  const payload = encodeUpiPayload(p.upiId, invoice.seller.name || p.accountName, total.toFixed(2), `Invoice ${invoice.number}`.slice(0, 50));
+  if (!payload.ok) return null;
+  return QRCode.toDataURL(payload.text, { errorCorrectionLevel: 'M', margin: 1, width: 300 });
 }
 
 export function pdfFilename(invoice: Invoice): string {

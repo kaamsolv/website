@@ -5,6 +5,7 @@
  * The logo is always dropped — it lives on the business profile, not the invoice.
  */
 
+import { gstinProblem, isStateCode, normalizeGstin } from './india';
 import { MAX_LEN } from './limits';
 import { CURRENCIES, type CurrencyCode, type Invoice, type LineItem } from './types';
 
@@ -52,8 +53,28 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
       description: str(it.description, MAX_LEN.description),
       qty: numText(it.qty),
       rate: numText(it.rate),
+      ...(typeof it.hsn === 'string' && it.hsn.trim() ? { hsn: it.hsn.replace(/\D/g, '').slice(0, MAX_LEN.hsn) } : {}),
+      ...(typeof it.unit === 'string' && it.unit.trim() ? { unit: str(it.unit, MAX_LEN.unit) } : {}),
     };
   });
+  // Format problems in these fields are shown in the editor; the server only
+  // keeps well-formed values (and drops the rest) so a bad GSTIN never prints.
+  const gstin = (v: unknown) => (typeof v === 'string' && v.trim() && !gstinProblem(v) ? { gstin: normalizeGstin(v) } : {});
+  const state = (v: unknown) => (isStateCode(v) ? { state: v } : {});
+  const pay = obj(raw.payment);
+  const payment = raw.payment
+    ? {
+        payment: {
+          accountName: str(pay.accountName, MAX_LEN.bankAccountName),
+          accountNumber: str(pay.accountNumber, MAX_LEN.bankAccountNumber).replace(/[^\dA-Za-z]/g, ''),
+          ifsc: str(pay.ifsc, MAX_LEN.ifsc).toUpperCase(),
+          bankName: str(pay.bankName, MAX_LEN.bankName),
+          upiId: str(pay.upiId, MAX_LEN.upiId).trim(),
+          showUpiQr: pay.showUpiQr === true,
+        },
+      }
+    : {};
+  const customerId = typeof raw.customerId === 'string' && UUID_RE.test(raw.customerId) ? { customerId: raw.customerId } : {};
 
   return {
     ok: true,
@@ -67,12 +88,18 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
         address: str(seller.address, MAX_LEN.address),
         email: str(seller.email, MAX_LEN.email),
         phone: str(seller.phone, MAX_LEN.phone),
+        ...state(seller.state),
+        ...gstin(seller.gstin),
       },
       client: {
         name: str(client.name, MAX_LEN.name),
         address: str(client.address, MAX_LEN.address),
         email: str(client.email, MAX_LEN.email),
+        ...state(client.state),
+        ...gstin(client.gstin),
       },
+      ...payment,
+      ...customerId,
       items: items.length ? items : [{ id: 'item-1', description: '', qty: '1', rate: '' }],
       discountType: raw.discountType === 'flat' ? 'flat' : 'percent',
       discountValue: numText(raw.discountValue),
@@ -84,7 +111,22 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
   };
 }
 
-/** `INV-0001` from a sequence number. */
-export function formatSequentialNumber(n: number): string {
-  return `INV-${String(Math.max(1, Math.floor(n))).padStart(4, '0')}`;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Invoice-number prefixes: letters, digits, `-`, `/` (e.g. "INV-", "KS/25-26/"). */
+export function cleanPrefix(input: unknown): string {
+  return typeof input === 'string' ? input.replace(/[^A-Za-z0-9/-]/g, '').slice(0, MAX_LEN.prefix) : '';
+}
+
+/** `INV-0001` from a sequence number and prefix. */
+export function formatSequentialNumber(n: number, prefix = 'INV-'): string {
+  return `${prefix}${String(Math.max(1, Math.floor(n))).padStart(4, '0')}`;
+}
+
+/** The sequence number in a number made with `prefix` (INV-0007 → 7), or null. */
+export function sequenceOf(number: string, prefix: string): number | null {
+  const n = number.trim();
+  if (!n.startsWith(prefix)) return null;
+  const rest = n.slice(prefix.length);
+  return /^\d{1,9}$/.test(rest) ? Number(rest) : null;
 }

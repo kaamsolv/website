@@ -25,6 +25,29 @@ lose it. With a free account, invoices can be saved (up to 20).
 
 The logo is stored once, on the business profile — never inside an invoice.
 
+## Stage 2A — workspace + GST rate dropdown
+
+- **Tax row (everyone):** tax type GST / VAT / Tax / No tax. GST has a rate
+  dropdown — 0, 0.25, 3, 5, 18, 40% and **Other…** (a number box for anything
+  else, e.g. tobacco or old invoices) — with the on-screen note “GST rates
+  follow the changes from 22 September 2025.” (never printed). Rates live in
+  `app/lib/invoice/gst.ts` with their source. New invoices start on “Choose
+  rate” (no tax added until chosen) unless Settings sets a default — unregistered
+  sellers must not charge GST.
+- **GSTIN (everyone):** seller and client GSTIN fields on the paper, checked
+  (format, state code, official check character — `app/lib/invoice/india.ts`)
+  and printed under the names on the PDF.
+- **Payment details (everyone):** account name/number, IFSC, bank, UPI, and an
+  optional “Scan to pay” UPI QR (rupee invoices; `upi://pay` link with the total,
+  built with the QR tool's own builder) printed in a Payment details block.
+- **Settings (free account):** business details, state, GSTIN, getting paid,
+  number prefix + next number, default currency/tax/days-to-pay/notes. New
+  invoices start from them.
+- **Customers (free: 3) and items (free):** pick them by typing on the invoice
+  (native suggestions); “Save as customer” from Bill to.
+- **Pro:** Dashboard (billed this month, unpaid, overdue per currency, recent)
+  and Mark as paid in the editor and the list.
+
 ## Free tier (Phase 1)
 
 | Area | Behaviour |
@@ -91,8 +114,11 @@ Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_brand_color`, `invoice_quote_mode`, `invoice_recurring`,
 `invoice_csv_export`, `invoice_batch_csv`. All seeded on the `invoice_pro` plan.
 
-- Stage 2 (Pro features, tested with a `manual` subscription): needs a short
-  plan for templates and the upgrade UI.
+- Stage 2B (free): full GST tax invoice — place of supply, CGST+SGST vs IGST,
+  per-line HSN/SAC and rates, tax summary, Rule 46 particulars.
+- Stage 2C (Pro): footer-free, multi-page, templates, brand colour, quotations,
+  recurring copies, CSV, and currency reference rates (Frankfurter / ECB —
+  source to be approved).
 - Stage 3 (payments): Razorpay (registered business); needs prices, Razorpay
   activation, and the GST status of the business.
 - Recurring = reminder + one-click copy each period; no emails to clients.

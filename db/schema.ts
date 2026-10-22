@@ -332,15 +332,74 @@ export const businessProfiles = pgTable(
     email: text('email').notNull().default(''),
     phone: text('phone').notNull().default(''),
     logo: text('logo'),
-    /** Next sequential number, printed as INV-0001. */
+    /** Next sequential number, printed with `invoicePrefix` (INV-0001). */
     nextNumber: integer('next_number').notNull().default(1),
+    // Settings (migration 0004) — all optional; empty string = not set.
+    stateCode: text('state_code').notNull().default(''),
+    gstin: text('gstin').notNull().default(''),
+    bankAccountName: text('bank_account_name').notNull().default(''),
+    bankAccountNumber: text('bank_account_number').notNull().default(''),
+    bankIfsc: text('bank_ifsc').notNull().default(''),
+    bankName: text('bank_name').notNull().default(''),
+    upiId: text('upi_id').notNull().default(''),
+    showUpiQr: boolean('show_upi_qr').notNull().default(false),
+    invoicePrefix: text('invoice_prefix').notNull().default('INV-'),
+    defaultCurrency: text('default_currency').notNull().default('INR'),
+    defaultTaxLabel: text('default_tax_label').notNull().default('GST'),
+    defaultTaxRate: text('default_tax_rate').notNull().default(''),
+    defaultDueDays: integer('default_due_days').notNull().default(14),
+    defaultNotes: text('default_notes').notNull().default(''),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     check('business_profiles_logo_len', sql`char_length(${table.logo}) <= ${sql.raw(String(LOGO_MAX_STORED_CHARS))}`),
     check('business_profiles_next_number', sql`${table.nextNumber} >= 1`),
+    check('business_profiles_due_days', sql`${table.defaultDueDays} between 0 and 365`),
   ],
 );
+
+/** Saved customers ("Bill to"). Free account: 3; Pro: unlimited (plan_features). */
+export const customers = pgTable(
+  'customers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    contactName: text('contact_name').notNull().default(''),
+    email: text('email').notNull().default(''),
+    phone: text('phone').notNull().default(''),
+    address: text('address').notNull().default(''),
+    stateCode: text('state_code').notNull().default(''),
+    gstin: text('gstin').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('customers_user_id_name_idx').on(table.userId, table.name)],
+);
+
+/** Saved products and services. */
+export const items = pgTable(
+  'items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    hsnSac: text('hsn_sac').notNull().default(''),
+    unit: text('unit').notNull().default(''),
+    /** As typed, like the invoice's own rate field. */
+    rate: text('rate').notNull().default(''),
+    gstRate: text('gst_rate').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('items_user_id_name_idx').on(table.userId, table.name)],
+);
+
+export const invoiceStatus = pgEnum('invoice_status', ['unpaid', 'paid']);
 
 /** Max size of a stored invoice document (without logo). */
 export const INVOICE_DATA_MAX_CHARS = 64_000;
@@ -362,6 +421,12 @@ export const invoices = pgTable(
     currency: text('currency').notNull(),
     total: numeric('total', { precision: 14, scale: 2, mode: 'number' }).notNull().default(0),
     issueDate: date('issue_date'),
+    /** Copied from the document so overdue can be queried (migration 0004). */
+    dueDate: date('due_date'),
+    /** The saved customer it was billed to, if any. The document keeps its own copy. */
+    customerId: uuid('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+    status: invoiceStatus('status').notNull().default('unpaid'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
     data: jsonb('data').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

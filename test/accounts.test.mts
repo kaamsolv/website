@@ -62,7 +62,10 @@ function sample(number = 'INV-0001') {
 test('seed: free account saves 20 invoices; Pro grants every invoice key, unlimited saving', async () => {
   const rows = await db.select().from(planFeatures);
   const free = rows.filter((r) => r.planKey === 'free_account');
-  assert.deepEqual(free.map((r) => [r.featureKey, r.limitValue]), [['invoice_save', 20]]);
+  assert.deepEqual(
+    free.map((r) => [r.featureKey, r.limitValue]).sort(),
+    [['invoice_client_directory', 3], ['invoice_item_catalogue', null], ['invoice_save', 20]],
+  );
   const pro = rows.filter((r) => r.planKey === 'invoice_pro');
   assert.deepEqual(new Set(pro.map((r) => r.featureKey)), new Set(ENTITLEMENT_KEYS));
   assert.equal(pro.find((r) => r.featureKey === 'invoice_save')?.limitValue, null);
@@ -117,7 +120,7 @@ test('lists carry summaries only — no document, no logo; stored invoices never
   const id = await makeUser('list@example.test');
   await createInvoice(db, id, { ...sample(), logo: 'data:image/png;base64,AAAA' }, 20);
   const [row] = await listInvoices(db, id);
-  assert.deepEqual(Object.keys(row).sort(), ['clientName', 'currency', 'id', 'issueDate', 'number', 'total', 'updatedAt']);
+  assert.deepEqual(Object.keys(row).sort(), ['clientName', 'currency', 'dueDate', 'id', 'issueDate', 'number', 'status', 'total', 'updatedAt']);
   assert.equal(row.total, 2360); // 2 × 1000 + 18%
   const [stored] = await db.select({ data: invoices.data }).from(invoices).where(eq(invoices.userId, id));
   assert.equal('logo' in (stored.data as object), false);

@@ -31,8 +31,22 @@ rmSync(dir, { recursive: true, force: true });
 const client = new PGlite(dir);
 await migrate(drizzle(client), { migrationsFolder: resolve(root, 'db/migrations') });
 await client.query(`update plan_features set limit_value = $1 where plan_key = 'free_account' and feature_key = 'invoice_save'`, [E2E_SAVE_LIMIT]);
+// TEST-ONLY: accounts whose email starts with "pro-" get a manual Invoice Pro
+// grant when created — the e2e stand-in for `npm run account:grant`. Exists
+// only in this throwaway database.
+await client.exec(`
+  create function e2e_grant_pro() returns trigger language plpgsql as $$
+  begin
+    if new.email like 'pro-%' then
+      insert into subscriptions (user_id, provider, provider_ref, plan_key, status)
+      values (new.id, 'manual', 'manual:e2e:' || new.id, 'invoice_pro', 'active');
+    end if;
+    return new;
+  end $$;
+  create trigger e2e_grant_pro after insert on auth_users for each row execute function e2e_grant_pro();
+`);
 await client.close();
-console.log(`[e2e] fresh database in ${E2E_DB_DIR}/ (free save limit ${E2E_SAVE_LIMIT}, test-only)`);
+console.log(`[e2e] fresh database in ${E2E_DB_DIR}/ (free save limit ${E2E_SAVE_LIMIT}; "pro-" emails get Pro — test-only)`);
 
 // Same flags as `npm run dev` (incl. --hostname 0.0.0.0), so tests see what you see.
 const child = spawn('npx', ['next', 'dev', '--hostname', '0.0.0.0', '--port', '3000'], {

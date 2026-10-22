@@ -14,6 +14,7 @@ export default async function MyInvoicesPage() {
 
   return (
     <AccountShell
+      workspace
       title="My invoices"
       intro="Open one to keep editing, make a copy for next month, or download it again."
       actions={

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { PRIMARY, SECONDARY } from './account-shell';
+import { StatusBadge } from './status-badge';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from '../invoice/generate-pdf';
 import { downloadBlob } from '@/app/lib/image/export';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
@@ -10,7 +11,16 @@ import { computeTotals } from '@/app/lib/invoice/totals';
 import type { CurrencyCode, Invoice } from '@/app/lib/invoice/types';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
 
-type Summary = { id: string; number: string; clientName: string; currency: CurrencyCode; total: number; issueDate: string | null };
+type Summary = {
+  id: string;
+  number: string;
+  clientName: string;
+  currency: CurrencyCode;
+  total: number;
+  issueDate: string | null;
+  dueDate: string | null;
+  status: 'unpaid' | 'paid';
+};
 
 const ROW_BTN =
   'inline-flex h-10 items-center justify-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60';
@@ -18,6 +28,8 @@ const ROW_BTN =
 export function InvoiceList() {
   const me = useMe();
   const { can, limit } = useEntitlements();
+  const tracking = can('invoice_dashboard');
+  const today = isoDate(new Date());
   const [list, setList] = useState<Summary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -36,6 +48,21 @@ export function InvoiceList() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function setStatus(inv: Summary) {
+    const next = inv.status === 'paid' ? 'unpaid' : 'paid';
+    setBusy(`status:${inv.id}`);
+    const res = await fetch(`/api/invoices/${inv.id}/status`, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    }).catch(() => null);
+    setBusy(null);
+    if (!res?.ok) return setNotice('That didn’t work. Try again.');
+    setList((l) => (l ? l.map((x) => (x.id === inv.id ? { ...x, status: next } : x)) : l));
+    setNotice(`${inv.number} marked ${next}.`);
+  }
 
   async function act(id: string, kind: 'duplicate' | 'delete' | 'download', number: string) {
     setNotice(null);
@@ -112,10 +139,16 @@ export function InvoiceList() {
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-3 text-sm text-muted">
                 <span className="tabular-nums font-semibold text-ink">{formatMoney(inv.total, inv.currency)}</span>
+                {tracking && <StatusBadge status={inv.status} dueDate={inv.dueDate} today={today} />}
                 {inv.issueDate && <span>{displayDate(inv.issueDate)}</span>}
               </span>
             </a>
             <div className="-ml-3 flex flex-wrap gap-1 md:ml-0">
+              {tracking && (
+                <button type="button" className={ROW_BTN} disabled={busy !== null} onClick={() => void setStatus(inv)} aria-label={`Mark ${inv.number} as ${inv.status === 'paid' ? 'unpaid' : 'paid'}`}>
+                  {inv.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
+                </button>
+              )}
               <a href={`/invoice-generator?id=${inv.id}`} className={ROW_BTN} aria-label={`Open ${inv.number}`}>
                 Open
               </a>
@@ -127,7 +160,7 @@ export function InvoiceList() {
               </button>
               <button
                 type="button"
-                className={`${ROW_BTN} hover:text-[#B42318] dark:hover:text-coral-400`}
+                className={`${ROW_BTN} hover:text-[#B42318] dark:hover:text-danger-600`}
                 disabled={busy !== null}
                 onClick={() => act(inv.id, 'delete', inv.number)}
                 aria-label={`Delete ${inv.number}`}

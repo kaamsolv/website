@@ -1,5 +1,5 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
-import type { Invoice } from '@/app/lib/invoice/types';
+import { hasPaymentDetails, type Invoice } from '@/app/lib/invoice/types';
 import { parseNumber, type Totals } from '@/app/lib/invoice/totals';
 import { formatMoney } from '@/app/lib/invoice/money';
 import { displayDate } from '@/app/lib/invoice/defaults';
@@ -55,13 +55,31 @@ const s = StyleSheet.create({
   grand: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingTop: 7, borderTopWidth: 1.5, borderTopColor: NAVY },
   grandText: { fontSize: 12, lineHeight: 1.3, fontWeight: 700 },
   notes: { width: '50%', paddingRight: 12, fontSize: 8.5, lineHeight: 1.3 },
+  gstin: { marginTop: 2, fontWeight: 700, fontSize: 9 },
+  payBlock: { marginTop: 10 },
+  payRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  qrBox: { width: 78, marginLeft: 8, alignItems: 'center' },
+  qr: { width: 72, height: 72 },
+  qrCaption: { fontSize: 6.5, color: MUTED, textAlign: 'center', marginTop: 2 },
   footer: { position: 'absolute', bottom: 24, left: 44, right: 44, textAlign: 'center', fontSize: 7.5, color: '#8A93A6' },
 });
 
 const lines = (t: string) => t.split('\n').filter((l) => l.trim() !== '');
 
-export function InvoiceDocument({ invoice, totals, watermark }: { invoice: Invoice; totals: Totals; watermark: boolean }) {
+export function InvoiceDocument({
+  invoice,
+  totals,
+  watermark,
+  upiQr = null,
+}: {
+  invoice: Invoice;
+  totals: Totals;
+  watermark: boolean;
+  /** PNG data URL of the "Scan to pay" UPI QR (made in generate-pdf.tsx), if wanted. */
+  upiQr?: string | null;
+}) {
   const money = (n: number) => formatMoney(n, invoice.currency);
+  const pay = hasPaymentDetails(invoice.payment) ? invoice.payment : null;
   const discountLabel =
     invoice.discountType === 'percent' && invoice.discountValue.trim() ? `Discount (${invoice.discountValue.trim()}%)` : 'Discount';
   const taxLabel = `${invoice.taxLabel.trim() || 'Tax'}${invoice.taxRate.trim() ? ` (${invoice.taxRate.trim()}%)` : ''}`;
@@ -87,6 +105,7 @@ export function InvoiceDocument({ invoice, totals, watermark }: { invoice: Invoi
             ))}
             {invoice.seller.email ? <Text style={s.muted}>{invoice.seller.email}</Text> : null}
             {invoice.seller.phone ? <Text style={s.muted}>{invoice.seller.phone}</Text> : null}
+            {invoice.seller.gstin ? <Text style={s.gstin}>GSTIN {invoice.seller.gstin}</Text> : null}
           </View>
           <View style={s.meta}>
             <Text style={s.title}>INVOICE</Text>
@@ -118,6 +137,7 @@ export function InvoiceDocument({ invoice, totals, watermark }: { invoice: Invoi
             </Text>
           ))}
           {invoice.client.email ? <Text style={s.muted}>{invoice.client.email}</Text> : null}
+          {invoice.client.gstin ? <Text style={s.gstin}>GSTIN {invoice.client.gstin}</Text> : null}
         </View>
 
         <View style={s.table}>
@@ -141,14 +161,35 @@ export function InvoiceDocument({ invoice, totals, watermark }: { invoice: Invoi
         </View>
 
         <View style={s.bottom}>
-          {invoice.notes.trim() ? (
-            <View style={s.notes}>
-              <Text style={s.caption}>Notes</Text>
-              <Text style={s.muted}>{invoice.notes.trim()}</Text>
-            </View>
-          ) : (
-            <View style={s.notes} />
-          )}
+          <View style={s.notes}>
+            {invoice.notes.trim() ? (
+              <View>
+                <Text style={s.caption}>Notes</Text>
+                <Text style={s.muted}>{invoice.notes.trim()}</Text>
+              </View>
+            ) : null}
+            {pay ? (
+              <View style={invoice.notes.trim() ? s.payBlock : undefined}>
+                <Text style={s.caption}>Payment details</Text>
+                <View style={s.payRow}>
+                  <View style={{ flexGrow: 1 }}>
+                    {pay.accountName ? <Text style={s.muted}>Account name: {pay.accountName}</Text> : null}
+                    {pay.accountNumber ? <Text style={s.muted}>A/c no.: {pay.accountNumber}</Text> : null}
+                    {pay.ifsc ? <Text style={s.muted}>IFSC: {pay.ifsc}</Text> : null}
+                    {pay.bankName ? <Text style={s.muted}>Bank: {pay.bankName}</Text> : null}
+                    {pay.upiId ? <Text style={s.muted}>UPI: {pay.upiId}</Text> : null}
+                  </View>
+                  {upiQr ? (
+                    <View style={s.qrBox}>
+                      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
+                      <Image src={upiQr} style={s.qr} />
+                      <Text style={s.qrCaption}>Scan to pay with any UPI app</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+          </View>
           <View style={s.totals}>
             <View style={s.tRow}>
               <Text style={s.muted}>Subtotal</Text>

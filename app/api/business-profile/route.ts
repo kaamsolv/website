@@ -1,7 +1,7 @@
 /**
- * GET /api/business-profile — the seller details (and logo) new invoices
- *                              start with, plus the next invoice number.
- *                              The only endpoint that returns the logo.
+ * GET /api/business-profile — Settings (seller details, payment details,
+ *                              defaults), the logo, and the next invoice number.
+ *                              With /api/settings, the only endpoints that return the logo.
  * PUT /api/business-profile — save them. Body: { name, address, email, phone, logo }.
  */
 
@@ -9,7 +9,7 @@ import { MAX_LEN } from '@/app/lib/invoice/limits';
 import { formatSequentialNumber } from '@/app/lib/invoice/validate';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { getDb } from '@/db/client';
-import { getProfile, isAcceptableLogo, saveProfile } from '@/db/invoices';
+import { DEFAULT_SETTINGS, getProfile, isAcceptableLogo, saveProfile } from '@/db/invoices';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const profile = await getProfile(await getDb(), user.id);
   return json({
     ok: true,
-    profile: profile ?? { name: '', address: '', email: '', phone: '', logo: null, nextNumber: formatSequentialNumber(1) },
+    profile: profile ?? { ...DEFAULT_SETTINGS, logo: null, nextNumber: formatSequentialNumber(1) },
   });
 }
 

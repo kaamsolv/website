@@ -79,7 +79,7 @@ export function LoginForm({
   return (
     <div className="space-y-6 rounded-xl2 border border-hair bg-surface p-6">
       {problem && (
-        <p className="rounded-lg border border-[#B42318]/30 bg-[#B42318]/5 p-3 text-sm font-medium text-[#B42318] dark:text-coral-400" role="alert">
+        <p className="rounded-lg border border-[#B42318]/30 bg-[#B42318]/5 p-3 text-sm font-medium text-danger-600" role="alert">
           {problem}
         </p>
       )}

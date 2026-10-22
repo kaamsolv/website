@@ -14,8 +14,14 @@ without an account. An account adds saving.
 | Make and download invoices | ✓ | ✓ | ✓ |
 | Draft survives a refresh (this browser) | ✓ | ✓ | ✓ |
 | Saved invoices | — | **20** | unlimited |
-| Business details + logo remembered, numbering continues | — | ✓ | ✓ |
-| Pro features (footer-free, multi-page, templates, …) | — | — | ✓ |
+| Settings (business details, GSTIN, bank/UPI, numbering, defaults) | — | ✓ | ✓ |
+| Saved customers | — | **3** | unlimited |
+| Saved items (HSN/SAC, unit, rate, GST) | — | ✓ | ✓ |
+| Dashboard + paid / unpaid / overdue | — | — | ✓ |
+| Other Pro features (footer-free, multi-page, templates, …) | — | — | ✓ |
+
+Customers and items also have a hidden anti-abuse ceiling of 1,000 rows each
+(`DIRECTORY_HARD_CAP`) for every plan — not a paywall, never shown unless hit.
 
 ## Sign-in
 
@@ -71,7 +77,14 @@ without an account. An account adds saving.
 | `plans`, `plan_features` | plan definitions | — |
 | `subscriptions` | provider, ref, plan, status, period end | cascade |
 | `business_profiles` | seller details, logo (≤ 280 k chars), next number | cascade |
-| `invoices` | summary columns + `data` jsonb (no logo, ≤ 64 k chars) | cascade |
+| `invoices` | summary columns + `data` jsonb (no logo, ≤ 64 k chars); `status`, `paid_at`, `due_date`, `customer_id` (0004) | cascade |
+| `customers` (0004) | name, contact, email, phone, address, state code, GSTIN | cascade |
+| `items` (0004) | name, HSN/SAC, unit, rate, GST rate | cascade |
+
+`business_profiles` gained the Settings columns in 0004 (state, GSTIN, bank
+account, IFSC, UPI, UPI-QR switch, number prefix, defaults). An invoice links to a
+customer only when it is the same user's (`ownCustomer()` subquery); deleting the
+customer clears the link (ON DELETE SET NULL) and the invoice keeps its own copy.
 
 Every query on user data is scoped by the signed-in user's id; another user's id
 is a plain 404. List endpoints and `/api/me` never return the logo or invoice
@@ -86,7 +99,12 @@ documents.
 | `GET/POST /api/invoices` | list summaries · save new (403 `limit`) |
 | `GET/PUT/DELETE /api/invoices/:id` | one invoice |
 | `POST /api/invoices/:id/duplicate` | copy with next number and new dates |
-| `GET/PUT /api/business-profile` | seller details + logo (the only logo endpoint) |
+| `GET/PUT /api/business-profile` | seller details + logo (the editor's save) |
+| `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
+| `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |
+| `GET/POST /api/items`, `GET/PUT/DELETE /api/items/:id` | saved items |
+| `PUT /api/invoices/:id/status` | paid / unpaid (Pro) |
+| `GET /api/dashboard?today=` | Pro dashboard totals + recent invoices |
 | `POST /api/test/oauth-sign-in` | **test only** — see below |
 
 ## Test-only sign-in
@@ -100,8 +118,17 @@ endpoint behind it is server-only and re-checks. **Never** a Worker secret.
 
 ## Pages
 
-`/login` (and `/signup` → `/login`), `/app` → `/app/invoices`, `/app/account`.
+`/login` (and `/signup` → `/login`). Workspace (sidebar on desktop, tab bar on
+phones): `/app` (Dashboard — Pro; everyone else → `/app/invoices`),
+`/app/invoices`, `/app/customers`, `/app/items`, `/app/settings`, `/app/account`.
 All `noindex`; `/app/*` redirect signed-out visitors to `/login?next=…`.
+
+## Granting Pro by hand
+
+Until payments exist: `npm run account:grant -- <email> invoice_pro --confirm`
+(with `DATABASE_URL` set for that one command, like a migration). Adds a
+`manual` subscription; `revoke --confirm` removes it; without a plan it shows
+the account's plans and features. Dry run unless `--confirm`.
 
 ## Testing
 

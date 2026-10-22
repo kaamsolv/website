@@ -15,15 +15,19 @@ const nextConfig = {
   allowedDevOrigins: ['192.168.1.11'],
 
   /**
-   * Invoice PDFs are made in the browser only. Give the server build a stub
-   * instead of @react-pdf/renderer so the PDF engine stays out of the
-   * Cloudflare Worker bundle (free plan: 3 MB gzip).
+   * Browser-only libraries: give the server build a stub so they stay out of
+   * the Cloudflare Worker bundle (free plan: 3 MB gzip). Invoice PDFs and HEIC
+   * decoding only ever run in the browser.
    */
   turbopack: {
     resolveAlias: {
       '@react-pdf/renderer': {
         browser: '@react-pdf/renderer/lib/react-pdf.browser.js',
         default: './app/_components/invoice/react-pdf-server-stub.ts',
+      },
+      heic2any: {
+        browser: 'heic2any/dist/heic2any.js',
+        default: './app/lib/image/heic2any-server-stub.ts',
       },
     },
   },

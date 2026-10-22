@@ -5,6 +5,26 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-22 — Invoice Pro, Stage 2A: workspace + GST rate dropdown
+
+**Decided by:** product owner. Detail: [`products/accounts.md`](./products/accounts.md),
+[`products/invoice-generator.md`](./products/invoice-generator.md).
+
+- **GST tax invoice stays free** (full version in Stage 2B).
+- **GST rate dropdown** with the post-22 September 2025 slabs (5% and 18%, 40%
+  demerit, plus 0, 0.25, 3%) and an on-screen note; 12% / 28% dropped (PIB note,
+  Notification 9/2025-CT(Rate)). Default is "Choose rate", not 18% — deviation
+  from the plan, so unregistered sellers never charge GST by accident.
+- **Free with an account:** Settings, Customers (**limit 3** — owner, 2026-10-22),
+  Items. **Pro:** Dashboard + paid/unpaid; currency reference rates (2C).
+- Pro list can change any time via `plan_features` (data, not code).
+- Manual Pro grants via `npm run account:grant` until payments exist.
+- GSTIN / IFSC / UPI / HSN checked for format only; no online GSTIN lookup
+  (needs a paid GSP) and no e-invoicing (> ₹5 crore only).
+- `heic2any` stubbed out of the Worker like react-pdf (−334 KiB gzip).
+
+---
+
 ## 2026-10-21 — Invoice Pro, Stage 1: accounts + saving
 
 **Decided by:** product owner (plan approved after two review rounds).

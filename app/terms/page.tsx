@@ -37,8 +37,8 @@ export default function TermsPage() {
           you&apos;re allowed to keep for your business.
         </li>
         <li>
-          A free account can save a limited number of invoices (currently 20). We&apos;ll tell you before we
-          lower a limit that affects invoices you&apos;ve already saved.
+          A free account can save a limited number of invoices (currently 20) and customers (currently 3).
+          We&apos;ll tell you before we lower a limit that affects what you&apos;ve already saved.
         </li>
         <li>
           You can delete your account at any time from the Account page. We may suspend or close an account that

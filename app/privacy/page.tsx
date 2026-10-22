@@ -62,9 +62,12 @@ export default function PrivacyPage() {
           you used (its “user agent”). Not your IP address.
         </li>
         <li>
-          <strong>What you choose to save</strong>: your invoices and your business details (name, address,
-          email, phone and logo). Invoices include your clients&apos; details that you type in — please only save
-          client information you&apos;re allowed to keep for your business.
+          <strong>What you choose to save</strong>: your invoices; your business details and settings (name,
+          address, state, GSTIN, email, phone, logo, bank account and UPI details, invoice numbering and defaults);
+          your saved customers (name, contact, email, phone, address, state, GSTIN); and your saved items
+          (name, HSN/SAC code, unit, rates). Invoices and customers include your clients&apos; details that you
+          type in — please only save client information you&apos;re allowed to keep for your business. If you use
+          paid / unpaid tracking, we also store whether and when each invoice was paid.
         </li>
         <li>
           <strong>Sign-in links</strong>: when you ask for one, we store a scrambled (hashed) copy of the link
@@ -165,7 +168,7 @@ export default function PrivacyPage() {
         <li>Reports: as long as we need them to deal with the link.</li>
         <li>Abuse-protection counters: they reset within minutes to a day.</li>
         <li>
-          Your account, saved invoices and business details: until you delete them or your account. Deleting an
+          Your account, saved invoices, customers, items and settings: until you delete them or your account. Deleting an
           invoice or your account removes it from our database straight away; our database provider&apos;s
           short-term backups are overwritten within days.
         </li>
@@ -176,7 +179,7 @@ export default function PrivacyPage() {
       <h2>Your choices and rights</h2>
       <p>
         If you have an account, you can delete any saved invoice yourself, and delete your whole account at{' '}
-        <a href="/app/account">Account → Delete my account</a>. That removes your account, invoices and business
+        <a href="/app/account">Account → Delete my account</a>. That removes your account, invoices, customers, items and business
         details.
       </p>
       <p>
