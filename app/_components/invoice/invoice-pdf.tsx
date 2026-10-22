@@ -3,6 +3,9 @@ import { hasPaymentDetails, type Invoice } from '@/app/lib/invoice/types';
 import { parseNumber, type Totals } from '@/app/lib/invoice/totals';
 import { formatMoney } from '@/app/lib/invoice/money';
 import { displayDate } from '@/app/lib/invoice/defaults';
+import { EXPORT_CODE, placeOfSupplyLabel } from '@/app/lib/invoice/gst-tax';
+import { stateName } from '@/app/lib/invoice/india';
+import { rupeesInWords } from '@/app/lib/invoice/words';
 
 /*
  * The PDF template (A4, one page). Loaded only by generate-pdf.tsx, in the
@@ -62,6 +65,28 @@ const s = StyleSheet.create({
   qr: { width: 72, height: 72 },
   qrCaption: { fontSize: 6.5, color: MUTED, textAlign: 'center', marginTop: 2 },
   footer: { position: 'absolute', bottom: 24, left: 44, right: 44, textAlign: 'center', fontSize: 7.5, color: '#8A93A6' },
+  // Stage 2B — GST tax invoice
+  docNote: { fontSize: 7.5, color: MUTED, textAlign: 'right', marginTop: -6, marginBottom: 8, maxWidth: 200 },
+  parties: { flexDirection: 'row', justifyContent: 'space-between' },
+  party: { width: '48%' },
+  gHsn: { width: '11%' },
+  gDesc: { width: '37%', paddingRight: 6 },
+  gQty: { width: '11%', textAlign: 'right' },
+  gRate: { width: '14%', textAlign: 'right' },
+  gPct: { width: '8%', textAlign: 'right' },
+  gAmt: { width: '19%', textAlign: 'right' },
+  words: { fontSize: 8, color: MUTED, marginTop: 4, textAlign: 'right' },
+  // Tax summary (left) and signatory (right) share one row, so a full page still fits.
+  closing: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 10 },
+  summary: { width: '62%', borderTopWidth: 1, borderTopColor: LINE },
+  sHead: { flexDirection: 'row', paddingVertical: 3, paddingHorizontal: 6, backgroundColor: '#F3F5FA' },
+  sRow: { flexDirection: 'row', paddingVertical: 2.5, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: LINE, fontSize: 8.5 },
+  sCell: { width: '21%', textAlign: 'right' },
+  sFirst: { width: '16%' },
+  sign: { width: '33%', alignItems: 'center' },
+  signImg: { maxWidth: 150, maxHeight: 36, objectFit: 'contain', marginVertical: 4 },
+  signSpace: { height: 30 },
+  signLine: { borderTopWidth: 1, borderTopColor: MUTED, width: '100%', paddingTop: 3, textAlign: 'center', fontSize: 8, color: MUTED },
 });
 
 const lines = (t: string) => t.split('\n').filter((l) => l.trim() !== '');
@@ -84,6 +109,14 @@ export function InvoiceDocument({
     invoice.discountType === 'percent' && invoice.discountValue.trim() ? `Discount (${invoice.discountValue.trim()}%)` : 'Discount';
   const taxLabel = `${invoice.taxLabel.trim() || 'Tax'}${invoice.taxRate.trim() ? ` (${invoice.taxRate.trim()}%)` : ''}`;
   const items = invoice.items.filter((it, i) => it.description.trim() || it.rate.trim() || totals.lines[i]?.amount);
+  const gst = totals.gst;
+  const billOfSupply = invoice.docType === 'bill_of_supply';
+  const title = gst ? 'TAX INVOICE' : billOfSupply ? 'BILL OF SUPPLY' : 'INVOICE';
+  const stateLine = (code: string | undefined) => (code && stateName(code) ? `State: ${stateName(code)} (${code})` : null);
+  const sellerState = gst?.sellerState || invoice.seller.state;
+  const clientState = invoice.client.gstin?.slice(0, 2) || invoice.client.state || (gst && gst.placeOfSupply !== EXPORT_CODE ? gst.placeOfSupply : undefined);
+  const lineRate = (it: (typeof items)[number]) => (it.gstRate?.trim() ? it.gstRate.trim() : invoice.taxRate.trim() || '0');
+  const sLabel = gst?.split === 'ut' ? 'UTGST' : 'SGST';
 
   return (
     <Document
@@ -106,9 +139,11 @@ export function InvoiceDocument({
             {invoice.seller.email ? <Text style={s.muted}>{invoice.seller.email}</Text> : null}
             {invoice.seller.phone ? <Text style={s.muted}>{invoice.seller.phone}</Text> : null}
             {invoice.seller.gstin ? <Text style={s.gstin}>GSTIN {invoice.seller.gstin}</Text> : null}
+            {gst && stateLine(sellerState) ? <Text style={s.muted}>{stateLine(sellerState)}</Text> : null}
           </View>
           <View style={s.meta}>
-            <Text style={s.title}>INVOICE</Text>
+            <Text style={s.title}>{title}</Text>
+            {billOfSupply ? <Text style={s.docNote}>Composition taxable person, not eligible to collect tax on supplies</Text> : null}
             <View style={s.metaRow}>
               <Text style={s.metaLabel}>Invoice no.</Text>
               <Text>{invoice.number}</Text>
@@ -123,23 +158,73 @@ export function InvoiceDocument({
                 <Text>{displayDate(invoice.dueDate)}</Text>
               </View>
             ) : null}
+            {gst ? (
+              <View style={s.metaRow}>
+                <Text style={s.metaLabel}>Place of supply</Text>
+                <Text>{placeOfSupplyLabel(gst.placeOfSupply)}</Text>
+              </View>
+            ) : null}
+            {gst ? (
+              <View style={s.metaRow}>
+                <Text style={s.metaLabel}>Reverse charge</Text>
+                <Text>{invoice.reverseCharge ? 'Yes' : 'No'}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
         <View style={s.rule} />
 
-        <View>
-          <Text style={s.caption}>Bill to</Text>
-          {invoice.client.name ? <Text style={s.clientName}>{invoice.client.name}</Text> : null}
-          {lines(invoice.client.address).map((l, i) => (
-            <Text key={i} style={s.muted}>
-              {l}
-            </Text>
-          ))}
-          {invoice.client.email ? <Text style={s.muted}>{invoice.client.email}</Text> : null}
-          {invoice.client.gstin ? <Text style={s.gstin}>GSTIN {invoice.client.gstin}</Text> : null}
+        <View style={s.parties}>
+          <View style={invoice.shipTo?.trim() ? s.party : undefined}>
+            <Text style={s.caption}>Bill to</Text>
+            {invoice.client.name ? <Text style={s.clientName}>{invoice.client.name}</Text> : null}
+            {lines(invoice.client.address).map((l, i) => (
+              <Text key={i} style={s.muted}>
+                {l}
+              </Text>
+            ))}
+            {invoice.client.email ? <Text style={s.muted}>{invoice.client.email}</Text> : null}
+            {invoice.client.gstin ? <Text style={s.gstin}>GSTIN {invoice.client.gstin}</Text> : null}
+            {gst && stateLine(clientState) ? <Text style={s.muted}>{stateLine(clientState)}</Text> : null}
+          </View>
+          {invoice.shipTo?.trim() ? (
+            <View style={s.party}>
+              <Text style={s.caption}>Ship to</Text>
+              {lines(invoice.shipTo).map((l, i) => (
+                <Text key={i} style={s.muted}>
+                  {l}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </View>
 
+        {gst ? (
+          <View style={s.table}>
+            <View style={s.thead}>
+              <Text style={[s.th, s.gHsn]}>HSN/SAC</Text>
+              <Text style={[s.th, s.gDesc]}>Description</Text>
+              <Text style={[s.th, s.gQty]}>Qty</Text>
+              <Text style={[s.th, s.gRate]}>Rate</Text>
+              <Text style={[s.th, s.gPct]}>GST</Text>
+              <Text style={[s.th, s.gAmt]}>Amount</Text>
+            </View>
+            {items.map((it) => {
+              const idx = invoice.items.indexOf(it);
+              return (
+                <View key={it.id} style={s.tr} wrap={false}>
+                  <Text style={s.gHsn}>{it.hsn ?? ''}</Text>
+                  <Text style={s.gDesc}>{it.description}</Text>
+                  <Text style={s.gQty}>{`${it.qty}${it.unit ? ` ${it.unit}` : ''}`}</Text>
+                  <Text style={s.gRate}>{it.rate.trim() ? money(parseNumber(it.rate) || 0) : ''}</Text>
+                  <Text style={s.gPct}>{lineRate(it)}%</Text>
+                  <Text style={s.gAmt}>{money(totals.lines[idx]?.amount ?? 0)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
         <View style={s.table}>
           <View style={s.thead}>
             <Text style={[s.th, s.cDesc]}>Description</Text>
@@ -159,6 +244,7 @@ export function InvoiceDocument({
             );
           })}
         </View>
+        )}
 
         <View style={s.bottom}>
           <View style={s.notes}>
@@ -201,7 +287,25 @@ export function InvoiceDocument({
                 <Text>−{money(totals.discount)}</Text>
               </View>
             ) : null}
-            {totals.tax > 0 ? (
+            {gst ? (
+              gst.split === 'inter' ? (
+                <View style={s.tRow}>
+                  <Text style={s.muted}>IGST</Text>
+                  <Text>{money(gst.igst)}</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={s.tRow}>
+                    <Text style={s.muted}>CGST</Text>
+                    <Text>{money(gst.cgst)}</Text>
+                  </View>
+                  <View style={s.tRow}>
+                    <Text style={s.muted}>{sLabel}</Text>
+                    <Text>{money(gst.sgst)}</Text>
+                  </View>
+                </>
+              )
+            ) : totals.tax > 0 ? (
               <View style={s.tRow}>
                 <Text style={s.muted}>{taxLabel}</Text>
                 <Text>{money(totals.tax)}</Text>
@@ -211,8 +315,54 @@ export function InvoiceDocument({
               <Text style={s.grandText}>Total</Text>
               <Text style={s.grandText}>{money(totals.total)}</Text>
             </View>
+            {invoice.currency === 'INR' && totals.total > 0 && (gst || billOfSupply) ? <Text style={s.words}>{rupeesInWords(totals.total)}</Text> : null}
           </View>
         </View>
+
+        {gst || billOfSupply ? (
+          <View style={s.closing} wrap={false}>
+        {gst && gst.rows.length > 0 ? (
+          <View style={s.summary}>
+            <View style={s.sHead}>
+              <Text style={[s.th, s.sFirst]}>GST rate</Text>
+              <Text style={[s.th, s.sCell, gst.split === 'inter' ? { width: '34%' } : {}]}>Taxable value</Text>
+              {gst.split === 'inter' ? (
+                <Text style={[s.th, s.sCell, { width: '25%' }]}>IGST</Text>
+              ) : (
+                <>
+                  <Text style={[s.th, s.sCell]}>CGST</Text>
+                  <Text style={[s.th, s.sCell]}>{sLabel}</Text>
+                </>
+              )}
+              <Text style={[s.th, s.sCell, gst.split === 'inter' ? { width: '25%' } : {}]}>Total tax</Text>
+            </View>
+            {gst.rows.map((r) => (
+              <View key={r.rate} style={s.sRow}>
+                <Text style={s.sFirst}>{r.rate}%</Text>
+                <Text style={[s.sCell, gst.split === 'inter' ? { width: '34%' } : {}]}>{money(r.taxable)}</Text>
+                {gst.split === 'inter' ? (
+                  <Text style={[s.sCell, { width: '25%' }]}>{money(r.igst)}</Text>
+                ) : (
+                  <>
+                    <Text style={s.sCell}>{money(r.cgst)}</Text>
+                    <Text style={s.sCell}>{money(r.sgst)}</Text>
+                  </>
+                )}
+                <Text style={[s.sCell, gst.split === 'inter' ? { width: '25%' } : {}]}>{money(r.tax)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View />
+        )}
+          <View style={s.sign}>
+            <Text style={s.muted}>For {invoice.seller.name || 'the supplier'}</Text>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
+            {invoice.signature ? <Image src={invoice.signature} style={s.signImg} /> : <View style={s.signSpace} />}
+            <Text style={s.signLine}>Authorised signatory</Text>
+          </View>
+          </View>
+        ) : null}
 
         {watermark ? (
           <Text style={s.footer} fixed>

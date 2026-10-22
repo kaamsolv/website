@@ -72,10 +72,10 @@ export function InvoiceList() {
       if (kind === 'download') {
         const [inv, prof] = await Promise.all([
           fetch(`/api/invoices/${id}`, { credentials: 'same-origin' }).then((r) => r.json() as Promise<{ invoice?: Invoice }>),
-          fetch('/api/business-profile', { credentials: 'same-origin' }).then((r) => r.json() as Promise<{ profile?: { logo: string | null } }>),
+          fetch('/api/business-profile', { credentials: 'same-origin' }).then((r) => r.json() as Promise<{ profile?: { logo: string | null; signature?: string | null } }>),
         ]);
         if (!inv.invoice) throw new Error('missing');
-        const doc: Invoice = { ...inv.invoice, logo: prof.profile?.logo ?? null };
+        const doc: Invoice = { ...inv.invoice, logo: prof.profile?.logo ?? null, signature: prof.profile?.signature ?? null };
         const blob = await renderInvoicePdf(doc, computeTotals(doc), { watermark: !can('invoice_watermark_remove') });
         downloadBlob(blob, pdfFilename(doc));
         setNotice((await countPdfPages(blob)) > 1 ? 'Downloading — it runs onto a second page.' : 'Done — your PDF is downloading.');

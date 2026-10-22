@@ -17,6 +17,8 @@ export type LineItem = {
   /** HSN/SAC code — saved now, printed per line in Stage 2B. */
   hsn?: string;
   unit?: string;
+  /** This line's GST rate on a tax invoice (blank = the invoice's rate). Stage 2B. */
+  gstRate?: string;
 };
 
 export type Party = {
@@ -61,6 +63,16 @@ export type Invoice = {
   payment?: PaymentDetails;
   /** The saved customer this invoice was billed to (signed-in only). */
   customerId?: string | null;
+  /** GST state code of the place of supply ("96" = outside India). Blank = worked out from the client. */
+  placeOfSupply?: string;
+  /** "Tax payable on reverse charge" (tax invoices). */
+  reverseCharge?: boolean;
+  /** Delivery address, when it differs from the billing address. */
+  shipTo?: string;
+  /** "bill_of_supply" for composition-scheme sellers; otherwise an invoice. */
+  docType?: 'invoice' | 'bill_of_supply';
+  /** Signature image (data URL) — from the business profile, never stored in the invoice. */
+  signature?: string | null;
 };
 
 export const EMPTY_PAYMENT: PaymentDetails = { accountName: '', accountNumber: '', ifsc: '', bankName: '', upiId: '', showUpiQr: false };

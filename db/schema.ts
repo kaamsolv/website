@@ -349,12 +349,18 @@ export const businessProfiles = pgTable(
     defaultTaxRate: text('default_tax_rate').notNull().default(''),
     defaultDueDays: integer('default_due_days').notNull().default(14),
     defaultNotes: text('default_notes').notNull().default(''),
+    // Stage 2B (migration 0005).
+    /** Composition scheme: documents are a Bill of Supply, with no tax. */
+    composition: boolean('composition').notNull().default(false),
+    /** Signature image for the authorised-signatory block (data URL, downscaled in the browser). */
+    signature: text('signature'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     check('business_profiles_logo_len', sql`char_length(${table.logo}) <= ${sql.raw(String(LOGO_MAX_STORED_CHARS))}`),
     check('business_profiles_next_number', sql`${table.nextNumber} >= 1`),
     check('business_profiles_due_days', sql`${table.defaultDueDays} between 0 and 365`),
+    check('business_profiles_signature_len', sql`char_length(${table.signature}) <= ${sql.raw(String(LOGO_MAX_STORED_CHARS))}`),
   ],
 );
 

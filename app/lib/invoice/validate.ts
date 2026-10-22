@@ -5,6 +5,7 @@
  * The logo is always dropped — it lives on the business profile, not the invoice.
  */
 
+import { isPlaceOfSupply } from './gst-tax';
 import { gstinProblem, isStateCode, normalizeGstin } from './india';
 import { MAX_LEN } from './limits';
 import { CURRENCIES, type CurrencyCode, type Invoice, type LineItem } from './types';
@@ -55,6 +56,7 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
       rate: numText(it.rate),
       ...(typeof it.hsn === 'string' && it.hsn.trim() ? { hsn: it.hsn.replace(/\D/g, '').slice(0, MAX_LEN.hsn) } : {}),
       ...(typeof it.unit === 'string' && it.unit.trim() ? { unit: str(it.unit, MAX_LEN.unit) } : {}),
+      ...(typeof it.gstRate === 'string' && it.gstRate.trim() ? { gstRate: numText(it.gstRate) } : {}),
     };
   });
   // Format problems in these fields are shown in the editor; the server only
@@ -75,6 +77,13 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
       }
     : {};
   const customerId = typeof raw.customerId === 'string' && UUID_RE.test(raw.customerId) ? { customerId: raw.customerId } : {};
+  // Stage 2B: GST particulars.
+  const gstExtras = {
+    ...(isPlaceOfSupply(raw.placeOfSupply) ? { placeOfSupply: raw.placeOfSupply } : {}),
+    ...(raw.reverseCharge === true ? { reverseCharge: true } : {}),
+    ...(typeof raw.shipTo === 'string' && raw.shipTo.trim() ? { shipTo: str(raw.shipTo, MAX_LEN.address) } : {}),
+    ...(raw.docType === 'bill_of_supply' ? { docType: 'bill_of_supply' as const } : {}),
+  };
 
   return {
     ok: true,
@@ -100,6 +109,7 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
       },
       ...payment,
       ...customerId,
+      ...gstExtras,
       items: items.length ? items : [{ id: 'item-1', description: '', qty: '1', rate: '' }],
       discountType: raw.discountType === 'flat' ? 'flat' : 'percent',
       discountValue: numText(raw.discountValue),

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const profile = await getProfile(await getDb(), user.id);
   return json({
     ok: true,
-    profile: profile ?? { ...DEFAULT_SETTINGS, logo: null, nextNumber: formatSequentialNumber(1) },
+    profile: profile ?? { ...DEFAULT_SETTINGS, logo: null, signature: null, nextNumber: formatSequentialNumber(1) },
   });
 }
 

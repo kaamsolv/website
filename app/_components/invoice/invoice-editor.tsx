@@ -11,6 +11,9 @@ import { addDays, DEFAULT_DUE_DAYS, hasContent, newInvoice, newLineItem, withFre
 import { clearInvoiceDraft, loadInvoiceDraft, saveInvoiceDraft } from '@/app/lib/invoice/draft';
 import { readLogo } from '@/app/lib/invoice/logo';
 import { GST_RATES, GST_RATES_NOTE, isListedGstRate, TAX_LABELS } from '@/app/lib/invoice/gst';
+import { EXPORT_CODE, isTaxInvoice, placeOfSupplyLabel, placeOfSupplyOf, taxInvoiceNumberProblem } from '@/app/lib/invoice/gst-tax';
+import { GST_STATES, hsnProblem } from '@/app/lib/invoice/india';
+import { rupeesInWords } from '@/app/lib/invoice/words';
 import { LOGO_MAX_BYTES, LOGO_MAX_PX, LOGO_TYPES, MAX_FREE_ITEMS, MAX_LEN } from '@/app/lib/invoice/limits';
 import { CURRENCY_LABELS, currencySymbol, formatMoney } from '@/app/lib/invoice/money';
 import { computeTotals } from '@/app/lib/invoice/totals';
@@ -27,11 +30,11 @@ const PAPER_SELECT =
   'h-9 rounded-md border border-[#AEB6C6] bg-white px-1.5 text-sm text-[#0C2248] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FE6336]/40';
 
 /** GET /api/business-profile — Settings + logo + next number. */
-type Profile = Settings & { logo: string | null; nextNumber: string };
+type Profile = Settings & { logo: string | null; signature?: string | null; nextNumber: string };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /** What gets saved for the invoice itself (the logo lives on the profile). */
-const docKey = (inv: Invoice) => JSON.stringify({ ...inv, logo: null, items: inv.items.map(({ id: _id, ...rest }) => rest) });
+const docKey = (inv: Invoice) => JSON.stringify({ ...inv, logo: null, signature: null, items: inv.items.map(({ id: _id, ...rest }) => rest) });
 /** What gets saved as the business profile (fixed field order — stored JSON can reorder keys). */
 const sellerKey = (s: Invoice['seller'], logo: string | null) => JSON.stringify([s.name, s.address, s.email, s.phone, logo]);
 const profileKey = (inv: Invoice) => sellerKey(inv.seller, inv.logo);
@@ -75,6 +78,8 @@ function fromProfile(p: Profile): Invoice {
       ...(p.gstin ? { gstin: p.gstin } : {}),
     },
     logo: p.logo,
+    signature: p.signature ?? null,
+    ...(p.composition ? { docType: 'bill_of_supply' as const, taxLabel: '', taxRate: '' } : {}),
     ...(hasPaymentDetails(payment) ? { payment } : {}),
   };
 }
@@ -111,7 +116,7 @@ export function InvoiceEditor() {
       if (id) {
         const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid' }>(`/api/invoices/${encodeURIComponent(id)}`);
         if (r.ok && r.body.invoice) {
-          const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null });
+          const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null, signature: profile.current?.signature ?? null });
           lastSaved.current = docKey(loaded);
           setPaid(r.body.status ?? 'unpaid');
           setSavedId(id);
@@ -133,7 +138,7 @@ export function InvoiceEditor() {
     const key = docKey(inv);
     setSaveState('saving');
     setSaveMsg(null);
-    const payload = JSON.stringify({ invoice: { ...inv, logo: null } });
+    const payload = JSON.stringify({ invoice: { ...inv, logo: null, signature: null } });
     const r = await api<{ id?: string; message?: string }>(savedId ? `/api/invoices/${savedId}` : '/api/invoices', {
       method: savedId ? 'PUT' : 'POST',
       body: payload,
@@ -215,7 +220,19 @@ export function InvoiceEditor() {
 
   // Tax row: GST shows the rate dropdown (Other… opens a number box); VAT/Tax a number box.
   const [gstOther, setGstOther] = useState(false);
-  const taxType = !inv ? 'GST' : inv.taxLabel.trim() === '' && inv.taxRate.trim() === '' ? 'none' : (TAX_LABELS as readonly string[]).includes(inv.taxLabel.trim()) ? inv.taxLabel.trim() : 'Tax';
+  const taxType = !inv
+    ? 'GST'
+    : inv.docType === 'bill_of_supply'
+      ? 'composition'
+      : inv.taxLabel.trim() === '' && inv.taxRate.trim() === ''
+        ? 'none'
+        : (TAX_LABELS as readonly string[]).includes(inv.taxLabel.trim())
+          ? inv.taxLabel.trim()
+          : 'Tax';
+  // Stage 2B: a GST tax invoice (seller GSTIN + INR + GST), or a Bill of Supply (composition).
+  const taxInv = !!inv && isTaxInvoice(inv);
+  const billOfSupply = !!inv && inv.docType === 'bill_of_supply';
+  const gstWithoutGstin = !!inv && taxType === 'GST' && inv.currency === 'INR' && !taxInv && parseFloat(inv.taxRate) > 0;
   const showOtherRate = gstOther || (!!inv && inv.taxRate.trim() !== '' && !isListedGstRate(inv.taxRate));
 
   const saveLimit = limit('invoice_save');
@@ -290,7 +307,18 @@ export function InvoiceEditor() {
   /** Picking a saved item from the suggestions fills its rate, HSN/SAC and unit. */
   function onItemDescription(id: string, description: string) {
     const match = saved.items.find((it) => it.name === description);
-    setItem(id, match ? { description, rate: match.rate || '', ...(match.hsnSac ? { hsn: match.hsnSac } : {}), ...(match.unit ? { unit: match.unit } : {}) } : { description });
+    setItem(
+      id,
+      match
+        ? {
+            description,
+            rate: match.rate || '',
+            ...(match.hsnSac ? { hsn: match.hsnSac } : {}),
+            ...(match.unit ? { unit: match.unit } : {}),
+            ...(match.gstRate ? { gstRate: match.gstRate } : {}),
+          }
+        : { description },
+    );
   }
 
   async function togglePaid() {
@@ -474,7 +502,7 @@ export function InvoiceEditor() {
       {/* The paper */}
       <article
         aria-label="Invoice"
-        className={`mx-auto max-w-[794px] rounded-xl2 border border-[#E3E7EF] bg-white p-5 shadow-lift sm:p-8 md:min-h-[1123px] md:p-12 ${PAPER_TEXT}`}
+        className={`mx-auto max-w-[794px] rounded-xl2 border border-[#E3E7EF] bg-white p-5 shadow-lift [color-scheme:light] sm:p-8 md:min-h-[1123px] md:p-12 ${PAPER_TEXT}`}
       >
         <div className="grid gap-8 md:grid-cols-[1fr_auto]">
           {/* Seller */}
@@ -530,11 +558,21 @@ export function InvoiceEditor() {
           {/* Invoice meta */}
           <section aria-labelledby="meta-h" className="space-y-2 md:w-60">
             <h2 id="meta-h" className="text-2xl font-bold tracking-wide md:text-right">
-              INVOICE
+              {taxInv ? 'TAX INVOICE' : billOfSupply ? 'BILL OF SUPPLY' : 'INVOICE'}
             </h2>
+            {taxInv && <p className={`text-xs md:text-right ${PAPER_MUTED}`}>This is a GST tax invoice.</p>}
+            {billOfSupply && <p className={`text-xs md:text-right ${PAPER_MUTED}`}>Composition taxable person, not eligible to collect tax on supplies</p>}
             <div>
               <PaperCaption htmlFor="inv-number">Invoice no.</PaperCaption>
-              <PaperInput id="inv-number" label="Invoice number" value={inv.number} maxLength={MAX_LEN.number} onChange={(e) => set({ number: e.target.value })} />
+              <PaperInput
+                id="inv-number"
+                label="Invoice number"
+                value={inv.number}
+                maxLength={MAX_LEN.number}
+                aria-invalid={(taxInv && !!taxInvoiceNumberProblem(inv.number)) || undefined}
+                onChange={(e) => set({ number: e.target.value })}
+              />
+              {taxInv && taxInvoiceNumberProblem(inv.number) && <p className="text-xs font-medium text-[#B42318]">{taxInvoiceNumberProblem(inv.number)}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
               <div>
@@ -575,6 +613,40 @@ export function InvoiceEditor() {
           <PaperTextarea label="Client address" placeholder="Client address" value={inv.client.address} maxLength={MAX_LEN.address} onChange={(e) => setClient({ address: e.target.value })} rows={2} />
           <PaperInput label="Client email" type="email" inputMode="email" placeholder="Client email" value={inv.client.email} maxLength={MAX_LEN.email} onChange={(e) => setClient({ email: e.target.value })} />
           <GstinField label="Client GSTIN" value={inv.client.gstin ?? ''} onChange={(gstin) => setClient({ gstin })} />
+          {taxInv && (
+            <div className="space-y-2 pt-2">
+              <label className={`block text-[11px] font-semibold uppercase tracking-wide ${PAPER_MUTED}`} htmlFor="inv-pos">
+                Place of supply
+              </label>
+              <select id="inv-pos" value={placeOfSupplyOf(inv)} onChange={(e) => set({ placeOfSupply: e.target.value })} className={`${PAPER_SELECT} w-full`}>
+                {GST_STATES.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name} ({code})
+                  </option>
+                ))}
+                <option value={EXPORT_CODE}>{placeOfSupplyLabel(EXPORT_CODE)}</option>
+              </select>
+              <label className={`flex min-h-11 items-center gap-2 text-sm md:min-h-9 ${PAPER_MUTED}`}>
+                <input type="checkbox" checked={!!inv.reverseCharge} onChange={(e) => set({ reverseCharge: e.target.checked })} className="h-4 w-4 accent-[#FE6336]" />
+                Tax payable on reverse charge
+              </label>
+            </div>
+          )}
+          {inv.shipTo === undefined ? (
+            <button type="button" onClick={() => set({ shipTo: '' })} className="pt-1 text-xs font-semibold text-[#0C2248] underline underline-offset-2 hover:text-[#C2410C]">
+              + Deliver to a different address
+            </button>
+          ) : (
+            <div className="pt-2">
+              <div className={`flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide ${PAPER_MUTED}`}>
+                Ship to
+                <button type="button" onClick={() => set({ shipTo: undefined })} className="text-xs font-medium normal-case tracking-normal underline">
+                  Remove
+                </button>
+              </div>
+              <PaperTextarea label="Delivery address" placeholder="Delivery address" value={inv.shipTo} maxLength={MAX_LEN.address} onChange={(e) => set({ shipTo: e.target.value })} rows={2} />
+            </div>
+          )}
           {canCustomers && inv.client.name.trim() && !inv.customerId && (
             <div className="pt-1">
               {customersAtLimit ? (
@@ -648,6 +720,42 @@ export function InvoiceEditor() {
                       <Icon name="close" className="h-4 w-4" />
                     </button>
                   </div>
+                  {taxInv && (
+                    <div className={`col-span-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:col-span-5 ${PAPER_MUTED}`}>
+                      <label className="flex items-center gap-1.5">
+                        HSN/SAC
+                        <PaperInput
+                          label={`Item ${i + 1} HSN or SAC code`}
+                          inputMode="numeric"
+                          placeholder="9983"
+                          value={it.hsn ?? ''}
+                          maxLength={MAX_LEN.hsn}
+                          aria-invalid={(!!it.hsn && !!hsnProblem(it.hsn)) || undefined}
+                          onChange={(e) => setItem(it.id, { hsn: e.target.value.replace(/\D/g, '') })}
+                          className="w-20 text-xs"
+                        />
+                      </label>
+                      <label className="flex items-center gap-1.5">
+                        Unit
+                        <PaperInput label={`Item ${i + 1} unit`} placeholder="pcs" value={it.unit ?? ''} maxLength={MAX_LEN.unit} onChange={(e) => setItem(it.id, { unit: e.target.value })} className="w-14 text-xs" />
+                      </label>
+                      <select
+                        aria-label={`Item ${i + 1} GST rate`}
+                        value={it.gstRate ?? ''}
+                        onChange={(e) => setItem(it.id, { gstRate: e.target.value || undefined })}
+                        className={`${PAPER_SELECT} h-8 text-xs`}
+                      >
+                        <option value="">GST: invoice rate{inv.taxRate.trim() ? ` (${inv.taxRate.trim()}%)` : ''}</option>
+                        {GST_RATES.map((r) => (
+                          <option key={r} value={r}>
+                            GST {r}%
+                          </option>
+                        ))}
+                        {it.gstRate && !isListedGstRate(it.gstRate) && <option value={it.gstRate}>GST {it.gstRate}%</option>}
+                      </select>
+                      {it.hsn && hsnProblem(it.hsn) && <span className="font-medium text-[#B42318]">4, 6 or 8 digits (4 if turnover is up to ₹5 crore, 6 above)</span>}
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -704,9 +812,15 @@ export function InvoiceEditor() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setGstOther(false);
-                    set(v === 'none' ? { taxLabel: '', taxRate: '' } : { taxLabel: v, taxRate: v === 'GST' && !isListedGstRate(inv.taxRate) ? '' : inv.taxRate });
+                    set(
+                      v === 'none'
+                        ? { taxLabel: '', taxRate: '', docType: undefined }
+                        : v === 'composition'
+                          ? { taxLabel: '', taxRate: '', docType: 'bill_of_supply' }
+                          : { taxLabel: v, taxRate: v === 'GST' && !isListedGstRate(inv.taxRate) ? '' : inv.taxRate, docType: undefined },
+                    );
                   }}
-                  className={PAPER_SELECT}
+                  className={`${PAPER_SELECT} max-w-[8.5rem]`}
                 >
                   {TAX_LABELS.map((l) => (
                     <option key={l} value={l}>
@@ -714,6 +828,7 @@ export function InvoiceEditor() {
                     </option>
                   ))}
                   <option value="none">No tax</option>
+                  <option value="composition">Bill of Supply (composition)</option>
                 </select>
                 {taxType === 'GST' && !showOtherRate && (
                   <select
@@ -736,7 +851,7 @@ export function InvoiceEditor() {
                     <option value="other">Other…</option>
                   </select>
                 )}
-                {taxType !== 'none' && (taxType !== 'GST' || showOtherRate) && (
+                {taxType !== 'none' && taxType !== 'composition' && (taxType !== 'GST' || showOtherRate) && (
                   <>
                     <PaperInput id="tax-rate-other" label="Tax rate in percent" inputMode="decimal" placeholder="0" value={inv.taxRate} onChange={(e) => set({ taxRate: e.target.value })} className="w-16 text-right" />
                     <span aria-hidden="true">%</span>
@@ -751,12 +866,41 @@ export function InvoiceEditor() {
               <dd className="shrink-0 whitespace-nowrap tabular-nums">{taxType === 'none' ? '—' : money(totals.tax)}</dd>
             </div>
             {taxType === 'GST' && <p className={`text-xs ${PAPER_MUTED}`}>{GST_RATES_NOTE}</p>}
+            {totals.gst && (
+              <div className={`space-y-1 border-t border-dashed border-[#E3E7EF] pt-2 text-xs ${PAPER_MUTED}`} data-testid="gst-split">
+                {totals.gst.split === 'inter' ? (
+                  <div className="flex justify-between">
+                    <span>IGST</span>
+                    <span className="tabular-nums">{money(totals.gst.igst)}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>CGST</span>
+                      <span className="tabular-nums">{money(totals.gst.cgst)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{totals.gst.split === 'ut' ? 'UTGST' : 'SGST'}</span>
+                      <span className="tabular-nums">{money(totals.gst.sgst)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {gstWithoutGstin && (
+              <p className="text-xs font-medium text-[#B42318]" role="note">
+                Only GST-registered businesses can charge GST — add your GSTIN, or pick No tax.
+              </p>
+            )}
             <div className="flex justify-between gap-3 border-t-2 border-[#0C2248] pt-3 text-lg font-bold">
               <dt>Total</dt>
               <dd className="tabular-nums" data-testid="invoice-total">
                 {money(totals.total)}
               </dd>
             </div>
+            {inv.currency === 'INR' && totals.total > 0 && (taxInv || billOfSupply) && (
+              <p className={`text-xs ${PAPER_MUTED}`}>{rupeesInWords(totals.total)}</p>
+            )}
           </dl>
           {totals.problems.length > 0 && (
             <ul className="mt-3 space-y-1 text-sm font-medium text-[#B42318]">

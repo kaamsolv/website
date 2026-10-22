@@ -36,6 +36,13 @@
       "when": 1792610276735,
       "tag": "0004_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792649165744,
+      "tag": "0005_gst_invoice",
+      "breakpoints": true
     }
   ]
 }

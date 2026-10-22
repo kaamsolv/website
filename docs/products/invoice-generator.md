@@ -109,6 +109,33 @@ npm run test:e2e
 E2E saves screenshots and sample PDFs to `test-results/screenshots/`
 (gitignored).
 
+## GST tax invoice (Stage 2B — free)
+
+Sources: CGST Rule 46 (tax invoice particulars), Rule 49 (bill of supply),
+Notification 9/2025-CT(Rate) (rates from 22 Sept 2025), Notification
+78/2020-CT (HSN digits). Maths in `app/lib/invoice/gst-tax.ts` (tested in
+`test/gst.test.mts`).
+
+- **When:** valid seller GSTIN + INR + tax type GST → title **TAX INVOICE**.
+  GST without a GSTIN → note "Only GST-registered businesses can charge GST".
+  Composition (Business profile toggle, or "Bill of Supply (composition)" in
+  the tax menu) → **BILL OF SUPPLY**, the composition wording, no tax.
+- **Place of supply:** chosen, else client GSTIN state, else client state,
+  else seller state; "Outside India (export)" = code 96. Same state → CGST +
+  SGST; same UT without legislature (04, 26, 31, 35, 38) → CGST + UTGST;
+  otherwise IGST.
+- **Lines:** HSN/SAC (4/6/8 digits, soft hint), unit, own GST rate (blank =
+  invoice rate). Discount spread pro-rata over lines; tax per rate, rounded to
+  paise; last rate group takes the discount remainder so totals reconcile.
+- **PDF:** state lines, place of supply, reverse charge, HSN/GST columns,
+  CGST/SGST/UTGST/IGST lines, tax summary by rate, amount in words (INR),
+  "For ‹business› · Authorised signatory" with optional signature image. A
+  full 10-line tax invoice with ship-to and payment details fits one A4 page.
+- **Numbers:** tax invoice numbers ≤ 16 characters, letters/digits/-// (inline
+  message). The anonymous default is now `INV-YYMMDD-XXXX` (15 characters).
+- **Not done:** e-invoicing/IRN, online GSTIN lookup, cess, LUT/bond for
+  exports, credit/debit notes, round-off line.
+
 ## Paid tier (Stages 2–3 — not built)
 
 Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
@@ -116,8 +143,7 @@ Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_brand_color`, `invoice_quote_mode`, `invoice_recurring`,
 `invoice_csv_export`, `invoice_batch_csv`. All seeded on the `invoice_pro` plan.
 
-- Stage 2B (free): full GST tax invoice — place of supply, CGST+SGST vs IGST,
-  per-line HSN/SAC and rates, tax summary, Rule 46 particulars.
+- Stage 2B (free): **built** — see "GST tax invoice" above.
 - Stage 2C (Pro): footer-free, multi-page, templates, brand colour, quotations,
   recurring copies, CSV, and currency reference rates (Frankfurter / ECB —
   source to be approved).

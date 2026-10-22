@@ -52,9 +52,9 @@ function summaryOf(doc: Invoice) {
   };
 }
 
-/** The stored document never carries the logo (or the customer link, kept in its own column). */
-function storable(doc: Invoice): Omit<Invoice, 'logo' | 'customerId'> {
-  const { logo: _logo, customerId: _customerId, ...rest } = doc;
+/** The stored document never carries the logo or signature (they live on the profile), nor the customer link (its own column). */
+function storable(doc: Invoice): Omit<Invoice, 'logo' | 'customerId' | 'signature'> {
+  const { logo: _logo, customerId: _customerId, signature: _signature, ...rest } = doc;
   return rest;
 }
 
@@ -174,8 +174,8 @@ export async function deleteInvoice(db: Db, userId: string, id: string): Promise
 
 // ─── Business profile / Settings ─────────────────────────────────────────────
 
-/** Settings plus the logo and the ready-made next number (e.g. INV-0001). */
-export type BusinessProfile = Settings & { logo: string | null; nextNumber: string };
+/** Settings plus the logo, signature and the ready-made next number (e.g. INV-0001). */
+export type BusinessProfile = Settings & { logo: string | null; signature: string | null; nextNumber: string };
 
 export const DEFAULT_SETTINGS: Settings = {
   name: '',
@@ -197,6 +197,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultTaxRate: '',
   defaultDueDays: 14,
   defaultNotes: '',
+  composition: false,
 };
 
 export async function getProfile(db: Db, userId: string): Promise<BusinessProfile | null> {
@@ -229,6 +230,14 @@ export function isAcceptableLogo(logo: unknown): logo is string {
     logo.length <= LOGO_MAX_STORED_CHARS &&
     /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(logo)
   );
+}
+
+/** The authorised-signatory image (already validated with isAcceptableLogo, or null to remove). */
+export async function saveSignature(db: Db, userId: string, signature: string | null): Promise<void> {
+  await db
+    .insert(businessProfiles)
+    .values({ userId, signature, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: businessProfiles.userId, set: { signature, updatedAt: new Date() } });
 }
 
 export async function saveProfile(

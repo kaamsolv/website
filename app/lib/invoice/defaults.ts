@@ -12,10 +12,13 @@ export function addDays(iso: string, days: number): string {
   return isoDate(new Date(y, m - 1, d + days));
 }
 
-/** INV-20261021-4827 — date + 4 random digits; editable by the user. */
+/**
+ * INV-261021-4827 — date (YYMMDD) + 4 random digits; editable by the user.
+ * 15 characters: GST tax invoice numbers may be at most 16 (CGST Rule 46(b)).
+ */
 export function newInvoiceNumber(date: Date, random: () => number = Math.random): string {
   const digits = String(Math.floor(random() * 10_000)).padStart(4, '0');
-  return `INV-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${digits}`;
+  return `INV-${String(date.getFullYear()).slice(2)}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${digits}`;
 }
 
 let itemSeq = 0;

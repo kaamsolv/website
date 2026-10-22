@@ -24,8 +24,12 @@ const FAQ = [
     a: 'Without an account, your draft stays in this browser only — it isn’t uploaded, and a refresh doesn’t lose it. With a free account you can save up to 20 invoices, and your business details and logo are filled in for the next one.',
   },
   {
-    q: 'Is this a GST-compliant tax invoice?',
-    a: 'It’s a clean invoice with a tax line you can name GST, VAT or Tax. It doesn’t check GSTIN, HSN/SAC codes or e-invoicing rules — if you need a formal GST tax invoice, confirm the requirements with your accountant.',
+    q: 'Is this a GST tax invoice?',
+    a: 'Yes, when you add your GSTIN and charge GST in rupees: it becomes a “Tax Invoice” with place of supply, CGST + SGST or IGST worked out for you, HSN/SAC and GST rate on each line, a tax summary, the amount in words, reverse charge and a signatory line. On the composition scheme, pick “Bill of Supply”. It checks GSTINs for typos but can’t look them up online, and it doesn’t do e-invoicing (needed only above ₹5 crore turnover). It’s a helpful tool, not tax advice — check anything unusual with your accountant.',
+  },
+  {
+    q: 'Which GST rates are in the list?',
+    a: '0%, 0.25%, 3%, 5%, 18% and 40% — the rates after the GST changes of 22 September 2025, when 12% and 28% were folded into 5% and 18%. Pick “Other…” for anything else.',
   },
   {
     q: 'How are discount and tax worked out?',

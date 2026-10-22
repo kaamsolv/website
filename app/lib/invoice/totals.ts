@@ -1,3 +1,4 @@
+import { gstSummary, isBillOfSupply, isTaxInvoice, type GstSummary } from './gst-tax';
 import type { Invoice, LineItem } from './types';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -27,14 +28,20 @@ export type Totals = {
   total: number;
   /** Fields that couldn't be read; shown inline, never silently guessed. */
   problems: string[];
+  /** Present on a GST tax invoice: place of supply, split and per-rate rows (gst-tax.ts). */
+  gst?: GstSummary;
 };
+
+/** What the totals need. The GST fields are optional so plain invoices (and old ones) work unchanged. */
+export type TotalsInput = Pick<Invoice, 'items' | 'discountType' | 'discountValue' | 'taxRate'> &
+  Partial<Pick<Invoice, 'currency' | 'taxLabel' | 'seller' | 'client' | 'placeOfSupply' | 'docType'>>;
 
 /**
  * Subtotal → discount (flat, or % of subtotal; never more than the subtotal)
  * → tax on the discounted amount → total. Rounded to 2 decimals at each step,
  * the way invoices are written.
  */
-export function computeTotals(invoice: Pick<Invoice, 'items' | 'discountType' | 'discountValue' | 'taxRate'>): Totals {
+export function computeTotals(invoice: TotalsInput): Totals {
   const problems: string[] = [];
   const lines = invoice.items.map(lineAmount);
   lines.forEach((l, i) => {
@@ -53,6 +60,29 @@ export function computeTotals(invoice: Pick<Invoice, 'items' | 'discountType' | 
   }
 
   const taxable = round2(subtotal - discount);
+
+  // Composition scheme: a Bill of Supply carries no tax.
+  if (isBillOfSupply(invoice)) return { lines, subtotal, discount, taxable, tax: 0, total: taxable, problems };
+
+  // GST tax invoice: each line at its own rate (or the invoice's), split by place of supply.
+  if (invoice.currency && invoice.taxLabel !== undefined && invoice.seller && invoice.client) {
+    const ctx = { currency: invoice.currency, taxLabel: invoice.taxLabel, seller: invoice.seller, client: invoice.client, docType: invoice.docType, placeOfSupply: invoice.placeOfSupply };
+    if (isTaxInvoice(ctx)) {
+      const rates = invoice.items.map((it, i) => {
+        const raw = it.gstRate?.trim() ? it.gstRate : invoice.taxRate;
+        const r = parseNumber(raw);
+        if (!Number.isFinite(r) || r < 0 || r > 100) {
+          problems.push(`Item ${i + 1}: GST rate must be between 0 and 100%.`);
+          return 0;
+        }
+        return r;
+      });
+      const gst = gstSummary(ctx, lines.map((l) => l.amount), rates, discount);
+      const tax = round2(gst.cgst + gst.sgst + gst.igst);
+      return { lines, subtotal, discount, taxable, tax, total: round2(taxable + tax), problems, gst };
+    }
+  }
+
   const tr = parseNumber(invoice.taxRate);
   let tax = 0;
   if (!Number.isFinite(tr) || tr < 0 || tr > 100) problems.push('Tax rate must be between 0 and 100%.');

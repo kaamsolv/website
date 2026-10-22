@@ -56,7 +56,8 @@ test('currency formatting per code', () => {
 });
 
 test('invoice number and dates', () => {
-  assert.equal(newInvoiceNumber(new Date(2026, 9, 21), () => 0.4827), 'INV-20261021-4827');
+  assert.equal(newInvoiceNumber(new Date(2026, 9, 21), () => 0.4827), 'INV-261021-4827');
+  assert.ok(newInvoiceNumber(new Date(2026, 9, 21)).length <= 16, 'fits the GST 16-character limit');
   assert.equal(isoDate(new Date(2026, 9, 5)), '2026-10-05');
   assert.equal(addDays('2026-10-21', 14), '2026-11-04');
   assert.equal(addDays('2026-12-25', 14), '2027-01-08');

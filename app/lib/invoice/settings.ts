@@ -31,6 +31,8 @@ export type Settings = {
   defaultTaxRate: string;
   defaultDueDays: number;
   defaultNotes: string;
+  /** Composition scheme: documents are a Bill of Supply, with no tax (Stage 2B). */
+  composition: boolean;
 };
 
 export type Customer = {
@@ -119,6 +121,7 @@ export function cleanSettings(input: unknown): Cleaned<Settings> {
       defaultTaxRate,
       defaultDueDays,
       defaultNotes: text(r.defaultNotes, MAX_LEN.notes),
+      composition: r.composition === true,
     },
   };
 }

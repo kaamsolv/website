@@ -5,6 +5,22 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-22 — Stage 2B: GST tax invoice (free)
+
+**Decided by:** product owner (plan approved). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "GST tax invoice".
+
+- Free for everyone, no account: TAX INVOICE when the seller has a GSTIN and
+  charges GST in INR; BILL OF SUPPLY for composition sellers.
+- Follows CGST Rule 46 particulars; place of supply decides CGST+SGST / UTGST /
+  IGST; per-line GST rates and HSN/SAC; tax summary; amount in words.
+- Default anonymous invoice number shortened to `INV-YYMMDD-XXXX` (15 chars) to
+  fit the 16-character GST rule.
+- Business profile gains composition + optional signature (migration 0005).
+- Out of scope: e-invoicing, online GSTIN lookup, cess, LUT/bond, credit notes.
+
+---
+
 ## 2026-10-22 — Account hub: one account, a workspace per tool (paths, not subdomains)
 
 **Decided by:** product owner. Detail: [`products/accounts.md`](./products/accounts.md).

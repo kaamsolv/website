@@ -11,7 +11,7 @@ import { cleanSettings, type Settings } from '@/app/lib/invoice/settings';
 import { CURRENCIES } from '@/app/lib/invoice/types';
 import { formatSequentialNumber } from '@/app/lib/invoice/validate';
 
-type Form = Settings & { logo: string | null };
+type Form = Settings & { logo: string | null; signature: string | null };
 
 const SELECT = `${INPUT} pr-8`;
 
@@ -29,6 +29,7 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInput = useRef<HTMLInputElement>(null);
+  const signatureInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/settings', { credentials: 'same-origin', cache: 'no-store' })
@@ -60,7 +61,7 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       // Only the business profile owns the logo; the invoice part leaves it untouched.
-      body: JSON.stringify(part === 'business' ? { ...checked.value, logo: form!.logo } : checked.value),
+      body: JSON.stringify(part === 'business' ? { ...checked.value, logo: form!.logo, signature: form!.signature ?? null } : checked.value),
     }).catch(() => null);
     const body = (await res?.json().catch(() => ({}))) as { errors?: Record<string, string> } | undefined;
     if (!res?.ok) {
@@ -169,6 +170,54 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
         </div>
       </Section>
 
+      <Section title="GST and signing" intro="How your invoices are titled and signed.">
+        <label className="flex items-start gap-3 text-sm text-strong">
+          <input type="checkbox" checked={!!form.composition} onChange={(e) => set({ composition: e.target.checked })} className="mt-0.5 h-5 w-5 accent-[#FE6336]" />
+          <span>
+            I’m under the GST composition scheme
+            <span className="block text-xs text-muted">Your documents become a “Bill of Supply” with no tax, as composition sellers can’t collect GST.</span>
+          </span>
+        </label>
+        <div>
+          <p className="text-sm font-semibold text-ink">Signature (optional)</p>
+          <p className="text-xs text-muted">Printed above “Authorised signatory” on tax invoices. Without one, there’s a line to sign by hand.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-4">
+            {form.signature ? (
+              // eslint-disable-next-line @next/next/no-img-element -- data URL
+              <img src={form.signature} alt="Your signature" className="max-h-12 max-w-[160px] rounded bg-white object-contain p-1" />
+            ) : (
+              <span className="text-sm text-muted">No signature yet</span>
+            )}
+            <button type="button" onClick={() => signatureInput.current?.click()} className={SECONDARY}>
+              {form.signature ? 'Change signature' : 'Add signature'}
+            </button>
+            {form.signature && (
+              <button type="button" onClick={() => set({ signature: null })} className="text-sm font-semibold underline">
+                Remove
+              </button>
+            )}
+            <input
+              ref={signatureInput}
+              type="file"
+              accept={LOGO_TYPES.join(',')}
+              className="sr-only"
+              aria-label="Choose a signature image"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                try {
+                  setLogoError(null);
+                  set({ signature: await readLogo(f) });
+                } catch (err) {
+                  setLogoError(err instanceof Error ? err.message : 'Couldn’t read that image.');
+                }
+              }}
+            />
+          </div>
+        </div>
+      </Section>
+
       <Section title="Getting paid" intro="Printed as “Payment details” on your invoices. Leave blank to skip.">
         {field('bankAccountName', 'Account name', text('bankAccountName', { max: MAX_LEN.bankAccountName }))}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -210,6 +259,9 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
         <p className="text-sm text-muted">
           Next invoice: <strong className="text-ink">{formatSequentialNumber(form.nextSequence || 1, form.invoicePrefix)}</strong>
         </p>
+        {formatSequentialNumber(form.nextSequence || 1, form.invoicePrefix).length > 16 && (
+          <p className="text-sm font-medium text-danger-600">GST tax invoice numbers can be at most 16 characters — use a shorter prefix.</p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           {field(
             'defaultCurrency',

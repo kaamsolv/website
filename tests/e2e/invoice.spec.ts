@@ -45,7 +45,7 @@ async function fillSample(page: Page) {
   await page.getByLabel('Item 3 quantity').fill('5');
   await page.getByLabel('Item 3 rate').fill('2000');
   await page.getByLabel('Discount', { exact: true }).fill('10');
-  await page.getByLabel('GST rate').selectOption('18');
+  await page.getByLabel('GST rate', { exact: true }).selectOption('18');
   await page.getByLabel('Notes or payment details').fill('Bank: HDFC Bank, A/c 50100123456789, IFSC HDFC0001234\nUPI: sharmadesign@okhdfc');
 }
 

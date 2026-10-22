@@ -42,7 +42,7 @@ test('GST rate dropdown: post-22 Sept 2025 slabs, Other… box, note on screen o
   await page.getByLabel('Item 1 description').fill('Design');
   await page.getByLabel('Item 1 rate').fill('1000');
 
-  const rate = page.getByLabel('GST rate');
+  const rate = page.getByLabel('GST rate', { exact: true });
   await expect(rate.locator('option')).toHaveText(['Choose rate', '0%', '0.25%', '3%', '5%', '18%', '40%', 'Other…']);
   await expect(page.getByText('GST rates follow the changes from 22 September 2025.')).toBeVisible();
   await rate.selectOption('18');
@@ -55,7 +55,7 @@ test('GST rate dropdown: post-22 Sept 2025 slabs, Other… box, note on screen o
   await page.getByLabel('Tax type').selectOption('none');
   await expect(page.getByTestId('invoice-total')).toHaveText('₹1,000.00');
   await page.getByLabel('Tax type').selectOption('GST');
-  await page.getByLabel('GST rate').selectOption('5');
+  await page.getByLabel('GST rate', { exact: true }).selectOption('5');
 
   const text = await downloadPdf(page);
   expect(text).toContain('GST (5%)');
@@ -104,7 +104,7 @@ test('Settings: inline errors, then every new invoice starts from them — and t
   await expect(page.getByLabel('Invoice number')).toHaveValue('KS-0007');
   await expect(page.getByLabel('Your business name')).toHaveValue('Sharma Design Studio');
   await expect(page.getByLabel('Your GSTIN')).toHaveValue(VALID_GSTIN);
-  await expect(page.getByLabel('GST rate')).toHaveValue('18');
+  await expect(page.getByLabel('GST rate', { exact: true })).toHaveValue('18');
   await expect(page.getByLabel('IFSC')).toHaveValue('HDFC0001234');
   await page.getByLabel('Client name').fill('Acme Traders');
   await page.getByLabel('Client GSTIN').fill('29AAGCB7383J1Z4');
@@ -112,7 +112,7 @@ test('Settings: inline errors, then every new invoice starts from them — and t
   await page.getByLabel('Item 1 rate').fill('25000');
 
   const text = await downloadPdf(page);
-  for (const s of [`GSTIN ${VALID_GSTIN}`, 'GSTIN 29AAGCB7383J1Z4', 'PAYMENT DETAILS', 'A/c no.: 50100123456789', 'IFSC: HDFC0001234', 'UPI: sharma@okhdfc', 'Scan to pay with any UPI app', 'GST (18%)', '₹29,500.00']) {
+  for (const s of [`GSTIN ${VALID_GSTIN}`, 'GSTIN 29AAGCB7383J1Z4', 'PAYMENT DETAILS', 'A/c no.: 50100123456789', 'IFSC: HDFC0001234', 'UPI: sharma@okhdfc', 'Scan to pay with any UPI app', 'TAX INVOICE', 'IGST ₹4,500.00', '₹29,500.00']) {
     expect(text, s).toContain(s);
   }
 });
@@ -153,7 +153,7 @@ test('items: save one, then picking it on the invoice fills the rate', async ({ 
   await page.getByRole('button', { name: 'Save item' }).click();
   await expect(page.getByText('HSN/SAC codes are 4, 6 or 8 digits.')).toBeVisible();
   await page.getByLabel('HSN / SAC code').fill('998391');
-  await page.getByLabel('GST rate').selectOption('18');
+  await page.getByLabel('GST rate', { exact: true }).selectOption('18');
   await page.getByRole('button', { name: 'Save item' }).click();
   await expect(page.getByText('HSN/SAC 998391 · ₹15000 · GST 18%')).toBeVisible();
 
