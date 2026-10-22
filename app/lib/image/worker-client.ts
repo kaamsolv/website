@@ -1,7 +1,8 @@
+import { decodeHeicBlob } from './codecs/decode';
 import { userMessageForCode, type ImageErrorCode } from './errors';
 import { runConversionPipeline, supportsWebpEncodeInContext } from './pipeline';
 import { runTargetPipeline, type TargetJob } from './target-pipeline';
-import { canProcess } from './registry/capabilities';
+import { canProcess, getFormat } from './registry/capabilities';
 import type { FormatId } from './registry/format-registry';
 import type { ConvertOptions, ConvertProgress, ConvertResult, OutputFormat } from './types';
 import { DEFAULT_CONVERT_OPTIONS } from './types';
@@ -25,6 +26,30 @@ function getWorker(): Worker | null {
 export function terminateConversionWorker(): void {
   worker?.terminate();
   worker = null;
+}
+
+type PreparedInput =
+  | { ok: true; buffer: ArrayBuffer; from: FormatId }
+  | { ok: false; code: ImageErrorCode; message: string };
+
+/**
+ * HEIC can't be decoded inside the worker (heic2any needs `window`; see
+ * decodeHeicBlob), so turn it into a JPEG here first. The worker then handles
+ * it like any other JPEG. Every other format passes through untouched.
+ */
+async function prepareInput(
+  buffer: ArrayBuffer,
+  from: FormatId,
+  onHeicDecode?: () => void,
+): Promise<PreparedInput> {
+  if (getFormat(from).decoder !== 'wasm-heic') return { ok: true, buffer, from };
+  onHeicDecode?.();
+  try {
+    const jpeg = await decodeHeicBlob(new Blob([buffer], { type: getFormat(from).mimeTypes[0] }));
+    return { ok: true, buffer: await jpeg.arrayBuffer(), from: 'jpeg' };
+  } catch {
+    return { ok: false, code: 'heic-decode-failed', message: userMessageForCode('heic-decode-failed') };
+  }
 }
 
 function convertInWorker(
@@ -142,7 +167,12 @@ export async function convertImage(
   }
 
   const buffer = await file.arrayBuffer();
-  return convertInWorker(buffer, from, to, options, onProgress);
+  const inputBytes = buffer.byteLength;
+  const input = await prepareInput(buffer, from, () => onProgress?.({ stage: 'decoding' }));
+  if (!input.ok) return input;
+  const result = await convertInWorker(input.buffer, input.from, to, options, onProgress);
+  // Report the original file's size, not the intermediate JPEG's.
+  return result.ok ? { ...result, inputBytes } : result;
 }
 
 export function suggestedDownloadName(inputName: string, to: OutputFormat): string {
@@ -174,9 +204,11 @@ export async function fitImageToTarget(
 ): Promise<TargetResult> {
   const detected = await detectImageFile(file);
   if (!detected.ok) return { ok: false, code: detected.code, message: detected.message };
-  const from = detected.detected.format;
-  const buffer = await file.arrayBuffer();
-  const inputBytes = buffer.byteLength;
+  const original = await file.arrayBuffer();
+  const inputBytes = original.byteLength;
+  const input = await prepareInput(original, detected.detected.format, () => onProgress?.('decoding'));
+  if (!input.ok) return input;
+  const { buffer, from } = input;
 
   const w = getWorker();
   if (!w) {
