@@ -55,9 +55,27 @@ Collapsed by default. When enabled:
 
 `worker/convert.worker.ts` runs the pipeline off the main thread. Progress stages are truthful — no fake percentages.
 
+**Exception — HEIC is decoded on the main thread.** `heic2any` needs `window`
+and `document` (it starts its own decode worker and draws the result on a
+canvas), so it can't run inside our worker. `worker-client.ts` turns a HEIC
+file into a JPEG first (`prepareInput` → `decodeHeicBlob`), then sends that to
+the worker like any other JPEG. The heavy decoding still happens off the main
+thread, in heic2any's own worker. This applies to the converters, the Image
+Compressor and Resize image to KB. Until 2026-10-22, HEIC went straight to the
+worker and failed on every file with "window is not defined".
+
 ## WASM
 
-- **heic2any** — HEIC/HEIF decode only. Dynamically imported when a HEIC file is processed.
+- **heic2any** — HEIC/HEIF decode only, browser main thread only (see Web Worker above). Dynamically imported when a HEIC file is processed. The server build gets `app/lib/image/heic2any-server-stub.ts` instead (`turbopack.resolveAlias` in `next.config.mjs`), keeping it out of the Cloudflare Worker.
+
+## Tests
+
+- `npm test`: image unit tests (`test/image-*.test.mts`).
+- `tests/e2e/heic.spec.ts` (Playwright): a real HEIC converts to JPG and PNG
+  (size and colours checked), a broken HEIC shows the HEIC error, and the
+  compressor accepts HEIC. The fixture `tests/e2e/fixtures/photo.heic` is a real
+  HEIC laid out like an iPhone photo (2 × 2 grid of HEVC tiles). Regenerate it
+  with `node tests/e2e/fixtures/make-heic.mts` (needs ffmpeg with libx265).
 
 ## Limits
 

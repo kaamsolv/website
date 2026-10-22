@@ -6,10 +6,22 @@ import { getFormat } from '../registry/capabilities';
 import { userMessageForCode, type ImageErrorCode } from '../errors';
 import { MAX_IMAGE_DIMENSION, MAX_IMAGE_PIXELS } from '../types';
 
-async function decodeHeicBlob(blob: Blob): Promise<Blob> {
-  const heic2any = (await import('heic2any')).default;
-  const result = await heic2any({ blob, toType: 'image/jpeg', quality: 0.92 });
-  const out = Array.isArray(result) ? result[0] : result;
+/**
+ * HEIC → JPEG blob via heic2any. Main thread only: heic2any needs `window` and
+ * `document` (it starts its own decode worker and draws the result on a
+ * canvas), so worker-client.ts calls this before a job goes to the worker.
+ * heic2any rejects with plain `{ code, message }` objects, so every failure
+ * becomes one `heic-decode-failed` error.
+ */
+export async function decodeHeicBlob(blob: Blob): Promise<Blob> {
+  let out: unknown;
+  try {
+    const heic2any = (await import('heic2any')).default;
+    const result = await heic2any({ blob, toType: 'image/jpeg', quality: 0.92 });
+    out = Array.isArray(result) ? result[0] : result;
+  } catch {
+    out = null;
+  }
   if (!(out instanceof Blob)) {
     throw Object.assign(new Error('HEIC decode failed'), { code: 'heic-decode-failed' });
   }
