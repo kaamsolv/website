@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'Customers' };
 
 export default async function CustomersPage() {
   const user = await getCurrentUser(await headers());
-  if (!user) redirect('/login?next=%2Fapp%2Fcustomers');
+  if (!user) redirect('/login?next=%2Fapp%2Fbusiness%2Fcustomers');
   return (
     <AccountShell workspace title="Customers" intro="Save the people and businesses you bill once, then pick them on any invoice.">
       <DirectoryManager kind="customers" />

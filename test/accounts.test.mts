@@ -162,7 +162,7 @@ test('logo: only small PNG/JPEG/WebP data URLs are stored', () => {
 test('?next= only accepts same-site paths', () => {
   assert.equal(safeNextPath('/invoice-generator?id=1'), '/invoice-generator?id=1');
   for (const bad of ['//evil.com', '/\\evil.com', 'https://evil.com', '/\t/evil.com', 'javascript:alert(1)', '', null, 42]) {
-    assert.equal(safeNextPath(bad), '/app/invoices', String(bad));
+    assert.equal(safeNextPath(bad), '/app', String(bad));
   }
 });
 

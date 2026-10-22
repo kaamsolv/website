@@ -83,7 +83,7 @@ export function Dashboard() {
         <a href="/invoice-generator" className={SECONDARY}>
           + New invoice
         </a>
-        <a href="/app/customers" className={SECONDARY}>
+        <a href="/app/business/customers" className={SECONDARY}>
           + Add customer
         </a>
       </div>

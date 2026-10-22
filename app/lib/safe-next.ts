@@ -3,7 +3,8 @@
  * (no open redirect). Framework-free.
  */
 
-export const DEFAULT_AFTER_SIGN_IN = '/app/invoices';
+/** The account hub ("Your KaamSolv"). */
+export const DEFAULT_AFTER_SIGN_IN = '/app';
 
 export function safeNextPath(input: unknown, fallback: string = DEFAULT_AFTER_SIGN_IN): string {
   if (typeof input !== 'string' || input.length > 512) return fallback;

@@ -15,8 +15,15 @@ type Form = Settings & { logo: string | null };
 
 const SELECT = `${INPUT} pr-8`;
 
-/** Settings: business details, getting paid, invoice defaults. Checked as you save, field by field. */
-export function SettingsForm() {
+/**
+ * Settings, in two parts that share one record (/api/settings):
+ *   - "business": the business profile shared by all business tools
+ *     (details, GSTIN, logo, getting paid) — /app/business
+ *   - "invoice":  invoice numbering and defaults — /app/invoices/settings
+ * Each part shows only its own fields and sends the rest back unchanged.
+ * Checked as you save, field by field.
+ */
+export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
   const [form, setForm] = useState<Form | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -52,7 +59,8 @@ export function SettingsForm() {
       method: 'PUT',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...checked.value, logo: form!.logo }),
+      // Only the business profile owns the logo; the invoice part leaves it untouched.
+      body: JSON.stringify(part === 'business' ? { ...checked.value, logo: form!.logo } : checked.value),
     }).catch(() => null);
     const body = (await res?.json().catch(() => ({}))) as { errors?: Record<string, string> } | undefined;
     if (!res?.ok) {
@@ -96,6 +104,8 @@ export function SettingsForm() {
 
   return (
     <form onSubmit={onSave} noValidate className="space-y-8">
+      {part === 'business' && (
+      <>
       <Section title="Your business">
         <div className="flex items-center gap-4">
           {form.logo ? (
@@ -175,7 +185,11 @@ export function SettingsForm() {
         </label>
       </Section>
 
-      <Section title="Invoice defaults">
+      </>
+      )}
+
+      {part === 'invoice' && (
+      <Section title="Numbering and defaults">
         <div className="grid gap-4 sm:grid-cols-2">
           {field('invoicePrefix', 'Number prefix', text('invoicePrefix', { max: MAX_LEN.prefix }), 'e.g. INV- or KS/25-26/')}
           {field(
@@ -258,13 +272,14 @@ export function SettingsForm() {
           'Printed on every new invoice — you can still change it per invoice.',
         )}
       </Section>
+      )}
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-hair bg-canvas/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
         <button type="submit" disabled={state === 'saving'} className={PRIMARY}>
-          {state === 'saving' ? 'Saving…' : 'Save settings'}
+          {state === 'saving' ? 'Saving…' : part === 'business' ? 'Save business profile' : 'Save invoice settings'}
         </button>
         <span role="status" className={`text-sm font-medium ${state === 'error' ? 'text-danger-600' : 'text-muted'}`}>
-          {state === 'saved' ? 'Saved. New invoices will use these.' : state === 'error' ? 'Check the highlighted fields.' : ''}
+          {state === 'saved' ? (part === 'business' ? 'Saved. Your invoices will use these details.' : 'Saved. New invoices will use these.') : state === 'error' ? 'Check the highlighted fields.' : ''}
         </span>
       </div>
     </form>

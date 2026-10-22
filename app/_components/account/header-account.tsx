@@ -8,7 +8,7 @@ import { useMe } from '@/app/lib/me-client';
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 
 function loginHref(pathname: string | null) {
-  const here = pathname && pathname !== '/login' ? pathname : '/app/invoices';
+  const here = pathname && pathname !== '/login' ? pathname : '/app';
   return `/login?next=${encodeURIComponent(here)}`;
 }
 
@@ -58,9 +58,9 @@ export function HeaderAccount() {
         <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-xl2 border border-hair bg-surface p-2 shadow-lift">
           <p className="truncate px-3 py-2 text-xs text-muted">{me.user.email}</p>
           {[
-            ...(me.entitlements.keys.includes('invoice_dashboard') ? [['/app', 'Dashboard']] : []),
-            ['/app/invoices', 'My invoices'],
-            ['/app/settings', 'Settings'],
+            ['/app', 'Your KaamSolv'],
+            [me.entitlements.keys.includes('invoice_dashboard') ? '/app/invoices/overview' : '/app/invoices', 'Invoices'],
+            ['/app/business', 'Business profile'],
             ['/app/account', 'Account'],
           ].map(([href, label]) => (
             <a key={href} role="menuitem" href={href} className={`block rounded-lg px-3 py-2 text-sm font-medium text-strong hover:bg-wash ${FOCUS}`}>
@@ -99,11 +99,14 @@ export function MobileAccountLinks({ onNavigate }: { onNavigate: () => void }) {
   }
   return (
     <>
-      <a href="/app/invoices" onClick={onNavigate} className={row}>
-        My invoices
+      <a href="/app" onClick={onNavigate} className={row}>
+        Your KaamSolv
       </a>
-      <a href="/app/settings" onClick={onNavigate} className={row}>
-        Settings
+      <a href="/app/invoices" onClick={onNavigate} className={row}>
+        Invoices
+      </a>
+      <a href="/app/business" onClick={onNavigate} className={row}>
+        Business profile
       </a>
       <a href="/app/account" onClick={onNavigate} className={row}>
         Account

@@ -64,12 +64,14 @@ test('GST rate dropdown: post-22 Sept 2025 slabs, Other… box, note on screen o
 
 test('Settings: inline errors, then every new invoice starts from them — and the PDF shows GSTIN, payment details and the UPI QR', async ({ page }) => {
   await signIn(page, email('settings'));
+  // The old Settings URL now lands on the shared Business profile.
   await page.goto('/app/settings');
+  await expect(page).toHaveURL(/\/app\/business$/);
   await page.getByLabel('Business name').fill('Sharma Design Studio');
   await page.getByLabel('State').selectOption('27');
   await page.getByLabel('GSTIN').fill('27AAPFU0939F1ZX');
   await page.getByLabel('IFSC').fill('HDFC1');
-  await page.getByRole('button', { name: 'Save settings' }).click();
+  await page.getByRole('button', { name: 'Save business profile' }).click();
   await expect(page.getByText('That GSTIN has a typo')).toBeVisible();
   await expect(page.getByText('An IFSC looks like')).toBeVisible();
 
@@ -80,14 +82,23 @@ test('Settings: inline errors, then every new invoice starts from them — and t
   await page.getByLabel('Bank name').fill('HDFC Bank');
   await page.getByLabel('UPI ID').fill('sharma@okhdfc');
   await page.getByLabel('Show a “Scan to pay” UPI QR on rupee invoices').check();
+  await page.getByRole('button', { name: 'Save business profile' }).click();
+  await expect(page.getByText('Saved. Your invoices will use these details.')).toBeVisible();
+  await page.screenshot({ path: `${SHOTS}/workspace-business-desktop-light.png`, fullPage: true });
+
+  // Invoice numbering and defaults live under Invoices — and saving them keeps the business profile.
+  await page.goto('/app/invoices/settings');
+  await expect(page.getByLabel('Business name')).toHaveCount(0);
   await page.getByLabel('Number prefix').fill('KS-');
   await page.getByLabel('Next number').fill('7');
   await page.getByLabel('Rate').selectOption('18');
   await page.getByLabel('Days to pay').fill('30');
   await expect(page.getByText('Next invoice: KS-0007')).toBeVisible();
-  await page.getByRole('button', { name: 'Save settings' }).click();
+  await page.getByRole('button', { name: 'Save invoice settings' }).click();
   await expect(page.getByText('Saved. New invoices will use these.')).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/workspace-settings-desktop-light.png`, fullPage: true });
+  await page.goto('/app/business');
+  await expect(page.getByLabel('GSTIN')).toHaveValue(VALID_GSTIN);
+  await expect(page.getByLabel('UPI ID')).toHaveValue('sharma@okhdfc');
 
   await page.goto('/invoice-generator');
   await expect(page.getByLabel('Invoice number')).toHaveValue('KS-0007');
@@ -108,7 +119,8 @@ test('Settings: inline errors, then every new invoice starts from them — and t
 
 test('customers: free account saves 3, then a clear limit; pick one on the invoice; save a new one from the invoice', async ({ page }) => {
   await signIn(page, email('cust'));
-  await page.goto('/app/customers');
+  await page.goto('/app/customers'); // old URL → /app/business/customers
+  await expect(page).toHaveURL(/\/app\/business\/customers$/);
   for (const [i, name] of ['Alpha Foods', 'Beta Labs', 'Gamma Retail'].entries()) {
     await page.getByRole('button', { name: '+ Add customer' }).click();
     await page.getByLabel('Business or person').fill(name);
@@ -132,7 +144,8 @@ test('customers: free account saves 3, then a clear limit; pick one on the invoi
 
 test('items: save one, then picking it on the invoice fills the rate', async ({ page }) => {
   await signIn(page, email('items'));
-  await page.goto('/app/items');
+  await page.goto('/app/items'); // old URL → /app/business/items
+  await expect(page).toHaveURL(/\/app\/business\/items$/);
   await page.getByRole('button', { name: '+ Add item' }).click();
   await page.getByLabel('Name (as printed on the invoice)').fill('Logo design package');
   await page.getByLabel('HSN / SAC code').fill('12345');
@@ -167,11 +180,22 @@ test('another user’s customers and items are a 404; lists never mix', async ({
   await other.close();
 });
 
-test('free accounts: no Dashboard, no paid tracking', async ({ page }) => {
+test('hub for a free account: Invoices card says Free and x of 20; no Overview, no paid tracking, no billing yet', async ({ page }) => {
   await signIn(page, email('free'));
   await page.goto('/app');
+  await expect(page.getByRole('heading', { name: 'Your KaamSolv', level: 1 })).toBeVisible();
+  const card = page.getByRole('list', { name: 'Your tools' }).getByRole('listitem');
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText('Invoices');
+  await expect(card).toContainText('Free');
+  await expect(card).toContainText('0 of 3 saved'); // test-only save limit 3
+  await expect(page.getByText('Plans and billing')).toHaveCount(0);
+  await expect(page.getByText('Dashboard')).toHaveCount(0);
+  await page.goto('/app/invoices/overview');
   await expect(page).toHaveURL(/\/app\/invoices$/);
-  await expect(page.getByRole('navigation', { name: 'Your workspace' }).getByRole('link', { name: 'Dashboard' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Your workspace' }).getByRole('link', { name: 'Overview' })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Account menu for/ }).click();
+  await expect(page.getByRole('menu')).not.toContainText('Dashboard');
   expect((await page.request.get('/api/dashboard')).status()).toBe(403);
   await expect(page.getByRole('button', { name: /^Mark .* as paid$/ })).toHaveCount(0);
 });
@@ -192,7 +216,12 @@ test('Pro: dashboard totals, overdue, and marking paid', async ({ page }) => {
   await mk('P-2', daysAgo(60), daysAgo(45), '500'); // overdue
 
   await page.goto('/app');
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  const card = page.getByRole('list', { name: 'Your tools' }).getByRole('listitem');
+  await expect(card).toContainText('Pro');
+  await expect(card).toContainText('₹1,500.00 unpaid');
+  await card.getByRole('link', { name: /Open invoices/ }).click();
+  await expect(page).toHaveURL(/\/app\/invoices\/overview$/);
+  await expect(page.getByRole('heading', { name: 'Invoices overview' })).toBeVisible();
   await expect(page.getByText('Billed this month')).toBeVisible();
   await expect(page.getByText('1 invoice past due')).toBeVisible();
   await expect(page.getByText('Overdue', { exact: true }).first()).toBeVisible();
@@ -201,7 +230,7 @@ test('Pro: dashboard totals, overdue, and marking paid', async ({ page }) => {
   await page.goto('/app/invoices');
   await page.getByRole('button', { name: 'Mark P-2 as paid' }).click();
   await expect(page.getByText('P-2 marked paid.')).toBeVisible();
-  await page.goto('/app');
+  await page.goto('/app/invoices/overview');
   await expect(page.getByText('Nothing past due')).toBeVisible();
 });
 
@@ -218,12 +247,12 @@ for (const scheme of ['light', 'dark'] as const) {
         data: { name: 'Sharma Design Studio', stateCode: '27', gstin: VALID_GSTIN, bankAccountName: 'Sharma Design Studio', bankAccountNumber: '50100123456789', bankIfsc: 'HDFC0001234', bankName: 'HDFC Bank', upiId: 'sharma@okhdfc', showUpiQr: true, invoicePrefix: 'INV-', nextSequence: 1, defaultCurrency: 'INR', defaultTaxLabel: 'GST', defaultTaxRate: '18', defaultDueDays: 14, defaultNotes: '' },
       });
 
-      for (const path of ['/app/settings', '/app/customers', '/app/items', '/app']) {
+      for (const path of ['/app', '/app/business', '/app/business/customers', '/app/business/items', '/app/invoices/overview', '/app/invoices/settings']) {
         await page.goto(path);
         await page.waitForLoadState('networkidle');
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         expect(overflow, `${path} sideways scroll`).toBeLessThanOrEqual(0);
-        await page.screenshot({ path: `${SHOTS}/workspace-${path.split('/').pop() || 'dashboard'}-${label}-${scheme}.png`, fullPage: true });
+        await page.screenshot({ path: `${SHOTS}/workspace-${path.slice(1).replace(/\//g, '-')}-${label}-${scheme}.png`, fullPage: true });
       }
 
       await page.goto('/invoice-generator');

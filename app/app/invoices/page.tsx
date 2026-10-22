@@ -6,7 +6,7 @@ import { InvoiceList } from '@/app/_components/account/invoice-list';
 import { getCurrentUser } from '@/app/lib/session';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'My invoices' };
+export const metadata: Metadata = { title: 'All invoices' };
 
 export default async function MyInvoicesPage() {
   const user = await getCurrentUser(await headers());
@@ -15,7 +15,7 @@ export default async function MyInvoicesPage() {
   return (
     <AccountShell
       workspace
-      title="My invoices"
+      title="All invoices"
       intro="Open one to keep editing, make a copy for next month, or download it again."
       actions={
         <a href="/invoice-generator" className={PRIMARY}>

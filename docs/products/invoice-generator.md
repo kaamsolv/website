@@ -40,13 +40,15 @@ The logo is stored once, on the business profile — never inside an invoice.
 - **Payment details (everyone):** account name/number, IFSC, bank, UPI, and an
   optional “Scan to pay” UPI QR (rupee invoices; `upi://pay` link with the total,
   built with the QR tool's own builder) printed in a Payment details block.
-- **Settings (free account):** business details, state, GSTIN, getting paid,
-  number prefix + next number, default currency/tax/days-to-pay/notes. New
-  invoices start from them.
+- **Business profile (free account, shared — `/app/business`):** business
+  details, state, GSTIN, logo, getting paid. **Invoice settings
+  (`/app/invoices/settings`):** number prefix + next number, default
+  currency/tax/days-to-pay/notes. New invoices start from both.
 - **Customers (free: 3) and items (free):** pick them by typing on the invoice
   (native suggestions); “Save as customer” from Bill to.
-- **Pro:** Dashboard (billed this month, unpaid, overdue per currency, recent)
-  and Mark as paid in the editor and the list.
+- **Pro:** Invoices → Overview (`/app/invoices/overview`: billed this month,
+  unpaid, overdue per currency, recent) and Mark as paid in the editor and the
+  list.
 
 ## Free tier (Phase 1)
 

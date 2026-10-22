@@ -41,6 +41,10 @@ const nextConfig = {
         destination: 'https://kaamsolv.com/:path*',
         permanent: true,
       },
+      // Account pages moved into the per-tool / shared structure (docs/products/accounts.md).
+      { source: '/app/customers', destination: '/app/business/customers', permanent: true },
+      { source: '/app/items', destination: '/app/business/items', permanent: true },
+      { source: '/app/settings', destination: '/app/business', permanent: true },
     ];
   },
 };

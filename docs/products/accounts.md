@@ -118,10 +118,33 @@ endpoint behind it is server-only and re-checks. **Never** a Worker secret.
 
 ## Pages
 
-`/login` (and `/signup` → `/login`). Workspace (sidebar on desktop, tab bar on
-phones): `/app` (Dashboard — Pro; everyone else → `/app/invoices`),
-`/app/invoices`, `/app/customers`, `/app/items`, `/app/settings`, `/app/account`.
-All `noindex`; `/app/*` redirect signed-out visitors to `/login?next=…`.
+One KaamSolv account; **a workspace per tool**, each with its own plan; business
+details shared by all business tools. Paths inside kaamsolv.com, not subdomains
+(one cookie, one origin for drafts, one place for plans and billing — DECISIONS
+2026-10-22).
+
+```
+/app                         Your KaamSolv — hub: a card per tool you use, its plan
+/app/invoices                Invoices → All invoices
+/app/invoices/overview       Invoices → Overview (Pro: billed, unpaid, overdue)
+/app/invoices/settings       Invoices → Invoice settings (numbering, defaults)
+/app/business                Shared → Business profile (details, GSTIN, logo, bank/UPI)
+/app/business/customers      Shared → Customers (free: 3)
+/app/business/items          Shared → Items
+/app/account                 Account (sign out, delete)
+```
+
+- The hub only shows tools that really have account features (Invoices today);
+  new tools join as they get accounts. "Plans and billing" arrives with payments.
+- Sidebar groups: Your KaamSolv · Tools (a tool's pages show while you're in
+  it) · Shared · Account. Pro-only pages appear only for Pro.
+- Header menu: Your KaamSolv · Invoices · Business profile · Account · Sign out.
+- Business profile and Invoice settings are two views of one record
+  (`/api/settings`); each sends the other's fields back unchanged.
+- Old URLs redirect permanently (`/app/customers`, `/app/items`, `/app/settings`).
+- Sign-in lands on `/app` unless `next=` says otherwise. `/login` (and
+  `/signup` → `/login`). All `noindex`; `/app/*` redirect signed-out visitors to
+  `/login?next=…`.
 
 ## Granting Pro by hand
 

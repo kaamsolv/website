@@ -5,6 +5,24 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-22 — Account hub: one account, a workspace per tool (paths, not subdomains)
+
+**Decided by:** product owner. Detail: [`products/accounts.md`](./products/accounts.md).
+
+- `/app` is "Your KaamSolv": a card per tool with its own plan. The Stage 2A
+  "Dashboard" became **Invoices → Overview** (`/app/invoices/overview`).
+- Business profile, customers and items are **shared** (`/app/business/*`) so
+  quotations, receipts and UPI QR codes can reuse them; invoice numbering and
+  defaults moved to **Invoice settings**.
+- **Paths, not subdomains** (`invoice.kaamsolv.com` considered): subdomains
+  would need cross-subdomain cookies and auth origins, split browser drafts
+  between origins, and scatter plans/billing. An optional redirect from
+  `invoice.kaamsolv.com` can be added later as a Cloudflare rule.
+- Each tool keeps its own subscription; a later all-tools bundle is just
+  another plan. No database change.
+
+---
+
 ## 2026-10-22 — Invoice Pro, Stage 2A: workspace + GST rate dropdown
 
 **Decided by:** product owner. Detail: [`products/accounts.md`](./products/accounts.md),
