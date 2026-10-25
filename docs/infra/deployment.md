@@ -80,10 +80,15 @@ Either run `npm run cf:deploy` from a clean `main`, or connect the repo once in
 - Build command: `npx opennextjs-cloudflare build`
 - Deploy command: `npx opennextjs-cloudflare deploy`
 
-`NEXT_PUBLIC_GA_ID` is inlined **while the build runs**. With `npm run cf:deploy` it
-must be in the environment of the shell that runs it. With Workers Builds it must be
-added under Settings → Builds → **Build variables and secrets** (not the runtime
-"Variables and secrets", which the build cannot see). Changing it needs a new build.
+`NEXT_PUBLIC_GA_ID` is inlined **while the build runs**. It lives in the committed
+`.env.production` (a public ID, not a secret), which `next build` reads, so every
+build picks it up: `npm run cf:deploy` from any checkout, and Workers Builds. A shell
+variable (or, for Workers Builds, a build variable under Settings → Builds → **Build
+variables and secrets**, not the runtime "Variables and secrets") overrides it. After
+the build, `npm run cf:deploy` runs `scripts/check-analytics-build.mts`, which stops
+the deploy unless the resolved ID is actually in the built client files. Workers Builds
+runs `npx opennextjs-cloudflare build/deploy` directly and so skips that check; rely on
+`.env.production` there and run the post-deploy check in `docs/ANALYTICS.md`.
 
 Rollback: Workers & Pages → kaamsolv → Deployments → roll back to a previous
 version (instant), or `npx wrangler rollback`.
@@ -136,7 +141,7 @@ Local dev needs none of them — see [`.env.example`](../../.env.example).
 | `BETTER_AUTH_SECRET` | **to set** (accounts) | Signs session cookies and encrypts auth data. Required in production — a missing value fails loudly. Long random string (`openssl rand -base64 48`). Changing it signs everyone out. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **to set** (accounts) | Google OAuth web client. The "Continue with Google" button appears only when both are set. Redirect URI: `https://kaamsolv.com/api/auth/callback/google`. |
 | `RESEND_API_KEY` | **to set** (accounts) | Sends sign-in links from `login@send.kaamsolv.com`. Missing in production → logged, email not sent. |
-| `NEXT_PUBLIC_GA_ID` | **to set** (analytics) | GA4 Measurement ID (`G-…`, not a secret). **Build-time**: Next inlines it when `npm run cf:deploy` builds, so set it in the shell (or `.env.production`) of the machine that runs the deploy — **not** with `wrangler secret`. Unset → no analytics code runs. See [`../ANALYTICS.md`](../ANALYTICS.md). |
+| `NEXT_PUBLIC_GA_ID` | **to set** (analytics) | GA4 Measurement ID (`G-…`, not a secret). **Build-time**, and **set** in the committed `.env.production` (2026-10-25), so no Worker secret or deploy-time variable is needed. A shell variable overrides it for one build. Unset → no analytics code runs. `cf:deploy` verifies it reached the build. See [`../ANALYTICS.md`](../ANALYTICS.md). |
 | `BETTER_AUTH_URL` | not set | Optional; defaults to `https://kaamsolv.com` in production, `http://localhost:3000` in dev. |
 
 **Never** set `KK_E2E` or `KK_E2E_SECRET` as Worker secrets — they unlock the

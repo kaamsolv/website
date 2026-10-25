@@ -61,12 +61,17 @@ Cloudflare auto-injects `static.cloudflareinsights.com/beacon.min.js` (checked o
 ## Deploy
 
 1. Create the GA4 property and copy the Measurement ID (`G-…`). Leave Google signals off in the property too.
-2. `NEXT_PUBLIC_GA_ID` is read at **build** time (Next inlines it). Local deploy: `$env:NEXT_PUBLIC_GA_ID='G-XXXXXXX'; npm.cmd run cf:deploy` (or `.env.production`). Workers Builds: add it as a **build** variable. It is not a Worker secret, and changing it needs a new build.
+2. **The ID lives in the committed `.env.production`** (`NEXT_PUBLIC_GA_ID=G-…`), read when the site is built (Next inlines it), so a normal `npm.cmd run cf:deploy` needs nothing else. It's public, not a Worker secret; changing it needs a new build.
+   - **Precedence** (as `next build`): shell variable > `.env.production.local` > `.env.local` > `.env.production` > `.env`. Keep `NEXT_PUBLIC_GA_ID` out of `.env.local`. `next dev` and Playwright never read `.env.production`, so local dev and e2e send nothing.
+   - **`cf:deploy` check:** after the build, `scripts/check-analytics-build.mts` resolves the ID the same way and fails (the deploy command then never runs) if it's missing or malformed, or isn't in `.open-next/assets/_next/static`. Run it alone with `npx.cmd tsx scripts/check-analytics-build.mts`.
+   - **Different ID for one build** (for example a staging property): `$env:NEXT_PUBLIC_GA_ID='G-STAGING123'` for that build. The check then expects that ID.
+   - **Deploy deliberately without analytics:** set both `$env:NEXT_PUBLIC_GA_ID='off'` and `$env:KK_ALLOW_NO_ANALYTICS='1'`. Neither alone is enough, and the flag never skips the check when a real ID is set. Use `off`, not an empty value: PowerShell and cmd delete a variable set to empty, so `.env.production` would apply and analytics would stay on. In this mode the check also scans the build and fails if a GA ID is still inside it (a stale build made with analytics).
+   - **Workers Builds** runs `npx opennextjs-cloudflare build/deploy` directly, so it skips the check. It still gets the ID from `.env.production`; do the manual check in step 5.
 3. In the GA4 data stream → **Enhanced measurement**, turn off *Page changes based on browser history events*, *Outbound clicks*, *File downloads* and *Scroll* (or the whole toggle). Our own events cover outbound clicks and downloads; leaving them on would double-count, and the history one can send an extra `page_view` that our `send_page_view:false` doesn't stop.
 4. Check the bundle gzip stays under the free-plan 3 MB (measured 2,303 KiB with the ID set, 2026-10-25; check with `npx wrangler deploy --dry-run --outdir <dir>`).
 5. Open the live site in a private window: the banner shows, and no `googletagmanager` request appears in the Network tab until "Accept analytics".
 
-**Rollback:** redeploy without `NEXT_PUBLIC_GA_ID` (or `wrangler rollback`). The code goes completely inert. The Privacy page still describes analytics, so revert that too if analytics is removed for good.
+**Rollback:** `npx wrangler rollback`, or redeploy with `NEXT_PUBLIC_GA_ID=off` and `KK_ALLOW_NO_ANALYTICS=1` (see step 2). The code goes completely inert. The Privacy page still describes analytics, so revert that too if analytics is removed for good.
 
 ## Testing
 

@@ -24,6 +24,14 @@ infrastructure. Newest first. Detail lives in the linked docs.
   `tool_open`, `tool_success`, `tool_error`, `file_download`, `outbound_click`,
   with fixed-label parameters only. Never file names, contents, typed values,
   shortened URLs, invoice data or error messages. Detail: `docs/ANALYTICS.md`.
+- **The ID is committed in `.env.production`** (public, not a secret) so no
+  deploy depends on someone remembering a shell variable (2026-10-25: the first
+  deploy only worked because the variable was set in that one command).
+  `npm run cf:deploy` now runs `scripts/check-analytics-build.mts` between build
+  and deploy: it fails unless the ID resolved with Next's precedence is in the
+  built client files. Opting out needs `NEXT_PUBLIC_GA_ID=off` *and*
+  `KK_ALLOW_NO_ANALYTICS=1` (not an empty value, which PowerShell/cmd delete).
+  `cf:preview`, dev, tests and Playwright are unchanged.
 - **Cloudflare Web Analytics stays** (cookieless, auto-injected by Cloudflare;
   verified on the live site: `static.cloudflareinsights.com` beacon and
   `/cdn-cgi/rum`). It runs without asking because it uses no cookies or
