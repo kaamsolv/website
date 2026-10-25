@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEntitlements } from '@/app/lib/me-client';
 
-type Link = { href: string; label: string; pro?: boolean; sub?: boolean };
+type Link = { href: string; label: string; pro?: boolean; sub?: boolean; /** Shown only when the account has this entitlement. */ key?: 'invoice_batch_csv' };
 
 /**
  * The signed-in navigation, in groups: the hub, each tool (its own pages show
@@ -23,6 +23,7 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
           ? [
               { href: '/app/invoices/overview', label: 'Overview', pro: true, sub: true },
               { href: '/app/invoices', label: 'All invoices', sub: true },
+              { href: '/app/invoices/batch', label: 'From a CSV', sub: true, key: 'invoice_batch_csv' as const },
               { href: '/app/invoices/settings', label: 'Invoice settings', sub: true },
             ]
           : []),
@@ -43,7 +44,7 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
 export function WorkspaceNav() {
   const pathname = usePathname() ?? '';
   const { can } = useEntitlements();
-  const all = groups(pathname).map((g) => ({ ...g, links: g.links.filter((l) => !l.pro || can('invoice_dashboard')) }));
+  const all = groups(pathname).map((g) => ({ ...g, links: g.links.filter((l) => (!l.pro || can('invoice_dashboard')) && (!l.key || can(l.key))) }));
   // "Invoices" itself is current only when no sub-page is listed (outside Invoices).
   const isCurrent = (l: Link) => pathname === l.href && !(l.href === '/app/invoices' && !l.sub && pathname.startsWith('/app/invoices'));
 

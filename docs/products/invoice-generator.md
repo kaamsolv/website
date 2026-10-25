@@ -2,7 +2,8 @@
 
 **Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — free
 tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
-invoice (2B) deployed 2026-10-22. Pro Stage 2C-1 built, not deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+invoice (2B) deployed 2026-10-22; Pro Stages 2C-1 and 2C-2 deployed 2026-10-25
+(hidden until payments). Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -139,7 +140,7 @@ Notification 9/2025-CT(Rate) (rates from 22 Sept 2025), Notification
 - **Not done:** e-invoicing/IRN, online GSTIN lookup, cess, LUT/bond for
   exports, credit/debit notes, round-off line.
 
-## Pro — Stage 2C-1 (built, not deployed)
+## Pro — Stage 2C-1 (live, hidden until payments)
 
 Hidden from free accounts until Pro can be bought (Stage 3): no "Pro" tags, no
 "coming soon". Each feature is checked with `can()` in the editor, the PDF and
@@ -177,6 +178,69 @@ the API. Tests: `test/pro.test.mts`, `tests/e2e/pro.spec.ts`.
 - Data: migration `0006_pro_design_quotes.sql` (`invoices.kind`,
   `business_profiles.quote_prefix/quote_next_number/default_template/default_brand_color`).
 
+## Pro — Stage 2C-2 (live, hidden until payments)
+
+Same rules as 2C-1: hidden from free accounts, each feature checked with
+`can()` in the UI and on the server. Tests: `test/recurring.test.mts`,
+`tests/e2e/pro2.spec.ts`.
+
+- **Recurring** (`invoice_recurring`): a saved invoice (not a quotation) gets
+  **Repeat…** in the editor — weekly, monthly, every 3 months or yearly, with a
+  next date. It is a **reminder, not automation**: when the date arrives,
+  **Due to repeat** appears at the top of All invoices and Overview, with
+  **Create invoice** (next invoice number, today's date, the account's days to
+  pay, same client, lines and design) and **Skip this one**. No emails, no
+  cron — nothing is made until you press Create. The copy doesn't repeat; the
+  original's date moves on (past today, so a missed month doesn't pile up).
+  Month ends clamp (31 Jan → 28 Feb) and continue from there (→ 28 Mar); edit
+  the date by hand to go back to the 31st.
+  - **"Today" is the browser's own calendar date** (`isoDate(new Date())`, same
+    as the Overview). The server accepts it when it is a real date within one
+    day of server UTC (largest real offset is 14 h), so IST just after midnight
+    works and a far-off date can't skip a schedule. Next dates are plain
+    calendar arithmetic on `YYYY-MM-DD` (`app/lib/invoice/recurring.ts`).
+  - Create moves the schedule first in one compare-and-set, so a double click
+    or a second tab can't make two invoices (the second gets a calm 409); if
+    the copy can't be saved (limit) the schedule is put back.
+- **CSV export** (`invoice_csv_export`): All invoices → **Export CSV**, with
+  optional From / To (by issue date). **Invoices**: one row each — number,
+  type, dates, status, client, client GSTIN, place of supply, currency,
+  subtotal, discount, taxable value, CGST, SGST/UTGST, IGST, total. **Line
+  items** (the accountant's HSN view): one row per line — HSN/SAC, description,
+  unit, qty, rate, GST %, taxable value (after the invoice discount), tax.
+  Totals come from `computeTotals`, so they match the PDF. GST columns are
+  filled only for GST tax invoices (and GST quotes). UTF-8 with BOM; cells
+  starting `= + - @` are prefixed with `'` (CSV injection). Max 5,000
+  invoices (413 asks for a shorter range).
+- **Batch from a CSV** (`invoice_batch_csv`): **Invoices → From a CSV**
+  (`/app/invoices/batch`): download the template → upload → preview → create →
+  ZIP of PDFs. Rows with the same `group` are one invoice (a blank group is its
+  own); seller, tax, currency, payment details and design come from Settings.
+  Dates read as `2026-11-01` or `01/11/2026`. Reading and checking happen in
+  the browser (`app/lib/invoice/batch.ts`): a bad row (GSTIN, rate, GST rate,
+  HSN, date, state) blocks only its own invoice, with the line number. The
+  server re-checks with `cleanInvoice`, ignores any numbers and assigns the
+  account's next numbers in order; max 50 per batch, 1 MB file.
+  - **If the tab closes before the ZIP:** every invoice is already saved.
+    All invoices has Pro checkboxes and **Download N as ZIP** (the batch result
+    links there with the batch ticked). **Limitation:** re-uploading the same
+    file makes the invoices again (new numbers); the preview warns when a
+    client, total and date match one made in the last 24 hours. If the
+    connection drops mid-create, the page says to check All invoices first.
+- **Currency rates** (`invoice_fx_rates`): Frankfurter (`api.frankfurter.dev`,
+  free, no key, caching encouraged; the default blended rates, because the ECB
+  feed has no AED). `GET /api/fx` fetches on the server (Pro only), keeps it 6
+  hours, and fails soft. The editor shows "≈ ₹1,80,000 · 1 USD = ₹90.00 · rate
+  of 23 Oct · Frankfurter" with **Copy** (a rupee invoice gets "See in…"),
+  and Overview shows an "in rupees, roughly" line under each foreign-currency
+  block. **On screen only — never on the PDF**, never summed across currencies,
+  and labelled as a reference rate (GST on exports uses the notified rate).
+- Data: migration `0007_recurring.sql` (`invoices.recur_every`, `recur_next`,
+  check, partial index). Rollback is in [`infra/deployment.md`](../infra/deployment.md).
+- API: `PUT /api/invoices/:id/recurring`, `POST /api/invoices/:id/recur`,
+  `GET /api/invoices/due`, `GET /api/invoices/export`,
+  `POST /api/invoices/batch`, `GET /api/fx` (all Pro-gated).
+
 ## Paid tier (Stages 2–3)
 
 Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
@@ -186,8 +250,8 @@ Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 
 - Stage 2B (free): **built** — see "GST tax invoice" above.
 - Stage 2C-1 (Pro): **built** — see above.
-- Stage 2C-2 (Pro): recurring copies, CSV export, batch from CSV, currency
-  reference rates (Frankfurter / ECB, approved 2026-10-22).
+- Stage 2C-2 (Pro): **built** — recurring reminders, CSV export, batch from
+  CSV, currency reference rates (Frankfurter, approved 2026-10-22) — see above.
 - Stage 3 (payments): Razorpay (registered business); needs prices, Razorpay
   activation, and the GST status of the business.
 - Recurring = reminder + one-click copy each period; no emails to clients.

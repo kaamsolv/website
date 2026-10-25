@@ -1,13 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PRIMARY, SECONDARY } from './account-shell';
 import { StatusBadge } from './status-badge';
+import { RecurCard } from './recur-card';
 import { Segmented } from '../choice';
+import { zipInvoices } from '../invoice/pdf-zip';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from '../invoice/generate-pdf';
 import { downloadBlob } from '@/app/lib/image/export';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
 import { formatMoney } from '@/app/lib/invoice/money';
+import { RECUR_SHORT, isRecurEvery } from '@/app/lib/invoice/recurring';
 import { computeTotals } from '@/app/lib/invoice/totals';
 import type { CurrencyCode, Invoice } from '@/app/lib/invoice/types';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
@@ -22,6 +25,8 @@ type Summary = {
   dueDate: string | null;
   status: 'unpaid' | 'paid';
   kind: 'invoice' | 'quote';
+  recurEvery: string | null;
+  recurNext: string | null;
 };
 
 type Filter = 'all' | 'invoice' | 'quote';
@@ -37,6 +42,16 @@ export function InvoiceList() {
   const quotes = can('invoice_quote_mode');
   const designOk = can('invoice_templates') || can('invoice_brand_color');
   const [filter, setFilter] = useState<Filter>('all');
+  // Pro (Stage 2C-2): repeat reminders, CSV export, ZIP of PDFs. Hidden from free accounts.
+  const recurring = can('invoice_recurring');
+  const csvOk = can('invoice_csv_export');
+  const batchOk = can('invoice_batch_csv');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [zip, setZip] = useState<{ done: number; total: number } | null>(null);
+  const zipAbort = useRef<AbortController | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const today = isoDate(new Date());
   const [list, setList] = useState<Summary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +71,52 @@ export function InvoiceList() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Coming back from a batch (…?select=id,id): those invoices start ticked, ready for the ZIP.
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get('select');
+    if (!raw) return;
+    setSelected(new Set(raw.split(',').filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50)));
+  }, []);
+
+  async function downloadZip() {
+    const ids = (list ?? []).filter((x) => selected.has(x.id)).map((x) => x.id);
+    if (!ids.length) return;
+    setNotice(null);
+    const ctl = new AbortController();
+    zipAbort.current = ctl;
+    setZip({ done: 0, total: ids.length });
+    try {
+      const r = await zipInvoices(
+        ids,
+        { watermark: !can('invoice_watermark_remove'), design: designOk },
+        (done, total) => setZip({ done, total }),
+        ctl.signal,
+      );
+      downloadBlob(r.blob, `kaamsolv-invoices-${today}.zip`);
+      setNotice(r.skipped.length ? `Done — ${r.made} PDFs in the ZIP. ${r.skipped.length} couldn’t be made; try those one by one.` : `Done — ${r.made} PDFs in your ZIP.`);
+    } catch (e) {
+      setNotice(e instanceof DOMException && e.name === 'AbortError' ? 'Cancelled.' : 'Couldn’t make the ZIP. Try fewer at a time.');
+    } finally {
+      setZip(null);
+      zipAbort.current = null;
+    }
+  }
+
+  async function exportCsv(mode: 'invoices' | 'lines') {
+    setNotice(null);
+    setBusy(`export:${mode}`);
+    const q = new URLSearchParams({ mode, ...(from ? { from } : {}), ...(to ? { to } : {}) });
+    const res = await fetch(`/api/invoices/export?${q}`, { credentials: 'same-origin' }).catch(() => null);
+    setBusy(null);
+    if (!res?.ok) {
+      const body = (await res?.json().catch(() => ({}))) as { message?: string } | undefined;
+      setNotice(body?.message ?? 'Couldn’t make the CSV. Try again.');
+      return;
+    }
+    downloadBlob(await res.blob(), `kaamsolv-${mode === 'lines' ? 'invoice-lines' : 'invoices'}${from ? `-from-${from}` : ''}${to ? `-to-${to}` : ''}.csv`);
+    setNotice('Done — your CSV is downloading.');
+  }
 
   async function setStatus(inv: Summary) {
     const next = inv.status === 'paid' ? 'unpaid' : 'paid';
@@ -139,8 +200,79 @@ export function InvoiceList() {
     );
   }
 
+  const shownIds = (shown ?? []).map((x) => x.id);
+  const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selected.has(id));
+
   return (
     <div>
+      <RecurCard onChanged={load} />
+      {(csvOk || batchOk) && (
+        <div className="mb-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {csvOk && (
+              <button type="button" onClick={() => setExportOpen((o) => !o)} aria-expanded={exportOpen} aria-controls="export-panel" className={SECONDARY}>
+                Export CSV
+              </button>
+            )}
+            {batchOk && (
+              <a href="/app/invoices/batch" className={SECONDARY}>
+                Make from a CSV
+              </a>
+            )}
+            {batchOk && (
+              <>
+                <label className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-semibold text-strong">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-[#FE6336]"
+                    checked={allShownSelected}
+                    onChange={(e) => setSelected((cur) => {
+                      const next = new Set(cur);
+                      for (const id of shownIds) (e.target.checked ? next.add(id) : next.delete(id));
+                      return next;
+                    })}
+                  />
+                  Select all
+                </label>
+                {selected.size > 0 &&
+                  (zip ? (
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink" role="status">
+                      Making PDFs… {zip.done} of {zip.total}
+                      <button type="button" onClick={() => zipAbort.current?.abort()} className={ROW_BTN}>
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => void downloadZip()} className={SECONDARY}>
+                      Download {selected.size} as ZIP
+                    </button>
+                  ))}
+              </>
+            )}
+          </div>
+          {csvOk && exportOpen && (
+            <section id="export-panel" aria-label="Export to CSV" className="rounded-xl2 border border-hair bg-surface p-4">
+              <p className="text-sm text-muted">Opens in Excel or Google Sheets. Leave the dates blank for everything.</p>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <label className="text-sm font-semibold text-ink">
+                  From
+                  <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 block h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink" />
+                </label>
+                <label className="text-sm font-semibold text-ink">
+                  To
+                  <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 block h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink" />
+                </label>
+                <button type="button" disabled={busy !== null} onClick={() => void exportCsv('invoices')} className={PRIMARY}>
+                  {busy === 'export:invoices' ? 'Preparing…' : 'Invoices (one row each)'}
+                </button>
+                <button type="button" disabled={busy !== null} onClick={() => void exportCsv('lines')} className={SECONDARY}>
+                  {busy === 'export:lines' ? 'Preparing…' : 'Line items (HSN / SAC)'}
+                </button>
+              </div>
+            </section>
+          )}
+        </div>
+      )}
       {quotes && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Segmented<Filter>
@@ -174,7 +306,22 @@ export function InvoiceList() {
       )}
       <ul aria-label="Saved invoices" className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface empty:hidden">
         {(shown ?? []).map((inv) => (
-          <li key={inv.id} className="grid gap-2 p-4 md:grid-cols-[1fr_auto] md:items-center md:gap-4">
+          <li key={inv.id} className="flex items-start gap-3 p-4">
+            {batchOk && (
+              <input
+                type="checkbox"
+                aria-label={`Select ${inv.number}`}
+                className="mt-1 h-5 w-5 shrink-0 accent-[#FE6336]"
+                checked={selected.has(inv.id)}
+                onChange={(e) => setSelected((cur) => {
+                  const next = new Set(cur);
+                  if (e.target.checked) next.add(inv.id);
+                  else next.delete(inv.id);
+                  return next;
+                })}
+              />
+            )}
+            <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-[1fr_auto] md:items-center md:gap-4">
             <a href={`/invoice-generator?id=${inv.id}`} className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
               <span className="flex flex-wrap items-baseline gap-x-3">
                 <span className="font-semibold text-ink group-hover:underline">
@@ -190,6 +337,11 @@ export function InvoiceList() {
                 {tracking && inv.kind !== 'quote' && <StatusBadge status={inv.status} dueDate={inv.dueDate} today={today} />}
                 {inv.issueDate && <span>{displayDate(inv.issueDate)}</span>}
                 {inv.kind === 'quote' && inv.dueDate && <span>Valid until {displayDate(inv.dueDate)}</span>}
+                {recurring && inv.recurNext && isRecurEvery(inv.recurEvery) && (
+                  <span className="rounded-full border border-hair bg-wash px-2 py-0.5 text-xs font-semibold text-strong">
+                    {RECUR_SHORT[inv.recurEvery]} · next {displayDate(inv.recurNext)}
+                  </span>
+                )}
               </span>
             </a>
             <div className="-ml-3 flex flex-wrap gap-1 md:ml-0">
@@ -221,6 +373,7 @@ export function InvoiceList() {
               >
                 {busy === `delete:${inv.id}` ? 'Deleting…' : 'Delete'}
               </button>
+            </div>
             </div>
           </li>
         ))}

@@ -102,6 +102,10 @@ documents.
 | `GET/PUT/DELETE /api/invoices/:id` | one invoice |
 | `POST /api/invoices/:id/duplicate` | copy with next number and new dates (a quotation copies as the next quotation) |
 | `POST /api/invoices/:id/convert` | quotation → new invoice, next invoice number (Pro) |
+| `PUT /api/invoices/:id/recurring` · `POST /api/invoices/:id/recur` · `GET /api/invoices/due` | repeat schedule · Create/Skip a due reminder · what's due (Pro) |
+| `GET /api/invoices/export` | CSV of invoices or line items (Pro) |
+| `POST /api/invoices/batch` | up to 50 invoices from a CSV (Pro) |
+| `GET /api/fx` | currency reference rates, from Frankfurter (Pro) |
 | `GET/PUT /api/business-profile` | seller details + logo (the editor's save) |
 | `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
 | `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |

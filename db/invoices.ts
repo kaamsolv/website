@@ -6,11 +6,12 @@
  * read or change another's rows. Framework-free; takes an explicit `db`.
  */
 
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { computeTotals } from '../app/lib/invoice/totals.ts';
 import type { Settings } from '../app/lib/invoice/settings.ts';
 import { isTemplate } from '../app/lib/invoice/design.ts';
 import { addDays } from '../app/lib/invoice/defaults.ts';
+import { nextRecurAfter, type RecurEvery } from '../app/lib/invoice/recurring.ts';
 import { CURRENCIES, type Invoice } from '../app/lib/invoice/types.ts';
 import { formatSequentialNumber, sequenceOf } from '../app/lib/invoice/validate.ts';
 import type { Db } from './links.ts';
@@ -27,6 +28,9 @@ export type InvoiceSummary = {
   dueDate: string | null;
   status: 'unpaid' | 'paid';
   kind: string;
+  /** Pro recurring: how often, and when the reminder is due (null = doesn't repeat). */
+  recurEvery: string | null;
+  recurNext: string | null;
   updatedAt: Date;
 };
 
@@ -40,6 +44,8 @@ const SUMMARY_COLUMNS = {
   dueDate: invoices.dueDate,
   status: invoices.status,
   kind: invoices.kind,
+  recurEvery: invoices.recurEvery,
+  recurNext: invoices.recurNext,
   updatedAt: invoices.updatedAt,
 };
 
@@ -83,9 +89,18 @@ export async function getInvoice(
   db: Db,
   userId: string,
   id: string,
-): Promise<{ id: string; invoice: Invoice; status: 'unpaid' | 'paid'; paidAt: Date | null; updatedAt: Date } | null> {
+): Promise<{ id: string; invoice: Invoice; status: 'unpaid' | 'paid'; paidAt: Date | null; updatedAt: Date; recurEvery: string | null; recurNext: string | null } | null> {
   const [row] = await db
-    .select({ id: invoices.id, data: invoices.data, customerId: invoices.customerId, status: invoices.status, paidAt: invoices.paidAt, updatedAt: invoices.updatedAt })
+    .select({
+      id: invoices.id,
+      data: invoices.data,
+      customerId: invoices.customerId,
+      status: invoices.status,
+      paidAt: invoices.paidAt,
+      updatedAt: invoices.updatedAt,
+      recurEvery: invoices.recurEvery,
+      recurNext: invoices.recurNext,
+    })
     .from(invoices)
     .where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
   if (!row) return null;
@@ -95,6 +110,8 @@ export async function getInvoice(
     status: row.status,
     paidAt: row.paidAt,
     updatedAt: row.updatedAt,
+    recurEvery: row.recurEvery,
+    recurNext: row.recurNext,
   };
 }
 
@@ -323,4 +340,128 @@ export async function convertQuote(
     dueDate: addDays(issueDate, profile?.defaultDueDays ?? 14),
   };
   return createInvoice(db, userId, invoice, limit);
+}
+
+// ─── Recurring (Pro, Stage 2C-2) ─────────────────────────────────────────────
+
+/** Set or clear how an invoice repeats. Quotations never repeat. False if it isn't this user's invoice. */
+export async function setRecurring(db: Db, userId: string, id: string, schedule: { every: RecurEvery; next: string } | null): Promise<boolean> {
+  const rows = await db
+    .update(invoices)
+    .set({ recurEvery: schedule?.every ?? null, recurNext: schedule?.next ?? null })
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId), eq(invoices.kind, 'invoice')))
+    .returning({ id: invoices.id });
+  return rows.length > 0;
+}
+
+/** Invoices whose reminder is due on or before `today`, oldest first. */
+export async function listDueToRecur(db: Db, userId: string, today: string): Promise<InvoiceSummary[]> {
+  return db
+    .select(SUMMARY_COLUMNS)
+    .from(invoices)
+    .where(and(eq(invoices.userId, userId), eq(invoices.kind, 'invoice'), sql`${invoices.recurNext} <= ${today}::date`))
+    .orderBy(invoices.recurNext)
+    .limit(50);
+}
+
+export type RecurResult = { ok: true; id: string | null; next: string } | { ok: false; reason: 'not_found' | 'not_due' | 'limit' };
+
+/**
+ * "Due to repeat" → Create or Skip. The schedule moves on first, in one
+ * compare-and-set (`recur_next` must still be the date the caller saw), so a
+ * double click or two tabs can't create the invoice twice. Create then makes a
+ * copy — next invoice number, `today`, the account's days to pay — and puts the
+ * schedule back if the copy can't be saved. The copy does not itself repeat.
+ */
+export async function recurInvoice(
+  db: Db,
+  userId: string,
+  id: string,
+  action: 'create' | 'skip',
+  today: string,
+  limit: number | null,
+): Promise<RecurResult> {
+  const [row] = await db
+    .select({ every: invoices.recurEvery, next: invoices.recurNext })
+    .from(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId), eq(invoices.kind, 'invoice')));
+  if (!row) return { ok: false, reason: 'not_found' };
+  if (!row.every || !row.next) return { ok: false, reason: 'not_found' };
+  if (row.next > today) return { ok: false, reason: 'not_due' };
+
+  const next = nextRecurAfter(row.next, row.every as RecurEvery, today);
+  const moved = await db
+    .update(invoices)
+    .set({ recurNext: next })
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId), sql`${invoices.recurNext} = ${row.next}::date`))
+    .returning({ id: invoices.id });
+  if (!moved.length) return { ok: false, reason: 'not_due' };
+  if (action === 'skip') return { ok: true, id: null, next };
+
+  const source = await getInvoice(db, userId, id);
+  const profile = await getProfile(db, userId);
+  if (!source) return { ok: false, reason: 'not_found' };
+  const copy: Invoice = {
+    ...source.invoice,
+    kind: undefined,
+    number: profile?.nextNumber ?? formatSequentialNumber(1),
+    issueDate: today,
+    dueDate: addDays(today, profile?.defaultDueDays ?? 14),
+  };
+  const created = await createInvoice(db, userId, copy, limit);
+  if (!created.ok) {
+    await db.update(invoices).set({ recurNext: row.next }).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+    return { ok: false, reason: 'limit' };
+  }
+  return { ok: true, id: created.id, next };
+}
+
+// ─── Batch and export (Pro, Stage 2C-2) ──────────────────────────────────────
+
+export type BatchResult = { created: { index: number; id: string; number: string }[]; failed: number[] };
+
+/**
+ * Save several invoices in order, each with the next number from the account's
+ * sequence (the documents' own numbers are ignored). One at a time, so if
+ * something stops part-way the ones before it are saved and the result says
+ * which. `limit` null = unlimited.
+ */
+export async function createBatch(db: Db, userId: string, docs: Invoice[], limit: number | null): Promise<BatchResult> {
+  const out: BatchResult = { created: [], failed: [] };
+  for (let i = 0; i < docs.length; i++) {
+    const profile = await getProfile(db, userId);
+    const number = profile?.nextNumber ?? formatSequentialNumber(1);
+    const r = await createInvoice(db, userId, { ...docs[i], kind: undefined, number }, limit);
+    if (r.ok) out.created.push({ index: i, id: r.id, number });
+    else out.failed.push(i);
+  }
+  return out;
+}
+
+export type ExportRow = {
+  invoice: Invoice;
+  status: 'unpaid' | 'paid';
+  paidAt: Date | null;
+};
+
+export const EXPORT_MAX_ROWS = 5000;
+
+/** The user's invoices and quotations, oldest first, for CSV export. Dates are YYYY-MM-DD (optional). One more than the cap is read so the caller can tell it was cut. */
+export async function listForExport(db: Db, userId: string, range: { from?: string; to?: string }): Promise<ExportRow[]> {
+  const where = and(
+    eq(invoices.userId, userId),
+    range.from ? gte(invoices.issueDate, range.from) : undefined,
+    range.to ? lte(invoices.issueDate, range.to) : undefined,
+  );
+  const rows = await db
+    .select({ data: invoices.data, status: invoices.status, paidAt: invoices.paidAt, customerId: invoices.customerId })
+    .from(invoices)
+    .where(where)
+    .orderBy(invoices.issueDate, invoices.createdAt)
+    .limit(EXPORT_MAX_ROWS + 1);
+  return rows.map((r) => ({
+    invoice: { ...(r.data as Omit<Invoice, 'logo'>), logo: null, customerId: r.customerId },
+    status: r.status,
+    paidAt: r.paidAt,
+  }));
 }

@@ -6,16 +6,18 @@ import { PAPER_MUTED, PAPER_TEXT, PaperCaption, PaperInput, PaperTextarea } from
 import { countPdfPages, pdfFilename, renderInvoicePdf } from './generate-pdf';
 import { SavedDatalists, useSavedLists } from './saved-lists';
 import { DesignPicker } from './design-panel';
+import { FxLine } from './fx-line';
 import { Segmented } from '../choice';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
 import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
-import { addDays, DEFAULT_DUE_DAYS, QUOTE_VALID_DAYS, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
+import { addDays, DEFAULT_DUE_DAYS, QUOTE_VALID_DAYS, displayDate, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
 import { clearInvoiceDraft, loadInvoiceDraft, saveInvoiceDraft } from '@/app/lib/invoice/draft';
 import { readLogo } from '@/app/lib/invoice/logo';
 import { GST_RATES, GST_RATES_NOTE, isListedGstRate, TAX_LABELS } from '@/app/lib/invoice/gst';
 import { EXPORT_CODE, isGstEstimate, isTaxInvoice, placeOfSupplyLabel, placeOfSupplyOf, taxInvoiceNumberProblem } from '@/app/lib/invoice/gst-tax';
 import { DEFAULT_DESIGN } from '@/app/lib/invoice/design';
+import { RECUR_EVERY, RECUR_LABELS, RECUR_SHORT, isRecurEvery, nextRecurAfter, type RecurEvery } from '@/app/lib/invoice/recurring';
 import { GST_STATES, hsnProblem } from '@/app/lib/invoice/india';
 import { rupeesInWords } from '@/app/lib/invoice/words';
 import { LOGO_MAX_BYTES, LOGO_MAX_PX, LOGO_TYPES, MAX_FREE_ITEMS, MAX_LEN } from '@/app/lib/invoice/limits';
@@ -117,6 +119,11 @@ export function InvoiceEditor() {
   // the visitor's clock, and a draft or saved invoice can be restored.
   const [inv, setInv] = useState<Invoice | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  // Pro (Stage 2C-2): how this saved invoice repeats. A reminder — nothing is made on its own.
+  const [recur, setRecur] = useState<{ every: RecurEvery; next: string } | null>(null);
+  const [recurOpen, setRecurOpen] = useState(false);
+  const [recurDraft, setRecurDraft] = useState<{ every: RecurEvery | ''; next: string }>({ every: '', next: '' });
+  const [recurMsg, setRecurMsg] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const profile = useRef<Profile | null>(null);
@@ -138,8 +145,9 @@ export function InvoiceEditor() {
       if (profile.current) lastProfile.current = sellerKey(profile.current, profile.current.logo);
       const id = new URLSearchParams(window.location.search).get('id');
       if (id) {
-        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid' }>(`/api/invoices/${encodeURIComponent(id)}`);
+        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid'; recurEvery?: string | null; recurNext?: string | null }>(`/api/invoices/${encodeURIComponent(id)}`);
         if (r.ok && r.body.invoice) {
+          if (isRecurEvery(r.body.recurEvery) && r.body.recurNext) setRecur({ every: r.body.recurEvery, next: r.body.recurNext });
           const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null, signature: profile.current?.signature ?? null });
           lastSaved.current = docKey(loaded);
           setPaid(r.body.status ?? 'unpaid');
@@ -289,6 +297,7 @@ export function InvoiceEditor() {
   // Pro (Stage 2C-1): quotations, templates and brand colour. Hidden from free accounts.
   const canQuote = signedIn && can('invoice_quote_mode');
   const canDesign = signedIn && (can('invoice_templates') || can('invoice_brand_color'));
+  const canRecur = signedIn && can('invoice_recurring');
   const [designOpen, setDesignOpen] = useState(false);
   const [converting, setConverting] = useState(false);
 
@@ -428,10 +437,28 @@ export function InvoiceEditor() {
     window.location.assign(`/invoice-generator?id=${r.body.id}`);
   }
 
+  function openRecur() {
+    setRecurMsg(null);
+    setRecurDraft(recur ?? { every: '', next: '' });
+    setRecurOpen((o) => !o);
+  }
+
+  async function saveRecur() {
+    setRecurMsg(null);
+    const body = recurDraft.every ? { every: recurDraft.every, next: recurDraft.next } : { every: null };
+    const r = await api<{ message?: string }>(`/api/invoices/${savedId}/recurring`, { method: 'PUT', body: JSON.stringify(body) }).catch(() => null);
+    if (!r?.ok) return setRecurMsg(r?.body.message ?? 'Couldn’t save that. Try again.');
+    setRecur(recurDraft.every ? { every: recurDraft.every, next: recurDraft.next } : null);
+    setRecurOpen(false);
+    setMessage(recurDraft.every ? `Done — it repeats ${RECUR_LABELS[recurDraft.every].toLowerCase()}. You’ll get a reminder when it’s due.` : 'Done — it no longer repeats.');
+  }
+
   async function startNew() {
     if (!savedId && dirty && !window.confirm(`Start a new ${docWord}? This one will be cleared — it isn’t saved.`)) return;
     clearInvoiceDraft();
     setSavedId(null);
+    setRecur(null);
+    setRecurOpen(false);
     setSaveState('idle');
     setSaveMsg(null);
     setMessage(null);
@@ -498,6 +525,11 @@ export function InvoiceEditor() {
             Design
           </button>
         )}
+        {canRecur && savedId && !quote && (
+          <button type="button" onClick={openRecur} aria-expanded={recurOpen} aria-controls="repeat-panel" className={SECONDARY}>
+            {recur ? `${RECUR_SHORT[recur.every]} · next ${displayDate(recur.next)}` : 'Repeat…'}
+          </button>
+        )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {signedIn && saveStatus && (
             <span className={`text-sm font-medium ${saveState === 'error' ? 'text-danger-600' : 'text-muted'}`} role="status">
@@ -560,6 +592,59 @@ export function InvoiceEditor() {
           />
         </section>
       )}
+
+      {canRecur && savedId && !quote && recurOpen && (
+        <section id="repeat-panel" aria-labelledby="repeat-h" className="mb-4 rounded-xl2 border border-hair bg-surface p-4 sm:p-5">
+          <h2 id="repeat-h" className="font-display text-base font-bold text-ink">
+            Repeat this invoice
+          </h2>
+          <p className="text-sm text-muted">A reminder shows up in All invoices when it’s due. Nothing is made or sent until you press Create.</p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="text-sm font-semibold text-ink">
+              How often
+              <select
+                value={recurDraft.every}
+                onChange={(e) => {
+                  const every = e.target.value as RecurEvery | '';
+                  setRecurDraft({ every, next: every ? (recurDraft.next || nextRecurAfter(inv.issueDate || newInvoice().issueDate, every, newInvoice().issueDate)) : '' });
+                }}
+                className="mt-1 block h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+              >
+                <option value="">Doesn’t repeat</option>
+                {RECUR_EVERY.map((e) => (
+                  <option key={e} value={e}>
+                    {RECUR_LABELS[e]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {recurDraft.every && (
+              <label className="text-sm font-semibold text-ink">
+                Next one
+                <input
+                  type="date"
+                  value={recurDraft.next}
+                  onChange={(e) => setRecurDraft({ ...recurDraft, next: e.target.value })}
+                  className="mt-1 block h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                />
+              </label>
+            )}
+            <button type="button" onClick={() => void saveRecur()} disabled={!!recurDraft.every && !recurDraft.next} className={PRIMARY}>
+              Save
+            </button>
+            <button type="button" onClick={() => setRecurOpen(false)} className={SECONDARY}>
+              Cancel
+            </button>
+          </div>
+          {recurMsg && (
+            <p className="mt-2 text-sm font-semibold text-danger-600" role="alert">
+              {recurMsg}
+            </p>
+          )}
+        </section>
+      )}
+
+      {signedIn && <FxLine currency={inv.currency} total={totals.total} />}
 
       <p className="mb-4 flex items-start gap-2 text-sm text-muted">
         <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" />
