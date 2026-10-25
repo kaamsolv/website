@@ -27,6 +27,7 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
               { href: '/app/invoices/settings', label: 'Invoice settings', sub: true },
             ]
           : []),
+        { href: '/app/qr', label: 'QR codes' },
       ],
     },
     {
@@ -46,7 +47,9 @@ export function WorkspaceNav() {
   const { can } = useEntitlements();
   const all = groups(pathname).map((g) => ({ ...g, links: g.links.filter((l) => (!l.pro || can('invoice_dashboard')) && (!l.key || can(l.key))) }));
   // "Invoices" itself is current only when no sub-page is listed (outside Invoices).
-  const isCurrent = (l: Link) => pathname === l.href && !(l.href === '/app/invoices' && !l.sub && pathname.startsWith('/app/invoices'));
+  const isCurrent = (l: Link) =>
+    (pathname === l.href || (l.href === '/app/qr' && pathname.startsWith('/app/qr/'))) &&
+    !(l.href === '/app/invoices' && !l.sub && pathname.startsWith('/app/invoices'));
 
   return (
     <nav aria-label="Your workspace" className="-mx-4 mb-6 overflow-x-auto px-4 md:mx-0 md:mb-0 md:overflow-visible md:px-0">

@@ -184,11 +184,15 @@ test('hub for a free account: Invoices card says Free and x of 20; no Overview, 
   await signIn(page, email('free'));
   await page.goto('/app');
   await expect(page.getByRole('heading', { name: 'Your KaamSolv', level: 1 })).toBeVisible();
-  const card = page.getByRole('list', { name: 'Your tools' }).getByRole('listitem');
+  const cards = page.getByRole('list', { name: 'Your tools' }).getByRole('listitem');
+  await expect(cards).toHaveCount(2); // Invoices, QR codes
+  const card = cards.filter({ has: page.getByRole('heading', { name: 'Invoices', exact: true }) });
   await expect(card).toHaveCount(1);
-  await expect(card).toContainText('Invoices');
   await expect(card).toContainText('Free');
   await expect(card).toContainText('0 of 3 saved'); // test-only save limit 3
+  const qr = cards.filter({ has: page.getByRole('heading', { name: 'QR codes', exact: true }) });
+  await expect(qr).toContainText('Free');
+  await expect(qr).toContainText('0 of 3 tracked');
   await expect(page.getByText('Plans and billing')).toHaveCount(0);
   await expect(page.getByText('Dashboard')).toHaveCount(0);
   await page.goto('/app/invoices/overview');
@@ -216,7 +220,7 @@ test('Pro: dashboard totals, overdue, and marking paid', async ({ page }) => {
   await mk('P-2', daysAgo(60), daysAgo(45), '500'); // overdue
 
   await page.goto('/app');
-  const card = page.getByRole('list', { name: 'Your tools' }).getByRole('listitem');
+  const card = page.getByRole('list', { name: 'Your tools' }).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Invoices', exact: true }) });
   await expect(card).toContainText('Pro');
   await expect(card).toContainText('₹1,500.00 unpaid');
   await card.getByRole('link', { name: /Open invoices/ }).click();
@@ -228,6 +232,7 @@ test('Pro: dashboard totals, overdue, and marking paid', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS}/workspace-dashboard-desktop-light.png`, fullPage: true });
 
   await page.goto('/app/invoices');
+  await expect(page.getByRole('list', { name: 'Saved invoices' })).toBeVisible(); // the page is interactive once the list is drawn
   await page.getByRole('button', { name: 'Mark P-2 as paid' }).click();
   await expect(page.getByText('P-2 marked paid.')).toBeVisible();
   await page.goto('/app/invoices/overview');

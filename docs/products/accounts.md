@@ -106,6 +106,7 @@ documents.
 | `GET /api/invoices/export` | CSV of invoices or line items (Pro) |
 | `POST /api/invoices/batch` | up to 50 invoices from a CSV (Pro) |
 | `GET /api/fx` | currency reference rates, from Frankfurter (Pro) |
+| `GET/POST /api/qr`, `GET/PUT/DELETE /api/qr/:id` | tracked QR codes: list · save (403 `limit` at 3 on free) · one with scans per day · rename / pause / resume · delete |
 | `GET/PUT /api/business-profile` | seller details + logo (the editor's save) |
 | `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
 | `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |

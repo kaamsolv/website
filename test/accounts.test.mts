@@ -67,7 +67,7 @@ test('seed: free account saves 20 invoices; Pro grants every invoice key, unlimi
   const free = rows.filter((r) => r.planKey === 'free_account');
   assert.deepEqual(
     free.map((r) => [r.featureKey, r.limitValue]).sort(),
-    [['invoice_client_directory', 3], ['invoice_item_catalogue', null], ['invoice_save', 20]],
+    [['invoice_client_directory', 3], ['invoice_item_catalogue', null], ['invoice_save', 20], ['qr_dynamic', 3]],
   );
   const pro = rows.filter((r) => r.planKey === 'invoice_pro');
   assert.deepEqual(new Set(pro.map((r) => r.featureKey)), new Set(INVOICE_KEYS));

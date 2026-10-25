@@ -28,6 +28,8 @@ export const ENTITLEMENT_KEYS = [
   'invoice_dashboard',
   /** Currency reference rates on invoices (Pro, Stage 2C). */
   'invoice_fx_rates',
+  /** Tracked (dynamic) QR codes: how many you may keep (free account 3). */
+  'qr_dynamic',
   // PDF tools (docs/products/pdf-tools.md). Nobody holds these yet: the Pro
   // features behind them ship in PDF Stage 2. Limits live in app/lib/pdf/limits.ts.
   /** Compress several PDFs at once, plus the "strong" level. */

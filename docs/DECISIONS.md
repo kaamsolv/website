@@ -82,6 +82,27 @@ separately before it ran). Detail: [`products/pdf-tools.md`](./products/pdf-tool
 
 ---
 
+## 2026-10-25 — Tracked QR codes: first slice ("count only")
+
+**Decided by:** product owner, after a codebase reality check. Detail:
+[`products/qr-tracking.md`](./products/qr-tracking.md).
+
+- Signed-in users can save a **link-type** QR (Website, WhatsApp, Social, File)
+  as a *tracked* QR: it encodes `kaamsolv.com/{code}` and scans are the link's
+  clicks. Location (`geo:`) and the non-link types stay static.
+- **Free account: 3 tracked codes**; `qr_pro` (unlimited) exists but is not sold
+  or shown. **A printed code never dies** — the redirect never checks plans.
+- Reuses the URL Shortener's redirect, click recording, Web Risk screening and
+  limits; the redirect route is unchanged. `links.account_id` becomes a real FK
+  (cascade), written only for tracked codes.
+- The logo is **not** saved with a code (500 KB; the QR content is identical).
+- **Deferred:** campaigns, UTM, breakdowns, editing a destination, CSV export, and
+  the `click_events.os` column (needs a privacy-policy change).
+- Migration 0008 (additive; rollback SQL in `infra/deployment.md`). Privacy page
+  updated: saved tracked codes are kept in your account.
+
+---
+
 ## 2026-10-25 — Stage 2C-2: Invoice Pro — recurring, CSV export, batch from CSV, currency rates
 
 **Decided by:** product owner (plan approved with four clarifications). Detail:

@@ -19,7 +19,7 @@ export type MeUser = { id: string; email: string; name: string };
 export type Me =
   | { status: 'loading' }
   | { status: 'anon' }
-  | { status: 'signed-in'; user: MeUser; entitlements: ResolvedEntitlements; usage: { invoiceSave: number; customers: number } };
+  | { status: 'signed-in'; user: MeUser; entitlements: ResolvedEntitlements; usage: { invoiceSave: number; customers: number; qrCodes: number } };
 
 const ACCOUNT_FLAG = 'kk.account';
 const LOADING: Me = { status: 'loading' };
@@ -55,14 +55,14 @@ export function hasAccountFlag(): boolean {
 export function refreshMe(): Promise<void> {
   inflight ??= fetch('/api/me', { cache: 'no-store', credentials: 'same-origin' })
     .then((r) => (r.ok ? r.json() : { signedIn: false }))
-    .then((body: { signedIn: boolean; user?: MeUser; entitlements?: ResolvedEntitlements; usage?: { invoiceSave: number; customers: number } }) => {
+    .then((body: { signedIn: boolean; user?: MeUser; entitlements?: ResolvedEntitlements; usage?: { invoiceSave: number; customers: number; qrCodes: number } }) => {
       if (body.signedIn && body.user) {
         setFlag(true);
         emit({
           status: 'signed-in',
           user: body.user,
           entitlements: body.entitlements ?? NO_ENTITLEMENTS,
-          usage: { invoiceSave: 0, customers: 0, ...body.usage },
+          usage: { invoiceSave: 0, customers: 0, qrCodes: 0, ...body.usage },
         });
       } else {
         setFlag(false);

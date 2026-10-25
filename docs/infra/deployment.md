@@ -174,6 +174,20 @@ ALTER TABLE invoices DROP COLUMN recur_next, DROP COLUMN recur_every;
 DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
 ```
 
+| `0008_qr_tracking.sql` | `qr_codes`; `links.account_id` FK → `auth_users` (cascade); seed `free_account` → `qr_dynamic` 3, plan `qr_pro` | **not yet** — apply with the tracked-QR deploy |
+
+**Rolling back 0008** (only if the deploy is reverted; the schema is additive and old code ignores it):
+
+```sql
+DROP TABLE qr_codes;
+ALTER TABLE links DROP CONSTRAINT links_account_id_auth_users_id_fk;
+DELETE FROM plan_features WHERE feature_key = 'qr_dynamic';
+DELETE FROM plans WHERE plan_key = 'qr_pro';
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
+
+Dropping `qr_codes` first leaves any tracked links in `links` as ordinary links that keep redirecting; delete them too if you want them gone (`DELETE FROM links WHERE account_id IS NOT NULL;`, which also removes their clicks).
+
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and
 `npm run link:reports`.

@@ -57,6 +57,13 @@
       "when": 1792924591512,
       "tag": "0007_recurring",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792929799597,
+      "tag": "0008_qr_tracking",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,8 @@ type Existing = { number: string; clientName: string; total: number; issueDate: 
 export function BatchImport() {
   const { can } = useEntitlements();
   const [profile, setProfile] = useState<BatchProfile | null>(null);
-  const [existing, setExisting] = useState<Existing[]>([]);
+  // The saved invoices, for the "looks like one you just made" warning. Awaited when a file is chosen, so a fast click can't miss it.
+  const existing = useRef<Promise<Existing[]>>(Promise.resolve([]));
   const [fileName, setFileName] = useState('');
   const [previews, setPreviews] = useState<BatchPreview[] | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -42,10 +43,10 @@ export function BatchImport() {
       .then((r) => r.json())
       .then((b: { settings: BatchProfile }) => setProfile(b.settings))
       .catch(() => setProblem('Couldn’t load your settings. Refresh to try again.'));
-    fetch('/api/invoices', { credentials: 'same-origin', cache: 'no-store' })
+    existing.current = fetch('/api/invoices', { credentials: 'same-origin', cache: 'no-store' })
       .then((r) => r.json())
-      .then((b: { invoices: Existing[] }) => setExisting(b.invoices))
-      .catch(() => undefined);
+      .then((b: { invoices: Existing[] }) => b.invoices)
+      .catch(() => []);
   }, []);
 
   async function onFile(file: File | undefined) {
@@ -61,8 +62,9 @@ export function BatchImport() {
     setFileError(built.fileError);
     // Anything that looks like one made in the last 24 hours is flagged, so a re-upload isn't a surprise.
     const day = 24 * 60 * 60 * 1000;
+    const saved = await existing.current;
     for (const p of built.previews) {
-      const twin = existing.find(
+      const twin = saved.find(
         (e) => e.clientName === p.invoice.client.name && e.total === p.total && e.issueDate === p.invoice.issueDate && Date.now() - Date.parse(e.updatedAt) < day,
       );
       if (twin) p.warnings.push(`Looks like ${twin.number}, made in the last 24 hours — creating it again makes a second invoice.`);

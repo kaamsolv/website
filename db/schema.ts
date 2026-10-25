@@ -63,9 +63,11 @@ export const links = pgTable(
     /**
      * Reserved nullable columns for the future shared KaamSolv account system
      * (docs/products/url-shortener.md §8). Nothing writes them in Phase 2a.
-     * `accountId` has no FK yet — there is no `accounts` table.
+     * `accountId` is the owner of a tracked QR code's link (migration 0008): a
+     * foreign key to the signed-in user, deleted with the account. Links made
+     * from the public shortener stay null (anonymous).
      */
-    accountId: uuid('account_id'),
+    accountId: uuid('account_id').references(() => authUsers.id, { onDelete: 'cascade' }),
     anonSessionId: text('anon_session_id'),
 
     /** Best-effort analytics, incremented off the redirect hot path via after(). */
@@ -459,3 +461,42 @@ export const invoices = pgTable(
 );
 
 export type InvoiceRow = typeof invoices.$inferSelect;
+
+/** Largest saved QR payload + design, in characters (the logo is never saved). */
+export const QR_DATA_MAX_CHARS = 64_000;
+
+/**
+ * A tracked (dynamic) QR code, migration 0008: the saved studio state plus the
+ * `links` row it points through. The QR image encodes `kaamsolv.com/{code}`;
+ * scans are the link's clicks (docs/products/qr-tracking.md). Deleting the
+ * user deletes the link (account_id FK), which deletes this row and its clicks.
+ */
+export const qrCodes = pgTable(
+  'qr_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => links.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** Only types whose QR is an https link can be tracked: url, whatsapp, social, file. */
+    kind: text('kind').notNull(),
+    payload: jsonb('payload').notNull(),
+    /** The studio design without the logo (it can be 500 KB). */
+    design: jsonb('design').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('qr_codes_link_id_key').on(table.linkId),
+    index('qr_codes_user_id_created_at_idx').on(table.userId, table.createdAt.desc()),
+    check('qr_codes_kind', sql`${table.kind} in ('url', 'whatsapp', 'social', 'file')`),
+    check('qr_codes_name_len', sql`char_length(${table.name}) between 1 and 80`),
+    check('qr_codes_data_len', sql`length(${table.payload}::text) + length(${table.design}::text) <= ${sql.raw(String(QR_DATA_MAX_CHARS))}`),
+  ],
+);
+
+export type QrCodeRow = typeof qrCodes.$inferSelect;

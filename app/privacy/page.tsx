@@ -40,7 +40,10 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>QR Code Generator.</strong> The QR code is built in your browser. Links, Wi-Fi passwords,
-          contact details and UPI IDs you enter are not sent to us or to any QR service.
+          contact details and UPI IDs you enter are not sent to us or to any QR service. The one exception is
+          when you&apos;re signed in and press “Save tracked QR” to count scans: then the link, the name you
+          chose and the look of the code are saved to your account (see below). Wi-Fi passwords and other
+          types can&apos;t be tracked and are never saved.
         </li>
         <li>
           <strong>Invoice Generator, when you&apos;re not signed in.</strong> The invoice and its PDF are made in
@@ -73,6 +76,12 @@ export default function PrivacyPage() {
           (name, HSN/SAC code, unit, rates). Invoices and customers include your clients&apos; details that you
           type in — please only save client information you&apos;re allowed to keep for your business. If you use
           paid / unpaid tracking, we also store whether and when each invoice was paid.
+        </li>
+        <li>
+          <strong>Tracked QR codes you save</strong>: its name, type, the link it leads to, the look of the code
+          (never your logo), a short KaamSolv link, and a count of scans with their times. Scans are counted the
+          same way as short-link clicks (see below) — no IP address, no identifier for the person. Deleting a
+          code deletes its scans, and a printed copy then stops working.
         </li>
         <li>
           <strong>Sign-in links</strong>: when you ask for one, we store a scrambled (hashed) copy of the link
@@ -173,8 +182,9 @@ export default function PrivacyPage() {
         <li>Reports: as long as we need them to deal with the link.</li>
         <li>Abuse-protection counters: they reset within minutes to a day.</li>
         <li>
-          Your account, saved invoices, customers, items and settings: until you delete them or your account. Deleting an
-          invoice or your account removes it from our database straight away; our database provider&apos;s
+          Your account, saved invoices, customers, items, tracked QR codes (with their scans) and settings: until you
+          delete them or your account. Deleting an invoice, a QR code or your account removes it from our database
+          straight away; our database provider&apos;s
           short-term backups are overwritten within days.
         </li>
         <li>Sign-in sessions: 30 days after you last used KaamSolv, or when you sign out.</li>
