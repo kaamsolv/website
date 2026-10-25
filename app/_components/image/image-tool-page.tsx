@@ -1,6 +1,7 @@
 import AdSlot from '@/app/components/AdSlot';
 import { Icon } from '@/app/_components/icons';
 import { SiteHeader } from '@/app/_components/site-header';
+import { ToolOpen } from '@/app/_components/tool-open';
 import { SiteFooter } from '@/app/_components/site-footer';
 import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { CATEGORIES, type Accent } from '@/app/lib/catalogue';
@@ -86,6 +87,7 @@ export function ImageToolPage({ slug }: Props) {
     <>
       <a href="#main" className="skip-link">Skip to content</a>
       <SiteHeader />
+      <ToolOpen slug={tool.slug} type="converter" />
 
       <main id="main">
         <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">

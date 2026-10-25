@@ -10,6 +10,7 @@ import { ConversionProgress } from './conversion-progress';
 import { OnDeviceNote } from './on-device-note';
 import { convertImage, suggestedDownloadName, terminateConversionWorker } from '@/app/lib/image/worker-client';
 import { downloadBlob } from '@/app/lib/image/export';
+import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { slugForPair } from '@/app/lib/image/routes';
 import {
   canConvert,
@@ -190,6 +191,7 @@ export function ImageConverterWorkspace({ tool }: Props) {
     );
 
     if (!result.ok) {
+      trackToolError('convert_failed', 'converter');
       setError(result.message);
       setPhase('ready');
       return;
@@ -207,6 +209,7 @@ export function ImageConverterWorkspace({ tool }: Props) {
       outputBytes: result.outputBytes,
     });
     setPhase('done');
+    trackToolSuccess('converter', true);
   }
 
   function handleDownload() {

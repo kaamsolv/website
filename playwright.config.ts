@@ -42,6 +42,9 @@ export default defineConfig({
       // Dummy values so the Google button renders; tests stop the request before it leaves.
       GOOGLE_CLIENT_ID: 'e2e-dummy.apps.googleusercontent.com',
       GOOGLE_CLIENT_SECRET: 'e2e-dummy-not-a-secret',
+      // Empty by default: analytics is off. Set KK_E2E_GA_ID=G-E2ETEST1 to run the consent flow in
+      // analytics.spec.ts (gtag.js is stubbed there, so nothing reaches Google).
+      NEXT_PUBLIC_GA_ID: process.env.KK_E2E_GA_ID ?? '',
     },
   },
 });

@@ -5,6 +5,36 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-25 — Google Analytics 4 (consent-first) — awaiting owner review
+
+**Decided by:** product owner (plan approved; GA4 ID to be supplied at deploy).
+
+- **GA4 via `gtag.js`, no new dependency.** `app/_components/analytics.tsx`
+  (mounted in the root layout) + `app/lib/analytics.ts`. Measurement ID from
+  `NEXT_PUBLIC_GA_ID` (build-time); unset (local, dev, e2e) → nothing renders,
+  loads or sends.
+- **Consent first.** Banner with equally prominent "Accept analytics" / "No
+  thanks". Until "Accept", `gtag.js` is **not loaded**: no request to Google, no
+  `_ga` cookie. Consent Mode v2 is still declared (all four signals denied by
+  default; only `analytics_storage` granted on accept; ad signals and Google
+  signals permanently off). The choice lives in localStorage
+  (`kaamsolv-analytics`) and can be changed at `/privacy#analytics`; withdrawing
+  sets `ga-disable-<ID>` and deletes `_ga*` cookies.
+- **What is sent:** `page_view` (path only: no query string, hash or `/app/*`),
+  `tool_open`, `tool_success`, `tool_error`, `file_download`, `outbound_click`,
+  with fixed-label parameters only. Never file names, contents, typed values,
+  shortened URLs, invoice data or error messages. Detail: `docs/ANALYTICS.md`.
+- **Cloudflare Web Analytics stays** (cookieless, auto-injected by Cloudflare;
+  verified on the live site: `static.cloudflareinsights.com` beacon and
+  `/cdn-cgi/rum`). It runs without asking because it uses no cookies or
+  storage; it is now listed on the Privacy page.
+- **Privacy page rewritten** (new Analytics section, cookies, providers). It
+  mentions the DPDP Act and says it is not legal advice; owner to review the
+  wording, ideally legally.
+- **Search Console:** a separate step, not in this change.
+
+---
+
 ## 2026-10-25 — Salary Calculator (CTC → in-hand), India
 
 **Decided by:** product owner (plan approved).

@@ -9,6 +9,7 @@ import { OrderList } from './order-list';
 import { PdfThumb } from './pdf-thumb';
 import { useEntitlements } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
+import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { formatBytes, sizeDeltaLabel } from '@/app/lib/image/validate';
 import { compressVerdict, compressedPdfName, extractedPdfName } from '@/app/lib/pdf/outcome';
 import { toPdfToolError } from '@/app/lib/pdf/errors';
@@ -227,9 +228,13 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
     clearResult();
     setBusy({ label });
     try {
-      return await job((d, t) => setBusy({ label, done: d, total: t }));
+      const out = await job((d, t) => setBusy({ label, done: d, total: t }));
+      trackToolSuccess('converter', true);
+      return out;
     } catch (err) {
-      setNotice([toPdfToolError(err).message]);
+      const known = toPdfToolError(err);
+      trackToolError(known.code, 'converter');
+      setNotice([known.message]);
       return null;
     } finally {
       setBusy(null);

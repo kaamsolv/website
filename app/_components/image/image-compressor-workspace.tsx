@@ -9,6 +9,7 @@ import { OnDeviceNote } from './on-device-note';
 import { Chips, Segmented } from '../choice';
 import { convertImage, terminateConversionWorker } from '@/app/lib/image/worker-client';
 import { downloadBlob } from '@/app/lib/image/export';
+import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import {
   COMPRESS_LEVELS,
   compressAcceptString,
@@ -173,6 +174,7 @@ export function ImageCompressorWorkspace() {
     );
 
     if (!res.ok) {
+      trackToolError('compress_failed', 'converter');
       setError(res.message);
       setPhase('ready');
       return;
@@ -188,6 +190,7 @@ export function ImageCompressorWorkspace() {
       format: output,
     });
     setPhase('done');
+    trackToolSuccess('converter', true);
   }
 
   const choices = format ? compressOutputChoices(format) : [];

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import AdSlot from '@/app/components/AdSlot';
 import { Icon } from '@/app/_components/icons';
 import { SiteHeader } from '@/app/_components/site-header';
+import { ToolOpen } from '@/app/_components/tool-open';
 import { SiteFooter } from '@/app/_components/site-footer';
 import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { liveFirst, TOOLS } from '@/app/lib/catalogue';
@@ -125,6 +126,7 @@ export default function QrCodeGeneratorPage() {
         Skip to content
       </a>
       <SiteHeader />
+      <ToolOpen slug="qr-code-generator" type="generator" />
 
       <main id="main">
         <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">

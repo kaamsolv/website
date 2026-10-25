@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import AdSlot from '@/app/components/AdSlot';
 import { Icon } from '@/app/_components/icons';
 import { SiteHeader } from '@/app/_components/site-header';
+import { ToolOpen } from '@/app/_components/tool-open';
 import { SiteFooter } from '@/app/_components/site-footer';
 import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { liveFirst, TOOLS } from '@/app/lib/catalogue';
@@ -109,6 +110,7 @@ export default function UrlShortenerPage() {
         Skip to content
       </a>
       <SiteHeader />
+      <ToolOpen slug="url-shortener" type="generator" />
 
       <main id="main">
         {/* ---------- TOOL ---------- */}

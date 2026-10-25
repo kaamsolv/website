@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CopyButton } from '../copy-button';
+import { trackToolSuccess } from '@/app/lib/analytics';
 import { Chips, Segmented } from '../choice';
 import {
   ageOn,
@@ -77,6 +78,11 @@ export function NumberField({
 
 /** The answer line, with copy. Empty until inputs are valid. */
 export function Answer({ label, value, copy }: { label: string; value: string | null; copy?: string }) {
+  const hasValue = value !== null;
+  // A live calculator: the first valid answer on the page counts as a completed calculation.
+  useEffect(() => {
+    if (hasValue) trackToolSuccess('calculator');
+  }, [hasValue]);
   return (
     <div className="rounded-xl border border-teal-300 bg-tealx-100 px-5 py-4" aria-live="polite">
       <p className="text-sm font-medium text-strong">{label}</p>

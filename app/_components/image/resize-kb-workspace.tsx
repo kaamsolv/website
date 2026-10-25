@@ -8,6 +8,7 @@ import { CropBox } from './crop-box';
 import { Chips, Segmented } from '../choice';
 import { fitImageToTarget, terminateConversionWorker } from '@/app/lib/image/worker-client';
 import { downloadBlob } from '@/app/lib/image/export';
+import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { compressAcceptString, isCompressibleInput } from '@/app/lib/image/compress';
 import { initialCrop, type CropState } from '@/app/lib/image/crop';
 import { labelForFormatId } from '@/app/lib/image/registry/capabilities';
@@ -181,6 +182,9 @@ export function ResizeKbWorkspace() {
       const key = keyFor(item);
       update(item.id, { working: true, error: null });
       const res = await fitImageToTarget(item.file, jobFor(item));
+      // Live tool: the first image that fits counts once per page.
+      if (res.ok && res.outcome === 'fits') trackToolSuccess('converter');
+      else if (!res.ok) trackToolError('resize_failed', 'converter');
       setItems((list) =>
         list.map((it) => {
           if (it.id !== item.id) return it;

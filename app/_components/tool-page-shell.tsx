@@ -5,6 +5,7 @@ import { Icon } from './icons';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 import { ToolCard } from './tool-card';
+import { ToolOpen } from './tool-open';
 import { CATEGORIES, liveFirst, TOOLS, type Tool } from '@/app/lib/catalogue';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
@@ -80,6 +81,7 @@ export function ToolPageShell({
         Skip to content
       </a>
       <SiteHeader />
+      <ToolOpen slug={tool.slug} />
 
       <main id="main">
         <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">

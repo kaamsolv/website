@@ -4,7 +4,7 @@
 one thing quickly. Live at **[kaamsolv.com](https://kaamsolv.com)**.
 
 Product & brand brief: [`KAAMSOLV-BRIEF.md`](KAAMSOLV-BRIEF.md).
-Decision log: [`DECISIONS.md`](DECISIONS.md).
+Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYTICS.md).
 
 ---
 

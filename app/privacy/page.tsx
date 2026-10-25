@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { TextPage } from '../_components/text-page';
+import { AnalyticsChoice } from '../_components/analytics';
 
 export const metadata: Metadata = {
   title: 'Privacy',
@@ -18,7 +19,7 @@ export default function PrivacyPage() {
     <TextPage
       title="Privacy"
       intro="The short version: most KaamSolv tools run entirely in your browser and send us nothing. You don't need an account. If you create one, we keep only what you save and what signing in needs."
-      updated="2026-10-21"
+      updated="2026-10-25"
     >
       <h2>Who we are</h2>
       <p>
@@ -122,10 +123,43 @@ export default function PrivacyPage() {
         created in the last minute). These counters reset on their own.
       </p>
 
+      <h2 id="analytics">Analytics</h2>
+      <p>
+        We&apos;d like to know which pages and tools people use, so we can fix and build the right things. We use two
+        services for that.
+      </p>
+      <p>
+        <strong>Google Analytics</strong> is <strong>off until you say yes</strong>. When you first visit, a small
+        banner asks. If you choose “No thanks”, nothing is sent to Google and no Google cookie is set. If you choose
+        “Accept analytics”, Google Analytics sets cookies (<code>_ga</code> and <code>_ga_…</code>) and receives the page
+        you&apos;re on, your approximate location, your browser and device type, and your IP address (Google says Google
+        Analytics 4 doesn&apos;t log or store IP addresses). It also receives a few tool events:
+        that a tool page was opened, that a tool finished its job, that a file was downloaded (only its type, such as
+        “pdf”), that something failed (only a short label, such as “network”), and which other website you
+        clicked a link to.
+      </p>
+      <p>
+        We <strong>never</strong> send Google your files, file names, text, numbers, invoice details, the links you
+        shorten, or error messages. Pages inside your account aren&apos;t counted. We&apos;ve switched off Google&apos;s
+        advertising features and signals in how we set Analytics up on this site.
+      </p>
+      <AnalyticsChoice />
+      <p>
+        <strong>Cloudflare Web Analytics</strong> is our host&apos;s page-speed and visit counter. It runs on every page
+        without asking. Cloudflare says it doesn&apos;t use cookies or local storage and doesn&apos;t track you across
+        sites, and we haven&apos;t seen it set any. Your browser loads a small script from <code>static.cloudflareinsights.com</code> and sends Cloudflare
+        page-load timings, the page address and your browser type to <code>/cdn-cgi/rum</code> on kaamsolv.com.
+      </p>
+      <p>
+        We ask for your consent before using Google Analytics, and you can withdraw it at any time with the
+        button above. We try to follow India&apos;s Digital Personal Data Protection Act, 2023. This page is a
+        plain-English summary, not legal advice.
+      </p>
+
       <h2 id="cookies">Cookies and browser storage</h2>
       <p>
-        There are <strong>no advertising or analytics trackers</strong> on KaamSolv. If you don&apos;t sign in,
-        we don&apos;t set any cookies.
+        <strong>Advertising trackers:</strong> none. <strong>Analytics cookies:</strong> only if you accept Google
+        Analytics above. If you don&apos;t sign in and don&apos;t accept analytics, we don&apos;t set any cookies.
       </p>
       <p>
         If you sign in, we set <strong>one session cookie</strong> (<code>kk.session_token</code>) that keeps you
@@ -136,7 +170,7 @@ export default function PrivacyPage() {
       <p>
         Your browser also keeps a few things on your device (in local storage): your light/dark choice, your
         Invoice Generator draft, and a note that this browser has signed in before (so the site knows to show
-        your account menu). They never leave your device unless you save an invoice to your account, and you can
+        your account menu), and your analytics choice. They never leave your device unless you save an invoice to your account, and you can
         clear them in your browser settings.
       </p>
       <p>
@@ -148,7 +182,12 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Cloudflare</strong> hosts the website and delivers every page, so it handles your requests
-          (including your IP address) to do that. It keeps short-term technical logs.
+          (including your IP address) to do that. It keeps short-term technical logs, and runs Cloudflare Web Analytics
+          (see Analytics).
+        </li>
+        <li>
+          <strong>Google Analytics</strong>, only if you accept it, as described under Analytics. Its servers may be
+          outside India.
         </li>
         <li>
           <strong>Neon</strong> hosts our database, in Singapore — the URL Shortener and accounts, including
@@ -203,7 +242,7 @@ export default function PrivacyPage() {
 
       <h2>Changes</h2>
       <p>
-        If we add something that changes what we collect (for example payments, analytics or ads), we&apos;ll
+        If we add something that changes what we collect (for example payments or ads), we&apos;ll
         update this page first and change the date at the top.
       </p>
     </TextPage>

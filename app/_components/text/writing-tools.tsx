@@ -4,6 +4,8 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { OnDeviceNote } from '../image/on-device-note';
 import { Chips, Segmented } from '../choice';
 import { TextInput, TextOutput } from './text-boxes';
+import { useToolSuccess } from '../use-tool-success';
+import { trackToolSuccess } from '@/app/lib/analytics';
 import { CHARACTER_LIMITS, countCharacters, countWords, formatDuration, LIMITS_CHECKED, textStats } from '@/app/lib/text/count';
 import { CASES, convertCase, type CaseId } from '@/app/lib/text/case';
 import { CLEAN_OPTIONS, cleanText, DEFAULT_CLEAN_OPTIONS, type CleanOptions } from '@/app/lib/text/clean';
@@ -24,6 +26,7 @@ function Stat({ label, value, big = false }: { label: string; value: string; big
 
 export function WordCounter() {
   const [text, setText] = useState('');
+  useToolSuccess(text.trim() !== '', 'utility');
   const deferred = useDeferredValue(text);
   const s = useMemo(() => textStats(deferred), [deferred]);
 
@@ -51,6 +54,7 @@ export function WordCounter() {
 
 export function CharacterCounter() {
   const [text, setText] = useState('');
+  useToolSuccess(text.trim() !== '', 'utility');
   const deferred = useDeferredValue(text);
   const chars = useMemo(() => countCharacters(deferred), [deferred]);
   const words = useMemo(() => countWords(deferred), [deferred]);
@@ -102,6 +106,7 @@ export function CharacterCounter() {
 
 export function CaseConverter() {
   const [text, setText] = useState('');
+  useToolSuccess(text.trim() !== '', 'utility');
   const [mode, setMode] = useState<CaseId>('sentence');
   const output = useMemo(() => convertCase(text, mode), [text, mode]);
 
@@ -119,6 +124,7 @@ export function CaseConverter() {
 
 export function TextCleaner() {
   const [text, setText] = useState('');
+  useToolSuccess(text.trim() !== '', 'utility');
   const [options, setOptions] = useState<CleanOptions>(DEFAULT_CLEAN_OPTIONS);
   const output = useMemo(() => cleanText(text, options), [text, options]);
   const removed = countCharacters(text) - countCharacters(output);
@@ -243,7 +249,10 @@ export function LoremIpsumGenerator() {
         </div>
         <button
           type="button"
-          onClick={() => setSeed((s) => s + 1)}
+          onClick={() => {
+            setSeed((s) => s + 1);
+            trackToolSuccess('generator', true);
+          }}
           className="inline-flex h-11 items-center rounded-full bg-coral-500 px-6 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2"
         >
           Generate new text

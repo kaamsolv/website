@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trackToolError } from '@/app/lib/analytics';
 import { Icon } from '@/app/_components/icons';
 import { CopyButton } from '@/app/_components/copy-button';
 import type { QrDesign, QrExportOptions } from '@/app/lib/qr/design';
@@ -39,6 +40,7 @@ export function QrDownload({ encodedText, design, exportOptions, disabled }: Pro
       const blob = await exportPngBlob(encodedText, design, exportOptions);
       downloadBlob(DOWNLOAD_PNG, blob);
     } catch {
+      trackToolError('export_failed', 'generator');
       setNote("Couldn't save the PNG. Try again.");
     } finally {
       setBusy(null);
@@ -54,6 +56,7 @@ export function QrDownload({ encodedText, design, exportOptions, disabled }: Pro
       const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
       downloadBlob(DOWNLOAD_SVG, blob);
     } catch {
+      trackToolError('export_failed', 'generator');
       setNote("Couldn't save the SVG. Try again.");
     } finally {
       setBusy(null);
@@ -68,6 +71,7 @@ export function QrDownload({ encodedText, design, exportOptions, disabled }: Pro
       const blob = await exportJpgBlob(encodedText, design, exportOptions);
       downloadBlob(DOWNLOAD_JPG, blob);
     } catch {
+      trackToolError('export_failed', 'generator');
       setNote("Couldn't save the JPG. Try again.");
     } finally {
       setBusy(null);

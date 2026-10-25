@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type RefObject } from 'react';
+import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { Icon } from '@/app/_components/icons';
 import { CopyButton } from '@/app/_components/copy-button';
 import { DEFAULT_EXPIRY, EXPIRY_OPTIONS, type ExpiryOption } from '@/app/lib/link-expiry';
@@ -57,6 +58,7 @@ export function ShortenForm() {
 
       if (res.ok && d && d.ok) {
         setState({ status: 'success', result: d });
+        trackToolSuccess('generator', true);
         requestAnimationFrame(() => resultHeadingRef.current?.focus());
         return;
       }
@@ -65,11 +67,14 @@ export function ShortenForm() {
         setState({ status: 'invalid', message: message ?? GENERIC_INVALID });
         requestAnimationFrame(() => inputRef.current?.focus());
       } else if (res.status === 429) {
+        trackToolError('rate_limited', 'generator');
         setState({ status: 'error', kind: 'rate_limited', message: message ?? GENERIC_RATE });
       } else {
+        trackToolError('server_error', 'generator');
         setState({ status: 'error', kind: 'server_error', message: message ?? GENERIC_ERROR });
       }
     } catch {
+      trackToolError('network', 'generator');
       setState({ status: 'error', kind: 'network', message: NETWORK_ERROR });
     }
   }

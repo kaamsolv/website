@@ -1,3 +1,4 @@
+import { trackFileDownload, trackToolSuccess } from '../analytics';
 import type { QrDesign, QrExportOptions } from './design';
 import { createMatrixForDesign } from './matrix';
 import { renderArtboardCanvas, renderArtboardSvg } from './compositor';
@@ -7,6 +8,8 @@ export const DOWNLOAD_SVG = 'kaamsolv-qr-code.svg';
 export const DOWNLOAD_JPG = 'kaamsolv-qr-code.jpg';
 
 export function downloadBlob(filename: string, blob: Blob): void {
+  trackFileDownload(filename);
+  trackToolSuccess('generator', true);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

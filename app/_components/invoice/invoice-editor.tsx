@@ -9,6 +9,7 @@ import { DesignPicker } from './design-panel';
 import { Segmented } from '../choice';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
+import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { addDays, DEFAULT_DUE_DAYS, QUOTE_VALID_DAYS, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
 import { clearInvoiceDraft, loadInvoiceDraft, saveInvoiceDraft } from '@/app/lib/invoice/draft';
 import { readLogo } from '@/app/lib/invoice/logo';
@@ -390,6 +391,7 @@ export function InvoiceEditor() {
       // Pro invoices flow onto more pages by design; free ones are meant to fit one.
       const pages = can('invoice_unlimited_items') ? 1 : await countPdfPages(blob);
       const overflow = pages > 1 ? ' It runs onto a second page — shorten the notes or item descriptions to fit one.' : '';
+      trackToolSuccess('generator', true);
       if (kind === 'download') {
         downloadBlob(blob, pdfFilename(inv!));
         setMessage(`Done — your PDF is downloading.${overflow}`);
@@ -402,6 +404,7 @@ export function InvoiceEditor() {
       }
     } catch {
       tab?.close();
+      trackToolError('pdf_failed', 'generator');
       setMessage('Couldn’t create the PDF. Please try again.');
     } finally {
       setBusy(null);
