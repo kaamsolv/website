@@ -10,6 +10,8 @@ import { DEFAULT_EXPORT_OPTIONS, type QrDesign } from '@/app/lib/qr/design';
 import { KIND_LABELS, QR_NAME_MAX, type TrackableKind } from '@/app/lib/qr/tracking';
 import { refreshMe } from '@/app/lib/me-client';
 
+type CampaignOption = { id: string; name: string };
+
 type Detail = {
   id: string;
   name: string;
@@ -21,6 +23,8 @@ type Detail = {
   lastScanAt: string | null;
   createdAt: string;
   design: QrDesign;
+  campaignId: string | null;
+  campaignName: string | null;
 };
 
 const INPUT =
@@ -34,6 +38,8 @@ export function QrDetail({ id }: { id: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [canCampaigns, setCanCampaigns] = useState(false);
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
 
   const load = useCallback(async () => {
     // The days are cut in the visitor's own time zone.
@@ -41,7 +47,12 @@ export function QrDetail({ id }: { id: string }) {
     const res = await fetch(`/api/qr/${id}?tz=${encodeURIComponent(tz)}`, { cache: 'no-store', credentials: 'same-origin' }).catch(() => null);
     if (res?.status === 404) return setError('That QR code isn’t here — it may have been deleted.');
     if (!res?.ok) return setError('Couldn’t load that QR code. Refresh to try again.');
-    const body = (await res.json()) as { qr: Detail; days: { day: string; scans: number }[] };
+    const body = (await res.json()) as { qr: Detail; days: { day: string; scans: number }[]; canCampaigns?: boolean };
+    setCanCampaigns(!!body.canCampaigns);
+    if (body.canCampaigns) {
+      const c = await fetch('/api/qr/campaigns', { cache: 'no-store', credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      setCampaigns((c as { campaigns: CampaignOption[] } | null)?.campaigns ?? []);
+    }
     setQr(body.qr);
     setName(body.qr.name);
     setDays(body.days);
@@ -52,7 +63,7 @@ export function QrDetail({ id }: { id: string }) {
     void load();
   }, [load]);
 
-  async function put(patch: { name?: string; status?: 'active' | 'disabled' }, done: string) {
+  async function put(patch: { name?: string; status?: 'active' | 'disabled'; campaignId?: string | null }, done: string) {
     setBusy('put');
     setNotice(null);
     const res = await fetch(`/api/qr/${id}`, {
@@ -77,7 +88,7 @@ export function QrDetail({ id }: { id: string }) {
       return setNotice('That didn’t work. Try again.');
     }
     void refreshMe();
-    window.location.assign('/app/qr');
+    window.location.assign('/app/qr/codes');
   }
 
   if (error) {
@@ -87,8 +98,8 @@ export function QrDetail({ id }: { id: string }) {
           {error}
         </p>
         <p className="mt-4">
-          <a href="/app/qr" className={SECONDARY}>
-            Back to My QR codes
+          <a href="/app/qr/codes" className={SECONDARY}>
+            Back to All QR codes
           </a>
         </p>
       </div>
@@ -166,6 +177,26 @@ export function QrDetail({ id }: { id: string }) {
                 Rename
               </button>
             </form>
+            {canCampaigns && (
+              <label className="mt-4 block max-w-sm text-sm font-semibold text-ink">
+                Campaign
+                <select
+                  value={qr.campaignId ?? ''}
+                  disabled={busy !== null}
+                  onChange={(e) =>
+                    void put({ campaignId: e.target.value || null }, e.target.value ? 'Moved into the campaign. Where the code goes is unchanged.' : 'Taken out of its campaign. Where the code goes is unchanged.')
+                  }
+                  className={`${INPUT} mt-1`}
+                >
+                  <option value="">No campaign</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"

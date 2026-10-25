@@ -18,7 +18,7 @@ export default async function QrCodePage({ params }: { params: Promise<{ id: str
       workspace
       title="QR code"
       actions={
-        <a href="/app/qr" className={SECONDARY}>
+        <a href="/app/qr/codes" className={SECONDARY}>
           All QR codes
         </a>
       }

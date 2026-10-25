@@ -471,6 +471,35 @@ export const QR_DATA_MAX_CHARS = 64_000;
  * scans are the link's clicks (docs/products/qr-tracking.md). Deleting the
  * user deletes the link (account_id FK), which deletes this row and its clicks.
  */
+/**
+ * A campaign groups tracked QR codes (Pro: `qr_campaigns`, migration 0009) —
+ * "Diwali flyers 2026". Deleting one ungroups its codes (SET NULL on
+ * `qr_codes.campaign_id`); it never deletes a code, a link or a scan.
+ */
+export const qrCampaigns = pgTable(
+  'qr_campaigns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    startsOn: date('starts_on'),
+    endsOn: date('ends_on'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('qr_campaigns_user_name_key').on(table.userId, sql`lower(${table.name})`),
+    check('qr_campaigns_name_len', sql`char_length(${table.name}) between 1 and 80`),
+    check('qr_campaigns_description_len', sql`char_length(${table.description}) <= 500`),
+    check('qr_campaigns_dates', sql`${table.endsOn} is null or ${table.startsOn} is null or ${table.endsOn} >= ${table.startsOn}`),
+  ],
+);
+
+export type QrCampaignRow = typeof qrCampaigns.$inferSelect;
+
 export const qrCodes = pgTable(
   'qr_codes',
   {
@@ -481,6 +510,8 @@ export const qrCodes = pgTable(
     linkId: uuid('link_id')
       .notNull()
       .references(() => links.id, { onDelete: 'cascade' }),
+    /** The campaign it belongs to (Pro, migration 0009). Null = not in a campaign. */
+    campaignId: uuid('campaign_id').references(() => qrCampaigns.id, { onDelete: 'set null' }),
     name: text('name').notNull(),
     /** Only types whose QR is an https link can be tracked: url, whatsapp, social, file. */
     kind: text('kind').notNull(),
@@ -493,6 +524,7 @@ export const qrCodes = pgTable(
   (table) => [
     uniqueIndex('qr_codes_link_id_key').on(table.linkId),
     index('qr_codes_user_id_created_at_idx').on(table.userId, table.createdAt.desc()),
+    index('qr_codes_user_id_campaign_id_idx').on(table.userId, table.campaignId),
     check('qr_codes_kind', sql`${table.kind} in ('url', 'whatsapp', 'social', 'file')`),
     check('qr_codes_name_len', sql`char_length(${table.name}) between 1 and 80`),
     check('qr_codes_data_len', sql`length(${table.payload}::text) + length(${table.design}::text) <= ${sql.raw(String(QR_DATA_MAX_CHARS))}`),

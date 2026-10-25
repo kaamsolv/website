@@ -18,7 +18,7 @@ import { CHART_DAYS, DEFAULT_TIME_ZONE, QR_HARD_CAP, type TrackableKind } from '
 import type { QrDesign } from '../app/lib/qr/design.ts';
 import type { QrPayload } from '../app/lib/qr/types.ts';
 import { isUniqueViolation, type Db } from './links.ts';
-import { links, qrCodes } from './schema.ts';
+import { links, qrCampaigns, qrCodes } from './schema.ts';
 
 export type QrSummary = {
   id: string;
@@ -32,6 +32,9 @@ export type QrSummary = {
   scans: number;
   lastScanAt: Date | null;
   createdAt: Date;
+  /** The campaign it's in (Pro), or null. */
+  campaignId: string | null;
+  campaignName: string | null;
 };
 
 const SUMMARY = {
@@ -44,6 +47,8 @@ const SUMMARY = {
   scans: links.clickCount,
   lastScanAt: links.lastClickedAt,
   createdAt: qrCodes.createdAt,
+  campaignId: qrCodes.campaignId,
+  campaignName: qrCampaigns.name,
 };
 
 export async function countQr(db: Db, userId: string): Promise<number> {
@@ -56,6 +61,7 @@ export async function listQr(db: Db, userId: string): Promise<QrSummary[]> {
     .select(SUMMARY)
     .from(qrCodes)
     .innerJoin(links, eq(links.id, qrCodes.linkId))
+    .leftJoin(qrCampaigns, eq(qrCampaigns.id, qrCodes.campaignId))
     .where(eq(qrCodes.userId, userId))
     .orderBy(desc(qrCodes.createdAt));
   return rows as QrSummary[];
@@ -68,6 +74,7 @@ export async function getQr(db: Db, userId: string, id: string): Promise<QrDetai
     .select({ ...SUMMARY, payload: qrCodes.payload, design: qrCodes.design })
     .from(qrCodes)
     .innerJoin(links, eq(links.id, qrCodes.linkId))
+    .leftJoin(qrCampaigns, eq(qrCampaigns.id, qrCodes.campaignId))
     .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, userId)));
   return (row as QrDetail | undefined) ?? null;
 }
@@ -81,20 +88,29 @@ export type CreateQrInput = {
   destination: string;
   createdIpHash?: string | null;
   screenedAt?: Date | null;
+  /** Put the new code in this campaign — only if it is the user's own (otherwise it stays ungrouped). */
+  campaignId?: string | null;
 };
+
+/** True when the `qr_codes_enforce_limit` trigger refused an insert (the driver wraps the message differently, so look through `cause`). */
+export function isLimitError(err: unknown): boolean {
+  for (let e: unknown = err, i = 0; e && i < 4; i += 1, e = (e as { cause?: unknown }).cause) {
+    if (/qr_limit/.test(String((e as { message?: unknown }).message ?? ''))) return true;
+  }
+  return false;
+}
 
 export type CreateQrResult = { ok: true; id: string; shortCode: string } | { ok: false; reason: 'limit' };
 
 /**
- * Save a tracked QR, checking the plan's limit in the same statement as the
- * inserts: a refused save leaves no orphan link, and requests that arrive one
- * after another can never pass the limit. (Two requests in the very same
- * instant could each see room under Postgres's default isolation and both
- * insert, so a free account can overshoot by a request — the per-user rate
- * limit bounds that, and the hard cap is the real ceiling. Same pattern as
- * `createInvoice`.) `limit` null = unlimited, still under the account-wide
- * hard cap. A short-code collision retries with a fresh code, widening the
- * keyspace, like `createShortLink`.
+ * Save a tracked QR (also used by Duplicate). The plan's limit is enforced twice:
+ * a cheap check inside the statement (a refused save leaves no orphan link), and
+ * — authoritatively — by the `qr_codes_enforce_limit` trigger (migration 0009),
+ * which takes a per-user lock and counts with a fresh snapshot, so two saves in
+ * the same instant can't both pass. The limit reaches the trigger as a
+ * transaction-local setting; the 2,000-code hard cap always applies. `limit`
+ * null = unlimited. A short-code collision retries with a fresh code, widening
+ * the keyspace, like `createShortLink`.
  */
 export async function createTrackedQr(db: Db, userId: string, input: CreateQrInput, limit: number | null): Promise<CreateQrResult> {
   const cap = Math.min(limit ?? QR_HARD_CAP, QR_HARD_CAP);
@@ -111,6 +127,9 @@ export async function createTrackedQr(db: Db, userId: string, input: CreateQrInp
         with capped as (
           select 1 as ok where (select count(*) from ${qrCodes} where ${qrCodes.userId} = ${userId}::uuid) < ${cap}
         ),
+        plan_limit as (
+          select set_config('kk.qr_limit', ${String(cap)}, true) as v from capped
+        ),
         new_link as (
           insert into ${links} (short_code, destination, account_id, created_ip_hash, screened_at)
           select ${code}, ${input.destination}, ${userId}::uuid, ${input.createdIpHash ?? null}, ${input.screenedAt ? input.screenedAt.toISOString() : null}::timestamptz
@@ -118,9 +137,10 @@ export async function createTrackedQr(db: Db, userId: string, input: CreateQrInp
           returning id, short_code
         ),
         new_qr as (
-          insert into ${qrCodes} (user_id, link_id, name, kind, payload, design)
-          select ${userId}::uuid, new_link.id, ${input.name}, ${input.kind}, ${payload}::jsonb, ${design}::jsonb
-          from new_link
+          insert into ${qrCodes} (user_id, link_id, name, kind, payload, design, campaign_id)
+          select ${userId}::uuid, new_link.id, ${input.name}, ${input.kind}, ${payload}::jsonb, ${design}::jsonb,
+                 (select ${qrCampaigns.id} from ${qrCampaigns} where ${qrCampaigns.id} = ${input.campaignId ?? null}::uuid and ${qrCampaigns.userId} = ${userId}::uuid)
+          from new_link, plan_limit
           returning id
         )
         select new_qr.id as id, new_link.short_code as short_code from new_qr, new_link`);
@@ -128,6 +148,8 @@ export async function createTrackedQr(db: Db, userId: string, input: CreateQrInp
       if (!row) return { ok: false, reason: 'limit' };
       return { ok: true, id: row.id, shortCode: row.short_code };
     } catch (err) {
+      // The trigger refused it: another save got the last slot first. The statement rolled back as a whole, so no link is left behind.
+      if (isLimitError(err)) return { ok: false, reason: 'limit' };
       if (!isUniqueViolation(err)) throw err;
       if ((attempt + 1) % MAX_ATTEMPTS === 0 && length < MAX_LENGTH) length += 1;
     }

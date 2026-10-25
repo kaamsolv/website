@@ -30,6 +30,12 @@ export const ENTITLEMENT_KEYS = [
   'invoice_fx_rates',
   /** Tracked (dynamic) QR codes: how many you may keep (free account 3). */
   'qr_dynamic',
+  /** QR campaigns: create, edit, assign codes, campaign stats (QR Pro). */
+  'qr_campaigns',
+  /** Scan breakdowns by country / device / referrer, and the 90-day range (QR Pro). */
+  'qr_breakdowns',
+  /** CSV export of QR codes and scans (QR Pro). */
+  'qr_export',
   // PDF tools (docs/products/pdf-tools.md). Nobody holds these yet: the Pro
   // features behind them ship in PDF Stage 2. Limits live in app/lib/pdf/limits.ts.
   /** Compress several PDFs at once, plus the "strong" level. */

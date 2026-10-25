@@ -188,6 +188,21 @@ DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_
 
 Dropping `qr_codes` first leaves any tracked links in `links` as ordinary links that keep redirecting; delete them too if you want them gone (`DELETE FROM links WHERE account_id IS NOT NULL;`, which also removes their clicks).
 
+| `0009_qr_campaigns.sql` | `qr_campaigns`; `qr_codes.campaign_id` (FK, ON DELETE SET NULL); the `qr_codes_enforce_limit` trigger (per-user lock, so the QR limit holds under simultaneous saves); seed `qr_pro` → `qr_campaigns`, `qr_breakdowns`, `qr_export` | **not yet** — apply with the QR-workspace deploy |
+
+**Rolling back 0009** (only if the deploy is reverted; additive, old code ignores it):
+
+```sql
+DROP TRIGGER qr_codes_enforce_limit ON qr_codes;
+DROP FUNCTION qr_codes_enforce_limit();
+ALTER TABLE qr_codes DROP COLUMN campaign_id;
+DROP TABLE qr_campaigns;
+DELETE FROM plan_features WHERE feature_key IN ('qr_campaigns', 'qr_breakdowns', 'qr_export');
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
+
+Dropping the column ungroups every code; no code, link or scan is touched. Dropping the trigger removes the database-level QR limit, so the app's own check (which still runs) is the only guard until 0009 is re-applied.
+
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and
 `npm run link:reports`.

@@ -14,7 +14,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md).
 |---|---|
 | Design system | Built — standards in [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) |
 | Homepage | **Live** |
-| QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md); tracked QR codes (scan counts) **live** — [`products/qr-tracking.md`](products/qr-tracking.md) |
+| QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md); tracked QR codes **live**; a QR workspace (dashboard, campaigns, analytics, exports) built, not deployed — [`products/qr-tracking.md`](products/qr-tracking.md) |
 | Image tools (12: converters, compressor, resize to KB) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
 | URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
 | PDF tools (Compress, Merge, Split, PDF↔JPG) | **Live** (Stage 1, free) — [`products/pdf-tools.md`](products/pdf-tools.md) |
