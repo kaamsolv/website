@@ -46,6 +46,7 @@ async function scansOf(page: Page, id: string, want: number) {
 
 test('signed out: the link types show only a free sign-in hint; other types show nothing', async ({ page }) => {
   await page.goto('/qr-code-generator');
+  await expect(page.getByRole('heading', { name: 'Want to know how many people scan this?' }), 'shown even before anything is typed').toBeVisible();
   await page.getByLabel('Website address').fill('https://example.com/menu');
   await expect(page.getByRole('heading', { name: 'Want to know how many people scan this?' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in (it’s free)' })).toBeVisible();
@@ -102,6 +103,67 @@ test('signed in: save a tracked QR, the QR now holds the short link, and the des
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('https://example.com/other');
 });
 
+// Every QR type the generator offers, and whether a phone can be made to count scans for it.
+const TRACKABLE: { chip: string; label: string; value: string; kind: string }[] = [
+  { chip: 'Website', label: 'Website address', value: 'https://example.com/a', kind: 'url' },
+  { chip: 'WhatsApp', label: 'WhatsApp number', value: '+91 98765 43210', kind: 'whatsapp' },
+  { chip: 'Social', label: 'Profile or page URL', value: 'https://instagram.com/kaamsolv', kind: 'social' },
+  { chip: 'PDF', label: 'File URL', value: 'https://example.com/doc.pdf', kind: 'file' },
+];
+const NOT_TRACKABLE = ['Text', 'Wi-Fi', 'Email', 'Phone', 'SMS', 'Contact', 'Location', 'Event', 'UPI'];
+
+test('every link-type QR shows "Save tracked QR" from the start: disabled with a reason until it can work, then saves', async ({ page }) => {
+  await signIn(page, email('qrpro-types'));
+  await page.goto('/qr-code-generator');
+  const save = page.getByRole('button', { name: 'Save tracked QR' });
+  const hint = page.getByText('Finish the details above first');
+
+  for (const t of TRACKABLE) {
+    await page.getByRole('group', { name: 'QR type' }).getByRole('button', { name: t.chip, exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Count scans' }), `${t.chip}: panel shows before anything is typed`).toBeVisible();
+    await expect(save, `${t.chip}: button is there but disabled while empty`).toBeDisabled();
+    await expect(hint, `${t.chip}: says what is missing`).toBeVisible();
+    if (t.kind === 'url') await page.getByRole('region', { name: 'Count scans' }).screenshot({ path: `${SHOTS}/qr-track-empty.png` });
+
+    await page.getByLabel(t.label).fill('not valid');
+    await expect(save, `${t.chip}: still disabled while invalid`).toBeDisabled();
+    await expect(hint).toBeVisible();
+
+    await page.getByLabel(t.label).fill(t.value);
+    await expect(save, `${t.chip}: enabled once valid`).toBeEnabled();
+    await expect(hint).toHaveCount(0);
+
+    await save.click();
+    const trackedMsg = page.getByText(/^Tracked\. Download your QR below/);
+    await expect(trackedMsg, `${t.chip}: saved`).toBeVisible();
+
+    // The "Tracked." state belongs to the code just saved for THIS type: its page link points at a stored code of this kind,
+    // and the short link the message shows is that code's own.
+    const href = await page.getByRole('link', { name: 'its page' }).getAttribute('href');
+    const id = href?.replace('/app/qr/', '') ?? '';
+    const stored = ((await (await page.request.get('/api/qr')).json()) as { qr: { id: string; kind: string; shortUrl: string }[] }).qr.find((c) => c.id === id);
+    expect(stored, `${t.chip}: the page link points at a saved code`).toBeTruthy();
+    expect(stored!.kind, `${t.chip}: and it is a ${t.kind} code`).toBe(t.kind);
+    await expect(trackedMsg).toContainText(stored!.shortUrl.replace(/^https?:\/\//, ''));
+  }
+
+  // The four saves are real tracked codes, one per type, and nothing else was saved.
+  const list = (await (await page.request.get('/api/qr')).json()) as { qr: { kind: string }[] };
+  const kinds = list.qr.map((c) => c.kind).sort();
+  expect(kinds).toEqual(TRACKABLE.map((t) => t.kind).sort());
+});
+
+test('QR types that a phone reads directly show no tracking action at all — signed in', async ({ page }) => {
+  await signIn(page, email('free-nottrack'));
+  await page.goto('/qr-code-generator');
+  for (const chip of NOT_TRACKABLE) {
+    await page.getByRole('group', { name: 'QR type' }).getByRole('button', { name: chip, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Save tracked QR' }), chip).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Count scans' }), chip).toHaveCount(0);
+  }
+  expect(((await (await page.request.get('/api/qr')).json()) as { qr: unknown[] }).qr, 'nothing was saved').toHaveLength(0);
+});
+
 test('a free account tracks 3; the 4th is refused calmly and nothing is orphaned; deleting frees a slot', async ({ page }) => {
   await signIn(page, email('free-limit'));
   const made = [];
@@ -119,7 +181,8 @@ test('a free account tracks 3; the 4th is refused calmly and nothing is orphaned
   await page.goto('/qr-code-generator');
   await page.getByLabel('Website address').fill('https://example.com/4');
   await expect(page.getByText('You’re tracking 3 QR codes — the free limit.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Save tracked QR' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save tracked QR' }), 'still there, but disabled at the limit').toBeDisabled();
+  await expect(page.getByLabel('Name it, so you can find it'), 'the name field is disabled too').toBeDisabled();
 
   // Pausing doesn't free a slot, deleting does — and the printed copies of the other codes still work.
   await page.goto('/app/qr/codes');

@@ -36,7 +36,9 @@ function suggestName(payload: QrPayload, canonicalText: string): string {
  * "Count scans" for link-type QR codes (URL, WhatsApp, Social, File). Signed
  * out it only offers a free sign-in; signed in it saves the code, and the QR
  * then encodes the short link `kaamsolv.com/{code}` — the studio does the rest.
- * Other types (Wi-Fi, Location, vCard…) show nothing: a phone reads them
+ * For those four the panel is always there — signed out it offers sign-in, signed
+ * in the Save button is present and disabled (with the reason) until the link is
+ * valid. Other types (Wi-Fi, Location, vCard…) show nothing: a phone reads them
  * directly, so there is nothing to redirect and nothing to count.
  */
 export function TrackPanel({
@@ -70,9 +72,9 @@ export function TrackPanel({
     if (!edited && canonicalText) setName(suggestName(payload, canonicalText));
   }, [payload, canonicalText, edited]);
 
-  if (!isTrackableKind(payload.kind) || !canonicalText) return null;
+  if (!isTrackableKind(payload.kind)) return null;
 
-  const current = tracked && tracked.forText === canonicalText;
+  const current = tracked && canonicalText && tracked.forText === canonicalText;
   const changed = tracked && tracked.forText !== canonicalText;
 
   if (me.status === 'loading') return null;
@@ -145,7 +147,7 @@ export function TrackPanel({
               You changed the link — save again to track the new one. The one you saved before stays in All QR codes.
             </p>
           )}
-          {atLimit ? (
+          {atLimit && (
             <p role="status" className="mt-3 text-sm text-ink">
               You’re tracking {max} QR codes — the free limit. Your codes keep working.{' '}
               <a href="/app/qr/codes" className="font-semibold underline underline-offset-2">
@@ -153,30 +155,41 @@ export function TrackPanel({
               </a>{' '}
               to delete one.
             </p>
-          ) : (
-            <form
-              className="mt-3 flex flex-wrap items-end gap-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save();
-              }}
+          )}
+          {/* The button is always here for a link-type code; until it can work it is disabled and says what's missing. */}
+          <form
+            className="mt-3 flex flex-wrap items-end gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canonicalText && !atLimit) void save();
+            }}
+          >
+            <label className="block min-w-0 flex-1 basis-56 text-sm font-semibold text-ink">
+              Name it, so you can find it
+              <input
+                value={name}
+                maxLength={QR_NAME_MAX}
+                disabled={atLimit}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setEdited(true);
+                }}
+                className={`${INPUT} mt-1 disabled:cursor-not-allowed disabled:opacity-60`}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={busy || !canonicalText || atLimit || !name.trim() || !can('qr_dynamic')}
+              aria-describedby={canonicalText ? undefined : 'track-hint'}
+              className={BTN}
             >
-              <label className="block min-w-0 flex-1 basis-56 text-sm font-semibold text-ink">
-                Name it, so you can find it
-                <input
-                  value={name}
-                  maxLength={QR_NAME_MAX}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setEdited(true);
-                  }}
-                  className={`${INPUT} mt-1`}
-                />
-              </label>
-              <button type="submit" disabled={busy || !name.trim() || !can('qr_dynamic')} className={BTN}>
-                {busy ? 'Saving…' : 'Save tracked QR'}
-              </button>
-            </form>
+              {busy ? 'Saving…' : 'Save tracked QR'}
+            </button>
+          </form>
+          {!canonicalText && (
+            <p id="track-hint" className="mt-2 text-sm text-muted">
+              Finish the details above first — then you can save it and count scans.
+            </p>
           )}
           {error && (
             <p role="alert" className="mt-2 text-sm font-semibold text-danger-600">
