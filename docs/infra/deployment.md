@@ -22,7 +22,7 @@ and wired to its domain. Decision history: [`../DECISIONS.md`](../DECISIONS.md).
 | Fallback URL | `https://kaamsolv.kaamsolv.workers.dev` (`workers_dev: true`; pages carry the kaamsolv.com canonical) |
 | Cloudflare account | `prabhatbhatnagar@gmail.com`'s Account (`wrangler whoami`) |
 | Live since | **2026-10-21** — first deploy, version `12640492-b39a-4067-ac04-c1044dfb9bda` |
-| Latest deploy | **2026-10-25** — version `8866be1c-a15f-4f51-a9c5-6286ac319e96` (branch `claude/exciting-spence-025d65` at `7b92d35` = `main` + GA4, `/sitemap.xml`, `/design-system` noindex, the analytics deploy check). Worker 2,471 KiB gzip. The deploy before it, `fa2b3997-b5b5-482d-be0f-314492897c19` (`main` at `3b26220`: tracked QR codes, first slice), was built without the GA ID and so briefly removed analytics; that is why `.env.production` and `scripts/check-analytics-build.mts` exist. Earlier the same day: `e7856b16-d2e3-40d3-8289-7c862e3bc548` (`9c89387`: invoice Stage 2C-2; 2,373 KiB), `c0931bfc-f60c-46a3-8212-7c6c3d58d4ea` (`133be4f`: Salary Calculator; 2,334 KiB), and `70d615cf-4b0b-4392-b0a4-027aa0b77002` (`ad3bc9a`: PDF tools Stage 1, image converter format-switch fix, invoice Stage 2C-1; 2,329 KiB). |
+| Latest deploy | **2026-10-26** — version `3f801e52-1151-4f29-9895-517cefc42c3b` (`main` at `464ec84`: QR workspace — dashboard, campaigns, analytics, exports). Worker 2,504.84 KiB gzip. **Both QR deploys were built from `main` before it contained the GA4 work, so each removed analytics, the sitemap and the noindex from the live site until the branch was merged; deploy only from a branch that contains `.env.production` and the analytics check.** Before it, 2026-10-25: `8866be1c-a15f-4f51-a9c5-6286ac319e96` (branch `claude/exciting-spence-025d65`: GA4, `/sitemap.xml`, `/design-system` noindex, the analytics deploy check; 2,471 KiB), and `fa2b3997-b5b5-482d-be0f-314492897c19` (`3b26220`: tracked QR codes, first slice; 2,493 KiB). Earlier the same day: `e7856b16-d2e3-40d3-8289-7c862e3bc548` (`9c89387`: invoice Stage 2C-2; 2,373 KiB), `c0931bfc-f60c-46a3-8212-7c6c3d58d4ea` (`133be4f`: Salary Calculator; 2,334 KiB), and `70d615cf-4b0b-4392-b0a4-027aa0b77002` (`ad3bc9a`: PDF tools Stage 1, image converter format-switch fix, invoice Stage 2C-1; 2,329 KiB). |
 | Cache | Pre-rendered pages served from Worker static assets (`open-next.config.ts`) — no R2/KV/D1 |
 | Database | **Neon Postgres**, project `kaamsolv` (`spring-wave-63290734`), **AWS ap-southeast-1 (Singapore)**, branch `production`, pooled endpoint. Neon account: the kaamsolv Gmail. Migrations `0000`–`0002` applied 2026-10-21. Used only by the URL Shortener (not yet on `main`). |
 | Worker secrets | `DATABASE_URL`, `KK_IP_HASH_SALT` — set 2026-10-21 with `db/setup-production.mjs` (`cf-workers-poc` branch). `WEB_RISK_API_KEY` not set: link screening is skipped (fail-open). List names with `npx wrangler secret list`. |
@@ -198,6 +198,21 @@ DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_
 ```
 
 Dropping `qr_codes` first leaves any tracked links in `links` as ordinary links that keep redirecting; delete them too if you want them gone (`DELETE FROM links WHERE account_id IS NOT NULL;`, which also removes their clicks).
+
+| `0009_qr_campaigns.sql` | `qr_campaigns`; `qr_codes.campaign_id` (FK, ON DELETE SET NULL); the `qr_codes_enforce_limit` trigger (per-user lock, so the QR limit holds under simultaneous saves); seed `qr_pro` → `qr_campaigns`, `qr_breakdowns`, `qr_export` | applied 2026-10-26 (before the QR-workspace deploy) |
+
+**Rolling back 0009** (only if the deploy is reverted; additive, old code ignores it):
+
+```sql
+DROP TRIGGER qr_codes_enforce_limit ON qr_codes;
+DROP FUNCTION qr_codes_enforce_limit();
+ALTER TABLE qr_codes DROP COLUMN campaign_id;
+DROP TABLE qr_campaigns;
+DELETE FROM plan_features WHERE feature_key IN ('qr_campaigns', 'qr_breakdowns', 'qr_export');
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
+
+Dropping the column ungroups every code; no code, link or scan is touched. Dropping the trigger removes the database-level QR limit, so the app's own check (which still runs) is the only guard until 0009 is re-applied.
 
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and

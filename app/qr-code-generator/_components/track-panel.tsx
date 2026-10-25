@@ -126,9 +126,9 @@ export function TrackPanel({
         <div role="status" className="mt-2 space-y-2 text-sm">
           <p className="font-semibold text-ink">Tracked. Download your QR below — it now points through {tracked.shortUrl.replace(/^https?:\/\//, '')}.</p>
           <p className="text-muted">
-            People who scan it still land on your link. Find the count any time in{' '}
+            People who scan it still land on your link. See the count any time in{' '}
             <a href={`/app/qr/${tracked.id}`} className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
-              My QR codes
+              its page
             </a>
             .
           </p>
@@ -142,14 +142,14 @@ export function TrackPanel({
           </p>
           {changed && (
             <p role="status" className="mt-2 text-sm font-semibold text-ink">
-              You changed the link — save again to track the new one. The one you saved before stays in My QR codes.
+              You changed the link — save again to track the new one. The one you saved before stays in All QR codes.
             </p>
           )}
           {atLimit ? (
             <p role="status" className="mt-3 text-sm text-ink">
               You’re tracking {max} QR codes — the free limit. Your codes keep working.{' '}
-              <a href="/app/qr" className="font-semibold underline underline-offset-2">
-                Open My QR codes
+              <a href="/app/qr/codes" className="font-semibold underline underline-offset-2">
+                Open All QR codes
               </a>{' '}
               to delete one.
             </p>

@@ -1,9 +1,10 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import type { EntitlementKey } from '@/app/lib/entitlements';
 import { useEntitlements } from '@/app/lib/me-client';
 
-type Link = { href: string; label: string; pro?: boolean; sub?: boolean; /** Shown only when the account has this entitlement. */ key?: 'invoice_batch_csv' };
+type Link = { href: string; label: string; pro?: boolean; sub?: boolean; /** Shown only when the account has this entitlement. */ key?: EntitlementKey };
 
 /**
  * The signed-in navigation, in groups: the hub, each tool (its own pages show
@@ -13,6 +14,7 @@ type Link = { href: string; label: string; pro?: boolean; sub?: boolean; /** Sho
  */
 function groups(pathname: string): { label?: string; links: Link[] }[] {
   const inInvoices = pathname.startsWith('/app/invoices');
+  const inQr = pathname.startsWith('/app/qr');
   return [
     { links: [{ href: '/app', label: 'Your KaamSolv' }] },
     {
@@ -28,6 +30,15 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
             ]
           : []),
         { href: '/app/qr', label: 'QR codes' },
+        ...(inQr
+          ? [
+              { href: '/app/qr', label: 'Dashboard', sub: true },
+              { href: '/app/qr/codes', label: 'All QR codes', sub: true },
+              { href: '/app/qr/campaigns', label: 'Campaigns', sub: true, key: 'qr_campaigns' as const },
+              { href: '/app/qr/analytics', label: 'Scan analytics', sub: true },
+              { href: '/app/qr/exports', label: 'Reports & exports', sub: true, key: 'qr_export' as const },
+            ]
+          : []),
       ],
     },
     {
@@ -47,9 +58,14 @@ export function WorkspaceNav() {
   const { can } = useEntitlements();
   const all = groups(pathname).map((g) => ({ ...g, links: g.links.filter((l) => (!l.pro || can('invoice_dashboard')) && (!l.key || can(l.key))) }));
   // "Invoices" itself is current only when no sub-page is listed (outside Invoices).
-  const isCurrent = (l: Link) =>
-    (pathname === l.href || (l.href === '/app/qr' && pathname.startsWith('/app/qr/'))) &&
-    !(l.href === '/app/invoices' && !l.sub && pathname.startsWith('/app/invoices'));
+  // "Invoices" and "QR codes" are current only when no sub-page is listed under them.
+  const isCurrent = (l: Link) => {
+    if (!l.sub && ((l.href === '/app/invoices' && pathname.startsWith('/app/invoices')) || (l.href === '/app/qr' && pathname.startsWith('/app/qr')))) return false;
+    // A single code (/app/qr/<id>) sits under "All QR codes"; a campaign page under "Campaigns".
+    if (l.href === '/app/qr/codes') return pathname === l.href || /^\/app\/qr\/[0-9a-f-]{36}$/i.test(pathname);
+    if (l.href === '/app/qr/campaigns') return pathname.startsWith('/app/qr/campaigns');
+    return pathname === l.href;
+  };
 
   return (
     <nav aria-label="Your workspace" className="-mx-4 mb-6 overflow-x-auto px-4 md:mx-0 md:mb-0 md:overflow-visible md:px-0">

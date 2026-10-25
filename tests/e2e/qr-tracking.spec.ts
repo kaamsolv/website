@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Tracked QR codes (first slice) on the throwaway e2e database: the studio's
- * "Count scans" panel, the free limit of 3, My QR codes, scans counted from
+ * "Count scans" panel, the free limit of 3, All QR codes, scans counted from
  * real requests to /{code} (people yes, bots no), pause / resume / delete, and
  * what the printed code does. Emails starting "pro-" get a test-only manual Pro
  * grant (which gives them no QR limit).
@@ -83,7 +83,7 @@ test('signed in: save a tracked QR, the QR now holds the short link, and the des
   const hit = await scan(page, code);
   expect(hit.status()).toBe(302);
   expect(hit.headers()['location']).toBe('https://example.com/menu');
-  await page.goto('/app/qr');
+  await page.goto('/app/qr/codes');
   const row = page.getByRole('list', { name: 'Tracked QR codes' }).getByRole('listitem');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('Cafe menu');
@@ -122,7 +122,7 @@ test('a free account tracks 3; the 4th is refused calmly and nothing is orphaned
   await expect(page.getByRole('button', { name: 'Save tracked QR' })).toHaveCount(0);
 
   // Pausing doesn't free a slot, deleting does — and the printed copies of the other codes still work.
-  await page.goto('/app/qr');
+  await page.goto('/app/qr/codes');
   await page.getByRole('button', { name: 'Pause Code 1' }).click();
   await expect(page.getByText(/^Paused “Code 1”\./)).toBeVisible();
   expect((await track(page, 'Code 4')).status).toBe(403);
@@ -169,7 +169,7 @@ test('scans: people count, bots do not; the detail page shows the total and char
   await page.getByLabel('Name').fill('Flyer — Mall A');
   await page.getByRole('button', { name: 'Rename' }).click();
   await expect(page.getByText('Renamed.')).toBeVisible();
-  await page.goto('/app/qr');
+  await page.goto('/app/qr/codes');
   await expect(page.getByRole('list', { name: 'Tracked QR codes' })).toContainText('Flyer — Mall A');
   await expect(page.getByRole('list', { name: 'Tracked QR codes' })).toContainText('3 scans');
 });
@@ -186,7 +186,7 @@ test('detail page: download again gives a PNG; delete removes it and the printed
     void d.accept();
   });
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
-  await page.waitForURL('**/app/qr');
+  await page.waitForURL('**/app/qr/codes');
   await expect(page.getByText('No tracked QR codes yet')).toBeVisible();
   expect((await scan(page, body.shortCode!)).status()).toBe(404);
   expect((await page.request.get(`/api/qr/${body.id}`)).status()).toBe(404);
@@ -233,7 +233,7 @@ test('safety: other people’s codes are 404; other shorteners, non-links and ba
 
 for (const scheme of ['light', 'dark'] as const) {
   for (const [label, width, height] of [['desktop', 1280, 900], ['phone', 375, 812]] as const) {
-    test(`screenshots ${label} ${scheme}: studio panel, My QR codes, detail`, async ({ page }) => {
+    test(`screenshots ${label} ${scheme}: studio panel, All QR codes, detail`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.setViewportSize({ width, height });
       const noSideways = async (what: string) => {
@@ -250,7 +250,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
       // Signed in, empty list, then a saved code with scans.
       await signIn(page, email(`qr-shot-${label}-${scheme}`));
-      await page.goto('/app/qr');
+      await page.goto('/app/qr/codes');
       await expect(page.getByText('No tracked QR codes yet')).toBeVisible();
       await noSideways('empty list');
       await page.screenshot({ path: `${SHOTS}/qr-list-empty-${label}-${scheme}.png`, fullPage: true });
@@ -271,7 +271,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await scansOf(page, id, 3);
       await track(page, 'Poster — Mall A', 'https://example.com/poster');
 
-      await page.goto('/app/qr');
+      await page.goto('/app/qr/codes');
       await expect(page.getByRole('list', { name: 'Tracked QR codes' }).getByRole('listitem')).toHaveCount(2);
       await noSideways('list');
       await page.screenshot({ path: `${SHOTS}/qr-list-${label}-${scheme}.png`, fullPage: true });

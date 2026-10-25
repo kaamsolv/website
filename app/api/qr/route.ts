@@ -12,13 +12,10 @@
  */
 
 import { entitlementsFrom } from '@/app/lib/entitlements';
-import { checkDestinationPolicy } from '@/app/lib/destination-policy';
 import { hashIp, resolveIpHashSalt } from '@/app/lib/ip-hash';
 import { rateLimitChecks, retryAfterSeconds } from '@/app/lib/rate-limit';
-import { canonicalPayload } from '@/app/lib/qr/encode';
+import { checkTrackedDestination } from '@/app/lib/qr/destination';
 import { cleanQrName, cleanTrackablePayload, designForSaving } from '@/app/lib/qr/tracking';
-import { screenUrl } from '@/app/lib/url-reputation';
-import { messageForReason, validateDestinationUrl } from '@/app/lib/url-validation';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { getDb } from '@/db/client';
@@ -37,10 +34,12 @@ export async function GET(req: Request) {
   const db = await getDb();
   const ent = entitlementsFrom(await getEntitlements(db, user.id));
   const codes = await listQr(db, user.id);
+  // Campaigns are QR Pro: without the key the response carries no campaign fields at all.
+  const campaigns = ent.can('qr_campaigns');
   return json({
     ok: true,
     limit: ent.limit('qr_dynamic'),
-    qr: codes.map((c) => ({ ...c, shortUrl: `${SITE_URL}/${c.shortCode}` })),
+    qr: codes.map((c) => ({ ...c, campaignId: campaigns ? c.campaignId : null, campaignName: campaigns ? c.campaignName : null, shortUrl: `${SITE_URL}/${c.shortCode}` })),
   });
 }
 
@@ -74,20 +73,9 @@ export async function POST(req: Request) {
     const payload = cleanTrackablePayload(body?.payload);
     if (!payload) return fail(400, 'not_trackable', 'Only website, WhatsApp, social and file-link QR codes can count scans.');
 
-    // The link the QR leads to is worked out here, from the payload.
-    const canonical = canonicalPayload(payload);
-    if (!canonical.ok) return fail(400, 'invalid_url', canonical.message);
-    const validated = validateDestinationUrl(canonical.text);
-    if (!validated.ok) return fail(400, 'invalid_url', messageForReason(validated.reason));
-    if (!checkDestinationPolicy(validated.hostname).ok) {
-      return fail(400, 'blocked_url', 'That’s a link from another shortener. Use the full destination link instead.');
-    }
-    const screen = await screenUrl(validated.normalized, { apiKey: process.env.WEB_RISK_API_KEY });
-    if (screen.status === 'unsafe') {
-      console.warn(`[api/qr] blocked by Web Risk: host=${validated.hostname} threats=${screen.threatTypes.join(',')}`);
-      return fail(400, 'blocked_url', 'We can’t track this link — it’s been flagged as potentially harmful.');
-    }
-    if (screen.status === 'unavailable') console.warn(`[api/qr] not screened (${screen.reason}): host=${validated.hostname} — allowed`);
+    // The link the QR leads to is worked out here, from the payload, and checked like any short link.
+    const checked = await checkTrackedDestination(payload, 'api/qr');
+    if (!checked.ok) return fail(400, checked.error, checked.message);
 
     const created = await createTrackedQr(
       db,
@@ -97,9 +85,9 @@ export async function POST(req: Request) {
         kind: payload.kind,
         payload,
         design: designForSaving(body?.design),
-        destination: validated.normalized,
+        destination: checked.destination,
         createdIpHash: null,
-        screenedAt: screen.status === 'safe' ? new Date() : null,
+        screenedAt: checked.screenedAt,
       },
       limit,
     );

@@ -120,6 +120,25 @@ separately before it ran). Detail: [`products/pdf-tools.md`](./products/pdf-tool
 
 ---
 
+## 2026-10-26 — QR workspace: dashboard, management, campaigns, analytics, exports
+
+**Decided by:** product owner (plan approved with six clarifications). Detail:
+[`products/qr-tracking.md`](./products/qr-tracking.md) "QR workspace".
+
+- **The 25 Oct split stands.** Free: dashboard, search / filter / sort, download,
+  duplicate, pause, 7 / 30-day chart and Scan analytics. QR Pro (hidden until
+  payments, server-side `can()`): campaigns, country / device / referrer
+  breakdowns, the 90-day range, CSV export. No upgrade buttons.
+- **Limits:** `qr_dynamic` (free 3) counts the whole stored library; the 2,000
+  cap is a separate abuse ceiling; Duplicate obeys the same limit, rate limit and
+  re-screening as Save.
+- **Scans** have one definition everywhere (non-bot events = `click_count`);
+  analytics show only what we record (no OS), labelled all-time vs date-range.
+- **Deferred:** folders, brand presets, QR settings, OS, UTM, destination edits.
+- Migration 0009 (additive; rollback in `infra/deployment.md`).
+
+---
+
 ## 2026-10-25 — Tracked QR codes: first slice ("count only")
 
 **Decided by:** product owner, after a codebase reality check. Detail:

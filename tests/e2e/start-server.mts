@@ -32,7 +32,7 @@ const client = new PGlite(dir);
 await migrate(drizzle(client), { migrationsFolder: resolve(root, 'db/migrations') });
 await client.query(`update plan_features set limit_value = $1 where plan_key = 'free_account' and feature_key = 'invoice_save'`, [E2E_SAVE_LIMIT]);
 // TEST-ONLY: accounts whose email starts with "pro-" get a manual Invoice Pro
-// grant when created — the e2e stand-in for `npm run account:grant`. Exists
+// grant ("qrpro-": QR Pro) when created — the e2e stand-in for `npm run account:grant`. Exists
 // only in this throwaway database.
 await client.exec(`
   create function e2e_grant_pro() returns trigger language plpgsql as $$
@@ -40,6 +40,9 @@ await client.exec(`
     if new.email like 'pro-%' then
       insert into subscriptions (user_id, provider, provider_ref, plan_key, status)
       values (new.id, 'manual', 'manual:e2e:' || new.id, 'invoice_pro', 'active');
+    elsif new.email like 'qrpro-%' then
+      insert into subscriptions (user_id, provider, provider_ref, plan_key, status)
+      values (new.id, 'manual', 'manual:e2e:qr:' || new.id, 'qr_pro', 'active');
     end if;
     return new;
   end $$;
