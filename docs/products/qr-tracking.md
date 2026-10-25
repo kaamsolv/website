@@ -1,6 +1,6 @@
 # Tracked QR codes
 
-**Status:** built, not deployed (first slice, 2026-10-25). The static QR studio
+**Status:** live (first slice, deployed 2026-10-25). The static QR studio
 ([`qr-code-generator.md`](./qr-code-generator.md)) is unchanged and stays free,
 no account. This adds an **optional** step for link-type codes: count the scans.
 
