@@ -22,6 +22,11 @@ export const ANONYMOUS_LIMITS = {
     { limit: 12, windowSeconds: 60, window: '1m' },
     { limit: 100, windowSeconds: 24 * 60 * 60, window: '1d' },
   ],
+  /** Saving a tracked QR code, per signed-in user (salted hash of the user id). */
+  qrCreate: [
+    { limit: 10, windowSeconds: 60, window: '1m' },
+    { limit: 100, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
   /** Reporting a link. */
   report: [{ limit: 5, windowSeconds: 60 * 60, window: '1h' }],
   /** Sign-in link emails, per caller (salted IP hash). */

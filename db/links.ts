@@ -29,7 +29,7 @@ export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 const PG_UNIQUE_VIOLATION = '23505';
 
 /** True when a thrown error is a Postgres unique-constraint violation. */
-function isUniqueViolation(err: unknown): boolean {
+export function isUniqueViolation(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { code?: unknown; cause?: { code?: unknown }; message?: unknown };
   if (e.code === PG_UNIQUE_VIOLATION || e.cause?.code === PG_UNIQUE_VIOLATION) return true;

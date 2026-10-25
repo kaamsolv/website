@@ -10,6 +10,8 @@ Platform-wide decisions live in [`../kaamsolv-phase0-architecture.md`](../kaamso
 
 A **static** QR code maker with **QR Studio** styling: choose a type, fill in fields, optionally style with presets and frames, preview, download. No account, no server-side encoding, no tracking.
 
+**Optional tracking (2026-10-25):** signed-in users can save a link-type code as a *tracked* QR that counts scans — see [`qr-tracking.md`](./qr-tracking.md). Everything below is unchanged for the free, no-account path.
+
 **Core promise:** choose → style (optional) → download → done.
 
 ---
@@ -130,11 +132,9 @@ QR Content (QrPayload)
 
 ## 4. Explicitly deferred (not Phase 2)
 
-- Dynamic / tracked QR codes
-- URL shortening inside the QR tool
-- Scan analytics, campaigns, accounts
-- Saved QR history, cloud storage
-- Database / API routes for QR
+- ~~Dynamic / tracked QR codes~~ — first slice built (2026-10-25): [`qr-tracking.md`](./qr-tracking.md)
+- Campaigns, UTM tags, scan breakdowns, editing a destination, CSV export (later releases)
+- ~~Accounts, saved QR history, database / API routes~~ — tracked codes only, see above
 - Gradients on QR data modules
 - Independent eye colours
 - Downloadable PDF (print view instead)
@@ -192,10 +192,10 @@ SEO: server `metadata` (title, description, canonical, OpenGraph, Twitter).
 
 ## 9. Future direction (not built)
 
-When dynamic QR lands (shared with URL Shortener infrastructure per Phase 0):
+Built as the first slice (see [`qr-tracking.md`](./qr-tracking.md)):
 
-1. `resolveEncodeTarget()` returns `https://kaamsolv.com/{code}` instead of the raw URL.
-2. Optional `QrCode` row + `link_id` in Postgres.
-3. Scan events via the shared analytics/redirect path.
+1. `resolveEncodeTarget(canonical, trackedUrl?)` returns `https://kaamsolv.com/{code}` for a saved tracked code, the raw payload otherwise.
+2. `qr_codes` row + `link_id` in Postgres.
+3. Scan events via the shared redirect and click path.
 
-Until then, the static tool remains fully client-side.
+Still to come: campaigns, UTM, breakdowns, editing a destination, export. The static tool remains fully client-side and needs no account.

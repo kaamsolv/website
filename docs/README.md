@@ -14,7 +14,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 |---|---|
 | Design system | Built — standards in [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) |
 | Homepage | **Live** |
-| QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md) |
+| QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md); tracked QR codes (scan counts) **live** — [`products/qr-tracking.md`](products/qr-tracking.md) |
 | Image tools (12: converters, compressor, resize to KB) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
 | URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
 | PDF tools (Compress, Merge, Split, PDF↔JPG) | **Live** (Stage 1, free) — [`products/pdf-tools.md`](products/pdf-tools.md) |
@@ -68,7 +68,7 @@ Local development needs **no** database configured — the absence of
 | [`infra/deployment.md`](infra/deployment.md) | Hosting, domain, secrets, deploy & migrations |
 | [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) | Production design-system standards |
 | [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) | The tool catalogue, locked categories, build order |
-| [`products/`](products/) | Per-product specs (QR, image kit, PDF tools, URL Shortener, Invoice Generator, accounts) |
+| [`products/`](products/) | Per-product specs (QR, tracked QR, image kit, PDF tools, URL Shortener, Invoice Generator, accounts) |
 | [`kaamsolv-design-system.html`](kaamsolv-design-system.html) | Original visual reference prototype (not production code) |
 
 ## Development process

@@ -44,12 +44,12 @@ export type QrPayload =
   | { kind: 'file'; url: string; label: string }
   | { kind: 'upi'; upiId: string; payeeName: string; amount: string; note: string };
 
-/** What the QR image should contain. Static = payload string. Dynamic = later. */
-export type QrEncodeMode = 'static';
+/** What the QR image contains: the payload string itself (static), or a KaamSolv tracking link (tracked). */
+export type QrEncodeMode = 'static' | 'tracked';
 
 export type EncodeOk = {
   ok: true;
-  /** The exact string drawn into the QR. Swap this later for a tracking URL. */
+  /** The exact string drawn into the QR — the payload, or the tracking URL for a tracked code. */
   text: string;
   mode: QrEncodeMode;
   kind: QrKind;

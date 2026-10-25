@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { encodePayload, isPayloadEmpty } from '@/app/lib/qr/encode';
+import { canonicalPayload, encodePayload, isPayloadEmpty } from '@/app/lib/qr/encode';
 import {
   DEFAULT_EXPORT_OPTIONS,
   DEFAULT_QR_DESIGN,
@@ -19,6 +19,7 @@ import { QrTypeFields } from './qr-type-fields';
 import { QrPreview } from './qr-preview';
 import { QrStudio } from './qr-studio';
 import { QrDownload } from './qr-download';
+import { TrackPanel, type TrackedState } from './track-panel';
 
 const CHIP_SCROLL =
   'flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
@@ -33,6 +34,8 @@ export function QrGenerator() {
   const [logoName, setLogoName] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1024);
+  // A saved tracked code: the QR encodes its short link for as long as the link it was saved for is unchanged.
+  const [tracked, setTracked] = useState<TrackedState | null>(null);
 
   useEffect(() => {
     const update = () => setViewportWidth(window.innerWidth);
@@ -41,7 +44,10 @@ export function QrGenerator() {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  const encoded = useMemo(() => encodePayload(payload), [payload]);
+  const canonical = useMemo(() => canonicalPayload(payload), [payload]);
+  const canonicalText = canonical.ok ? canonical.text : null;
+  const activeTrackedUrl = tracked && canonicalText === tracked.forText ? tracked.shortUrl : null;
+  const encoded = useMemo(() => encodePayload(payload, activeTrackedUrl), [payload, activeTrackedUrl]);
   const empty = isPayloadEmpty(payload);
   const fieldErrors = useMemo(() => {
     if (!encoded.ok) return encoded.field ? { [encoded.field]: encoded.message } : { _form: encoded.message };
@@ -75,6 +81,7 @@ export function QrGenerator() {
     setKind(next);
     setPayload(emptyPayload(next));
     setTouched(false);
+    setTracked(null);
   }
 
   function onPayloadChange(next: QrPayload) {
@@ -139,6 +146,13 @@ export function QrGenerator() {
             onChange={onPayloadChange}
             fieldErrors={fieldErrors}
             touched={touched || !empty}
+          />
+          <TrackPanel
+            payload={payload}
+            canonicalText={empty ? null : canonicalText}
+            design={design}
+            tracked={tracked}
+            onTracked={setTracked}
           />
         </div>
       </div>

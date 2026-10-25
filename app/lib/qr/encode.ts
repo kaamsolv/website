@@ -11,6 +11,7 @@
 import {
   MAX_TEXT_LENGTH,
   type EncodeResult,
+  type QrEncodeMode,
   type QrPayload,
 } from './types';
 import { encodeEventPayload } from './payloads/event';
@@ -186,18 +187,18 @@ export function canonicalPayload(payload: QrPayload): EncodeResult {
 }
 
 /**
- * Maps a canonical payload string to what is actually drawn in the QR.
- * Phase 1 always returns the payload unchanged. A later dynamic QR path
- * would return a KaamSolv tracking URL here instead.
+ * Maps a canonical payload string to what is actually drawn in the QR: the
+ * payload itself (static), or — for a tracked QR — the KaamSolv short link that
+ * redirects to it. The tracking URL is only ever given for a link-type payload.
  */
-export function resolveEncodeTarget(canonicalText: string): { text: string; mode: 'static' } {
-  return { text: canonicalText, mode: 'static' };
+export function resolveEncodeTarget(canonicalText: string, trackedUrl?: string | null): { text: string; mode: QrEncodeMode } {
+  return trackedUrl ? { text: trackedUrl, mode: 'tracked' } : { text: canonicalText, mode: 'static' };
 }
 
-export function encodePayload(payload: QrPayload): EncodeResult {
+export function encodePayload(payload: QrPayload, trackedUrl?: string | null): EncodeResult {
   const canonical = canonicalPayload(payload);
   if (!canonical.ok) return canonical;
-  const target = resolveEncodeTarget(canonical.text);
+  const target = resolveEncodeTarget(canonical.text, trackedUrl);
   return { ...canonical, text: target.text, mode: target.mode };
 }
 

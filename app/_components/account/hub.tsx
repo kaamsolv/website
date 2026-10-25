@@ -30,6 +30,7 @@ export function Hub() {
 
   const saved = me.usage.invoiceSave;
   const saveLimit = limit('invoice_save');
+  const qrLimit = limit('qr_dynamic');
   const unpaidText = unpaid?.filter((t) => t.unpaid > 0).map((t) => `${formatMoney(t.unpaid, t.currency)} unpaid`).join(' · ');
   const detail = pro ? [`${saved} saved`, unpaidText || (unpaid ? 'nothing unpaid' : '')].filter(Boolean).join(' · ') : `${saved} of ${saveLimit ?? '∞'} saved`;
 
@@ -50,6 +51,23 @@ export function Hub() {
             </a>
             <a href="/invoice-generator" className="text-strong underline underline-offset-2 hover:text-coral-600">
               New invoice
+            </a>
+          </div>
+        </li>
+        <li className="rounded-xl2 border border-hair bg-surface p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-lg font-bold text-ink">QR codes</h2>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${qrLimit === null ? 'bg-purplex-100 text-purplex-600' : 'bg-wash text-strong'}`}>
+              {qrLimit === null ? 'Pro' : 'Free'}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-muted">{qrLimit === null ? `${me.usage.qrCodes} tracked` : `${me.usage.qrCodes} of ${qrLimit} tracked`}</p>
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
+            <a href="/app/qr" className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coral-600">
+              Open QR codes <Icon name="arrow-right" className="h-4 w-4" />
+            </a>
+            <a href="/qr-code-generator" className="text-strong underline underline-offset-2 hover:text-coral-600">
+              New QR code
             </a>
           </div>
         </li>

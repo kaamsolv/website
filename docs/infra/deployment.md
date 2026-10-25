@@ -22,7 +22,7 @@ and wired to its domain. Decision history: [`../DECISIONS.md`](../DECISIONS.md).
 | Fallback URL | `https://kaamsolv.kaamsolv.workers.dev` (`workers_dev: true`; pages carry the kaamsolv.com canonical) |
 | Cloudflare account | `prabhatbhatnagar@gmail.com`'s Account (`wrangler whoami`) |
 | Live since | **2026-10-21** — first deploy, version `12640492-b39a-4067-ac04-c1044dfb9bda` |
-| Latest deploy | **2026-10-25** — version `e7856b16-d2e3-40d3-8289-7c862e3bc548` (`main` at `9c89387`: invoice Stage 2C-2). Worker 2,373 KiB gzip. Earlier the same day: `c0931bfc-f60c-46a3-8212-7c6c3d58d4ea` (`133be4f`: Salary Calculator; 2,334 KiB), and `70d615cf-4b0b-4392-b0a4-027aa0b77002` (`ad3bc9a`: PDF tools Stage 1, image converter format-switch fix, invoice Stage 2C-1; 2,329 KiB). |
+| Latest deploy | **2026-10-25** — version `fa2b3997-b5b5-482d-be0f-314492897c19` (`main` at `3b26220`: tracked QR codes, first slice). Worker 2,493 KiB gzip. Earlier the same day: `e7856b16-d2e3-40d3-8289-7c862e3bc548` (`9c89387`: invoice Stage 2C-2; 2,373 KiB), `c0931bfc-f60c-46a3-8212-7c6c3d58d4ea` (`133be4f`: Salary Calculator; 2,334 KiB), and `70d615cf-4b0b-4392-b0a4-027aa0b77002` (`ad3bc9a`: PDF tools Stage 1, image converter format-switch fix, invoice Stage 2C-1; 2,329 KiB). |
 | Cache | Pre-rendered pages served from Worker static assets (`open-next.config.ts`) — no R2/KV/D1 |
 | Database | **Neon Postgres**, project `kaamsolv` (`spring-wave-63290734`), **AWS ap-southeast-1 (Singapore)**, branch `production`, pooled endpoint. Neon account: the kaamsolv Gmail. Migrations `0000`–`0002` applied 2026-10-21. Used only by the URL Shortener (not yet on `main`). |
 | Worker secrets | `DATABASE_URL`, `KK_IP_HASH_SALT` — set 2026-10-21 with `db/setup-production.mjs` (`cf-workers-poc` branch). `WEB_RISK_API_KEY` not set: link screening is skipped (fail-open). List names with `npx wrangler secret list`. |
@@ -184,6 +184,20 @@ ALTER TABLE invoices DROP CONSTRAINT invoices_recur_every;
 ALTER TABLE invoices DROP COLUMN recur_next, DROP COLUMN recur_every;
 DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
 ```
+
+| `0008_qr_tracking.sql` | `qr_codes`; `links.account_id` FK → `auth_users` (cascade); seed `free_account` → `qr_dynamic` 3, plan `qr_pro` | applied 2026-10-25 (before the tracked-QR deploy) |
+
+**Rolling back 0008** (only if the deploy is reverted; the schema is additive and old code ignores it):
+
+```sql
+DROP TABLE qr_codes;
+ALTER TABLE links DROP CONSTRAINT links_account_id_auth_users_id_fk;
+DELETE FROM plan_features WHERE feature_key = 'qr_dynamic';
+DELETE FROM plans WHERE plan_key = 'qr_pro';
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
+
+Dropping `qr_codes` first leaves any tracked links in `links` as ordinary links that keep redirecting; delete them too if you want them gone (`DELETE FROM links WHERE account_id IS NOT NULL;`, which also removes their clicks).
 
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and

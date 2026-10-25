@@ -337,8 +337,10 @@ resurrects an expired link.
 **No authentication or user system is built here.** KaamSolv will have one shared
 account system across all tools.
 
-- `links.account_id` (nullable `uuid`, no FK yet) — real column as of Phase 2a,
-  **never written in V1**. Reserved for the future shared account.
+- `links.account_id` (nullable `uuid`) — written **only for tracked QR codes**
+  (migration 0008; FK to `auth_users` ON DELETE CASCADE, see
+  [`qr-tracking.md`](./qr-tracking.md)). Links made on the public shortener stay
+  null (anonymous); there is still no ownership or management for those.
 - `links.anon_session_id` (nullable `text`) — real column as of Phase 2a,
   **never written in V1**. Will hold the value of a signed, httpOnly `kk_sid`
   cookie. **A convenience mechanism for browser-scoped recent-link history
@@ -429,7 +431,7 @@ Unchanged by 2b.1.
 | `destination` | `text` | normalised output of `validateDestinationUrl()` |
 | `status` | `link_status` enum (`active` \| `disabled`) | default `active`; `expired` is derived from `expires_at`, not stored |
 | `is_custom` | `boolean` | default `false` — always false in V1 (user slugs are Phase 3) |
-| `account_id` | `uuid` null | **reserved**, unwritten in 2a. No FK yet (no `accounts` table). Indexed. |
+| `account_id` | `uuid` null | owner of a **tracked QR code's** link (migration 0008, FK → `auth_users`, cascade); null for public shortener links. Indexed. |
 | `anon_session_id` | `text` null | **reserved** for the future signed `kk_sid` cookie (§8). Unwritten in 2a. Indexed. |
 | `click_count` | `bigint` (number mode) | default `0`; **human** clicks only — bumped by `recordClick()` via `after()` (§9) |
 | `last_clicked_at` | `timestamptz` null | last *human* click, set alongside `click_count` |
