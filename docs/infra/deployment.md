@@ -214,6 +214,29 @@ DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_
 
 Dropping the column ungroups every code; no code, link or scan is touched. Dropping the trigger removes the database-level QR limit, so the app's own check (which still runs) is the only guard until 0009 is re-applied.
 
+| `0010_invoice_payments.sql` | `invoice_payments` (the payment ledger), `invoice_payment_events` (its audit trail), `invoices.amount_paid` (+ check); the ledger triggers (`invoice_payments_sync`, `_after_insert`, `_guard`, `_after_update`, `invoices_ledger_guard`); seed `invoice_payments` on `free_account` and `invoice_pro` | **not applied** — apply before the deploy that uses it (the new code reads `invoices.amount_paid`) |
+
+Applying 0010 changes no existing row: every invoice keeps its `status`; invoices already `paid` keep it with `amount_paid = 0` (shown as "Marked paid" — no payments on record; nothing is backfilled). The Worker that is live today ignores the new column and tables, so the migration can go first safely.
+
+**Rolling back 0010.** Prefer rolling back the **Worker version only**: the schema is additive, and the old Worker ignores it (an old "Mark paid" on an invoice with payments is overridden by the ledger rules, so status can't go wrong). Run the SQL below only if the tables must go, and **only after exporting `invoice_payments`** (`COPY invoice_payments TO …` or the Neon console) — unlike 0007–0009 this removes money the user recorded, and the received amounts with it:
+
+```sql
+DROP TRIGGER invoices_ledger_guard ON invoices;
+DROP FUNCTION invoices_ledger_guard();
+DROP TABLE invoice_payment_events;
+DROP TABLE invoice_payments;
+DROP FUNCTION invoice_payments_after_update();
+DROP FUNCTION invoice_payments_after_insert();
+DROP FUNCTION invoice_payments_guard();
+DROP FUNCTION invoice_payments_sync(uuid);
+ALTER TABLE invoices DROP CONSTRAINT invoices_amount_paid;
+ALTER TABLE invoices DROP COLUMN amount_paid;
+DELETE FROM plan_features WHERE feature_key = 'invoice_payments';
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
+
+Invoices keep the `status` the ledger last gave them (a fully paid one stays `paid`; a partly paid one reads `unpaid`), but the amounts received are gone with the table.
+
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and
 `npm run link:reports`.

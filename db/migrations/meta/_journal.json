@@ -71,6 +71,13 @@
       "when": 1792954327572,
       "tag": "0009_qr_campaigns",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792964323943,
+      "tag": "0010_invoice_payments",
+      "breakpoints": true
     }
   ]
 }

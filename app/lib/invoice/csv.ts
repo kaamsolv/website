@@ -6,6 +6,7 @@
  * Totals always come from `computeTotals`, so a CSV matches the PDF.
  */
 
+import { paymentSummary, STATE_LABELS } from './payments.ts';
 import { computeTotals } from './totals.ts';
 import type { Invoice } from './types.ts';
 
@@ -68,7 +69,8 @@ export function toCsv(rows: (string | number | null | undefined)[][]): string {
 
 // ─── The two exports ────────────────────────────────────────────────────────
 
-type Row = { invoice: Invoice; status: 'unpaid' | 'paid'; paidAt: Date | null };
+/** `amountPaid` is what the payment ledger has received; without it a 'paid' row is read as paid in full. */
+type Row = { invoice: Invoice; status: 'unpaid' | 'paid'; amountPaid?: number; paidAt: Date | null };
 
 const money = (n: number) => (Number.isFinite(n) ? Math.round(n * 100) / 100 : 0);
 const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '');
@@ -82,15 +84,16 @@ export const INVOICE_COLUMNS = [
 export function invoicesCsv(rows: Row[]): string {
   return toCsv([
     INVOICE_COLUMNS,
-    ...rows.map(({ invoice: inv, status, paidAt }) => {
+    ...rows.map(({ invoice: inv, status, amountPaid, paidAt }) => {
       const t = computeTotals(inv);
       const quote = inv.kind === 'quote';
+      const state = paymentSummary({ total: t.total, amountPaid: amountPaid ?? (status === 'paid' ? t.total : 0), status }, '').state;
       return [
         inv.number,
         quote ? 'Quotation' : 'Invoice',
         inv.issueDate,
         inv.dueDate,
-        quote ? '' : status === 'paid' ? 'Paid' : 'Unpaid',
+        quote ? '' : STATE_LABELS[state],
         quote ? '' : day(paidAt),
         inv.client.name,
         inv.client.gstin ?? '',

@@ -28,6 +28,8 @@ export const ENTITLEMENT_KEYS = [
   'invoice_dashboard',
   /** Currency reference rates on invoices (Pro, Stage 2C). */
   'invoice_fx_rates',
+  /** Record payments against invoices and see each invoice's payment history (every account). */
+  'invoice_payments',
   /** Tracked (dynamic) QR codes: how many you may keep (free account 3). */
   'qr_dynamic',
   /** QR campaigns: create, edit, assign codes, campaign stats (QR Pro). */

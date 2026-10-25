@@ -5,6 +5,46 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-26 — Invoice payments, Stage C: a ledger, not a switch (built, not deployed)
+
+**Decided by:** product owner (plan approved with six changes). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Payments".
+
+- **Source of truth is a payment ledger** (`invoice_payments`, migration 0010).
+  `invoices.amount_paid` is its trigger-maintained total and `invoices.status`
+  follows it. The `unpaid | paid` enum is **unchanged** — "partially paid" is
+  derived (`unpaid` with money received) — so no enum migration and old code keeps
+  working. The ledger tables are relational, with money in `numeric(14,2)`.
+- **Free accounts record payments and see the history** (new key `invoice_payments`
+  on `free_account` and `invoice_pro`); the Overview, collection analytics, ageing
+  and reports stay Pro. Previously even paid/unpaid tracking was Pro: **this widens
+  Free** — recorded payments are the basic record of whether an invoice was paid.
+- **No "Mark as paid" switch.** Recording the payment settles the invoice; the
+  database refuses `unpaid → paid` unless the ledger covers the total. The old
+  status endpoint now only undoes a legacy mark.
+- **Rules live in the database** (owner, currency, never above the total, immutable
+  amounts, fixed currency/type and a total floor once paid), enforced under the
+  invoice row's lock, so two payments at once can't overshoot. Neon HTTP can't hold a
+  transaction, so every change is a single statement plus triggers.
+- **Idempotent by key:** one `clientKey` per form; a repeat returns the original.
+- **Mistakes are voided, not edited or deleted:** the entry stays, with a reason, an
+  audit event is written, and the right payment is recorded after. Only reference and
+  note can change in place.
+- **Overpayment is refused** (no credit/advance workflow); **write-off/adjustment is
+  deferred** — a balance clears only by recording payments.
+- **Legacy "marked paid" invoices are not rewritten:** shown as "Marked paid — no
+  payments on record", counted as settled but not as received; reconciling is an
+  explicit action that can honestly turn one into Partially paid.
+- **Dashboard formulas are fixed** (per currency, never converted; invoiced vs
+  received vs outstanding vs overdue vs collection rate) and written down in the
+  product doc. In Stage C the Overview's "Unpaid"/"Overdue" already use the remaining
+  balance. Charts, ageing and customer totals are Stage D/E.
+- **Rollback caution:** unlike 0007–0009, dropping 0010's tables removes
+  user-entered financial data; prefer rolling back the Worker only (deployment doc).
+- Not done in Stage C: write-off, credit notes, refunds, reminders, any automatic email.
+
+---
+
 ## 2026-10-25 — Google Analytics 4 (consent-first) — deployed (d6193c4d, redeployed 8866be1c)
 
 **Decided by:** product owner. Deployed 2026-10-25 from branch `claude/exciting-spence-025d65` with `NEXT_PUBLIC_GA_ID` set at build time (Worker version `d6193c4d-7c5c-49c0-8338-0223c65d536c`). Enhanced measurement to be switched off in the GA4 stream.

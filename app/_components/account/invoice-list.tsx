@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PRIMARY, SECONDARY } from './account-shell';
+import { PaymentProgress } from './payment-progress';
 import { StatusBadge } from './status-badge';
 import { RecurCard } from './recur-card';
 import { Segmented } from '../choice';
@@ -10,6 +11,7 @@ import { countPdfPages, pdfFilename, renderInvoicePdf } from '../invoice/generat
 import { downloadBlob } from '@/app/lib/image/export';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
 import { formatMoney } from '@/app/lib/invoice/money';
+import { paymentSummary } from '@/app/lib/invoice/payments';
 import { RECUR_SHORT, isRecurEvery } from '@/app/lib/invoice/recurring';
 import { computeTotals } from '@/app/lib/invoice/totals';
 import type { CurrencyCode, Invoice } from '@/app/lib/invoice/types';
@@ -24,6 +26,7 @@ type Summary = {
   issueDate: string | null;
   dueDate: string | null;
   status: 'unpaid' | 'paid';
+  amountPaid: number;
   kind: 'invoice' | 'quote';
   recurEvery: string | null;
   recurNext: string | null;
@@ -37,7 +40,8 @@ const ROW_BTN =
 export function InvoiceList() {
   const me = useMe();
   const { can, limit } = useEntitlements();
-  const tracking = can('invoice_dashboard');
+  // Every account records payments and sees each invoice's balance; the collections dashboard is Pro.
+  const tracking = can('invoice_payments');
   // Pro (Stage 2C-1). Hidden from free accounts.
   const quotes = can('invoice_quote_mode');
   const designOk = can('invoice_templates') || can('invoice_brand_color');
@@ -118,24 +122,14 @@ export function InvoiceList() {
     setNotice('Done — your CSV is downloading.');
   }
 
-  async function setStatus(inv: Summary) {
-    const next = inv.status === 'paid' ? 'unpaid' : 'paid';
-    setBusy(`status:${inv.id}`);
-    const res = await fetch(`/api/invoices/${inv.id}/status`, {
-      method: 'PUT',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
-    }).catch(() => null);
-    setBusy(null);
-    if (!res?.ok) return setNotice('That didn’t work. Try again.');
-    setList((l) => (l ? l.map((x) => (x.id === inv.id ? { ...x, status: next } : x)) : l));
-    setNotice(`${inv.number} marked ${next}.`);
-  }
-
   async function act(id: string, kind: 'duplicate' | 'delete' | 'download' | 'convert', number: string) {
     setNotice(null);
-    if (kind === 'delete' && !window.confirm(`Delete ${number}? This can’t be undone.`)) return;
+    if (kind === 'delete') {
+      const received = list?.find((x) => x.id === id)?.amountPaid ?? 0;
+      const cur = list?.find((x) => x.id === id)?.currency;
+      const withPayments = received > 0 && cur ? ` It also removes the ${formatMoney(received, cur)} of payments recorded against it.` : '';
+      if (!window.confirm(`Delete ${number}?${withPayments} This can’t be undone.`)) return;
+    }
     setBusy(`${kind}:${id}`);
     try {
       if (kind === 'download') {
@@ -334,7 +328,7 @@ export function InvoiceList() {
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-3 text-sm text-muted">
                 <span className="tabular-nums font-semibold text-ink">{formatMoney(inv.total, inv.currency)}</span>
-                {tracking && inv.kind !== 'quote' && <StatusBadge status={inv.status} dueDate={inv.dueDate} today={today} />}
+                {tracking && inv.kind !== 'quote' && <StatusBadge status={inv.status} amountPaid={inv.amountPaid} total={inv.total} dueDate={inv.dueDate} today={today} />}
                 {inv.issueDate && <span>{displayDate(inv.issueDate)}</span>}
                 {inv.kind === 'quote' && inv.dueDate && <span>Valid until {displayDate(inv.dueDate)}</span>}
                 {recurring && inv.recurNext && isRecurEvery(inv.recurEvery) && (
@@ -343,6 +337,15 @@ export function InvoiceList() {
                   </span>
                 )}
               </span>
+              {tracking && inv.kind !== 'quote' && (() => {
+                const sum = paymentSummary({ total: inv.total, amountPaid: inv.amountPaid, status: inv.status, dueDate: inv.dueDate }, today);
+                return sum.state === 'partial' ? (
+                  <span className="mt-2 block">
+                    <PaymentProgress summary={sum} total={inv.total} currency={inv.currency} compact />
+                    <span className="mt-0.5 block text-xs font-semibold text-ink">{formatMoney(sum.outstanding, inv.currency)} outstanding</span>
+                  </span>
+                ) : null;
+              })()}
             </a>
             <div className="-ml-3 flex flex-wrap gap-1 md:ml-0">
               {quotes && inv.kind === 'quote' && (
@@ -351,9 +354,13 @@ export function InvoiceList() {
                 </button>
               )}
               {tracking && inv.kind !== 'quote' && (
-                <button type="button" className={ROW_BTN} disabled={busy !== null} onClick={() => void setStatus(inv)} aria-label={`Mark ${inv.number} as ${inv.status === 'paid' ? 'unpaid' : 'paid'}`}>
-                  {inv.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
-                </button>
+                <a
+                  href={`/app/invoices/${inv.id}${inv.status === 'paid' && inv.amountPaid > 0 ? '' : '?record=1'}`}
+                  className={ROW_BTN}
+                  aria-label={`${inv.status === 'paid' && inv.amountPaid > 0 ? 'Payments for' : 'Record a payment for'} ${inv.number}`}
+                >
+                  {inv.status === 'paid' && inv.amountPaid > 0 ? 'Payments' : 'Record payment'}
+                </a>
               )}
               <a href={`/invoice-generator?id=${inv.id}`} className={ROW_BTN} aria-label={`Open ${inv.number}`}>
                 Open

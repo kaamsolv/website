@@ -12,6 +12,7 @@ import type { Settings } from '../app/lib/invoice/settings.ts';
 import { isTemplate } from '../app/lib/invoice/design.ts';
 import { addDays } from '../app/lib/invoice/defaults.ts';
 import { nextRecurAfter, type RecurEvery } from '../app/lib/invoice/recurring.ts';
+import { ledgerErrorOf, toCents } from '../app/lib/invoice/payments.ts';
 import { CURRENCIES, type Invoice } from '../app/lib/invoice/types.ts';
 import { formatSequentialNumber, sequenceOf } from '../app/lib/invoice/validate.ts';
 import type { Db } from './links.ts';
@@ -27,6 +28,8 @@ export type InvoiceSummary = {
   issueDate: string | null;
   dueDate: string | null;
   status: 'unpaid' | 'paid';
+  /** Received so far, from the payment ledger (app/lib/invoice/payments.ts turns it into a state and balance). */
+  amountPaid: number;
   kind: string;
   /** Pro recurring: how often, and when the reminder is due (null = doesn't repeat). */
   recurEvery: string | null;
@@ -43,6 +46,7 @@ const SUMMARY_COLUMNS = {
   issueDate: invoices.issueDate,
   dueDate: invoices.dueDate,
   status: invoices.status,
+  amountPaid: invoices.amountPaid,
   kind: invoices.kind,
   recurEvery: invoices.recurEvery,
   recurNext: invoices.recurNext,
@@ -89,13 +93,14 @@ export async function getInvoice(
   db: Db,
   userId: string,
   id: string,
-): Promise<{ id: string; invoice: Invoice; status: 'unpaid' | 'paid'; paidAt: Date | null; updatedAt: Date; recurEvery: string | null; recurNext: string | null } | null> {
+): Promise<{ id: string; invoice: Invoice; status: 'unpaid' | 'paid'; amountPaid: number; paidAt: Date | null; updatedAt: Date; recurEvery: string | null; recurNext: string | null } | null> {
   const [row] = await db
     .select({
       id: invoices.id,
       data: invoices.data,
       customerId: invoices.customerId,
       status: invoices.status,
+      amountPaid: invoices.amountPaid,
       paidAt: invoices.paidAt,
       updatedAt: invoices.updatedAt,
       recurEvery: invoices.recurEvery,
@@ -108,6 +113,7 @@ export async function getInvoice(
     id: row.id,
     invoice: { ...(row.data as Omit<Invoice, 'logo'>), logo: null, customerId: row.customerId },
     status: row.status,
+    amountPaid: row.amountPaid,
     paidAt: row.paidAt,
     updatedAt: row.updatedAt,
     recurEvery: row.recurEvery,
@@ -115,21 +121,42 @@ export async function getInvoice(
   };
 }
 
-export async function setInvoiceStatus(db: Db, userId: string, id: string, status: 'unpaid' | 'paid'): Promise<boolean> {
+/**
+ * Undo a legacy "marked paid": an invoice marked paid before payments were recorded, with nothing in its ledger,
+ * goes back to unpaid. An invoice with payments is never touched here: its status follows its ledger, and a
+ * mistaken payment is voided instead. (Marking an invoice paid is gone: record the payment, which settles it.)
+ */
+export async function clearMarkedPaid(db: Db, userId: string, id: string): Promise<'cleared' | 'not_marked' | 'not_found'> {
   const rows = await db
     .update(invoices)
-    .set({ status, paidAt: status === 'paid' ? new Date() : null })
-    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+    .set({ status: 'unpaid', paidAt: null })
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId), eq(invoices.kind, 'invoice'), eq(invoices.status, 'paid'), sql`${invoices.amountPaid} = 0`))
     .returning({ id: invoices.id });
-  return rows.length > 0;
+  if (rows.length) return 'cleared';
+  const [row] = await db.select({ id: invoices.id }).from(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId), eq(invoices.kind, 'invoice')));
+  return row ? 'not_marked' : 'not_found';
+}
+
+/** Why a save was refused: this invoice already has payments recorded against it. */
+export class InvoiceLockedError extends Error {
+  constructor(
+    readonly code: 'has_payments' | 'below_paid',
+    readonly amountPaid: number,
+    readonly currency: string,
+  ) {
+    super(`invoice_${code}`);
+  }
 }
 
 export type DashboardTotals = { currency: string; billedThisMonth: number; unpaid: number; overdue: number; overdueCount: number };
 
 /**
  * Pro dashboard: per currency, what was billed this month (by invoice date),
- * what's unpaid, and what's overdue (unpaid and past its due date). Dates come
- * from the visitor's calendar (`today`, `monthStart` as YYYY-MM-DD).
+ * what's still owed, and what's overdue. "Owed" is the balance (total minus
+ * what the ledger has received) of invoices not yet settled: partly paid ones
+ * count only their remainder; "marked paid" legacy invoices owe nothing.
+ * Overdue is owed and past its due date. Dates come from the visitor's calendar
+ * (`today`, `monthStart` as YYYY-MM-DD). Currencies are never added together.
  */
 export async function getDashboard(
   db: Db,
@@ -141,8 +168,8 @@ export async function getDashboard(
     .select({
       currency: invoices.currency,
       billedThisMonth: sql<number>`coalesce(sum(${invoices.total}) filter (where ${invoices.issueDate} >= ${monthStart}::date and ${invoices.issueDate} <= ${today}::date), 0)::float8`,
-      unpaid: sql<number>`coalesce(sum(${invoices.total}) filter (where ${invoices.status} = 'unpaid'), 0)::float8`,
-      overdue: sql<number>`coalesce(sum(${invoices.total}) filter (where ${invoices.status} = 'unpaid' and ${invoices.dueDate} < ${today}::date), 0)::float8`,
+      unpaid: sql<number>`coalesce(sum(${invoices.total} - ${invoices.amountPaid}) filter (where ${invoices.status} = 'unpaid'), 0)::float8`,
+      overdue: sql<number>`coalesce(sum(${invoices.total} - ${invoices.amountPaid}) filter (where ${invoices.status} = 'unpaid' and ${invoices.dueDate} < ${today}::date), 0)::float8`,
       overdueCount: sql<number>`(count(*) filter (where ${invoices.status} = 'unpaid' and ${invoices.dueDate} < ${today}::date))::int`,
     })
     .from(invoices)
@@ -181,12 +208,36 @@ export async function createInvoice(db: Db, userId: string, doc: Invoice, limit:
   return { ok: true, id };
 }
 
+/**
+ * Replace a saved invoice. Once payments are recorded against it, its currency and type are fixed and its total
+ * can't drop below what was received (throws `InvoiceLockedError`); the database trigger is the backstop for a
+ * payment that lands in the same instant.
+ */
 export async function updateInvoice(db: Db, userId: string, id: string, doc: Invoice): Promise<boolean> {
-  const rows = await db
-    .update(invoices)
-    .set({ ...summaryOf(doc), customerId: ownCustomer(userId, doc.customerId), data: storable(doc), updatedAt: new Date() })
-    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
-    .returning({ id: invoices.id });
+  const s = summaryOf(doc);
+  const [cur] = await db
+    .select({ amountPaid: invoices.amountPaid, currency: invoices.currency, kind: invoices.kind })
+    .from(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+  if (cur && toCents(cur.amountPaid) > 0) {
+    if (cur.currency !== s.currency || cur.kind !== s.kind) throw new InvoiceLockedError('has_payments', cur.amountPaid, cur.currency);
+    if (toCents(s.total) < toCents(cur.amountPaid)) throw new InvoiceLockedError('below_paid', cur.amountPaid, cur.currency);
+  }
+  let rows: { id: string }[];
+  try {
+    rows = await db
+      .update(invoices)
+      .set({ ...s, customerId: ownCustomer(userId, doc.customerId), data: storable(doc), updatedAt: new Date() })
+      .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+      .returning({ id: invoices.id });
+  } catch (e) {
+    const rule = ledgerErrorOf(e);
+    if (rule === 'invoice_has_payments' || rule === 'invoice_total_below_paid') {
+      const [now] = await db.select({ amountPaid: invoices.amountPaid, currency: invoices.currency }).from(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+      throw new InvoiceLockedError(rule === 'invoice_has_payments' ? 'has_payments' : 'below_paid', now?.amountPaid ?? 0, now?.currency ?? s.currency);
+    }
+    throw e;
+  }
   if (rows.length) await advanceNumberIfUsed(db, userId, doc.number, doc.kind);
   return rows.length > 0;
 }
@@ -441,6 +492,8 @@ export async function createBatch(db: Db, userId: string, docs: Invoice[], limit
 export type ExportRow = {
   invoice: Invoice;
   status: 'unpaid' | 'paid';
+  /** Received per the payment ledger; with status it tells Paid / Partially paid / Unpaid / Marked paid apart. */
+  amountPaid: number;
   paidAt: Date | null;
 };
 
@@ -454,7 +507,7 @@ export async function listForExport(db: Db, userId: string, range: { from?: stri
     range.to ? lte(invoices.issueDate, range.to) : undefined,
   );
   const rows = await db
-    .select({ data: invoices.data, status: invoices.status, paidAt: invoices.paidAt, customerId: invoices.customerId })
+    .select({ data: invoices.data, status: invoices.status, amountPaid: invoices.amountPaid, paidAt: invoices.paidAt, customerId: invoices.customerId })
     .from(invoices)
     .where(where)
     .orderBy(invoices.issueDate, invoices.createdAt)
@@ -462,6 +515,7 @@ export async function listForExport(db: Db, userId: string, range: { from?: stri
   return rows.map((r) => ({
     invoice: { ...(r.data as Omit<Invoice, 'logo'>), logo: null, customerId: r.customerId },
     status: r.status,
+    amountPaid: r.amountPaid,
     paidAt: r.paidAt,
   }));
 }

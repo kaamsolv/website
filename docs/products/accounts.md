@@ -17,7 +17,8 @@ without an account. An account adds saving.
 | Settings (business details, GSTIN, bank/UPI, numbering, defaults) | — | ✓ | ✓ |
 | Saved customers | — | **3** | unlimited |
 | Saved items (HSN/SAC, unit, rate, GST) | — | ✓ | ✓ |
-| Dashboard + paid / unpaid / overdue | — | — | ✓ |
+| Record payments, partial payments, payment history, balance per invoice | — | ✓ | ✓ |
+| Dashboard (billed, still owed, overdue) | — | — | ✓ |
 | No footer, multi-page (up to 200 lines) | — | — | ✓ |
 | Templates + brand colour, quotations (+ convert to invoice) | — | — | ✓ |
 | Recurring, CSV, currency rates (Stage 2C-2) | — | — | ✓ |
@@ -79,7 +80,9 @@ Customers and items also have a hidden anti-abuse ceiling of 1,000 rows each
 | `plans`, `plan_features` | plan definitions | — |
 | `subscriptions` | provider, ref, plan, status, period end | cascade |
 | `business_profiles` | seller details, logo (≤ 280 k chars), next number | cascade |
-| `invoices` | summary columns + `data` jsonb (no logo, ≤ 64 k chars); `status`, `paid_at`, `due_date`, `customer_id` (0004) | cascade |
+| `invoices` | summary columns + `data` jsonb (no logo, ≤ 64 k chars); `status`, `paid_at`, `due_date`, `customer_id` (0004); `amount_paid` (0010, ledger total) | cascade |
+| `invoice_payments` (0010) | the payment ledger: amount, date, method, reference, note, idempotency key, voided_at | cascade |
+| `invoice_payment_events` (0010) | append-only audit trail of the ledger | cascade |
 | `customers` (0004) | name, contact, email, phone, address, state code, GSTIN | cascade |
 | `items` (0004) | name, HSN/SAC, unit, rate, GST rate | cascade |
 
@@ -115,7 +118,8 @@ documents.
 | `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
 | `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |
 | `GET/POST /api/items`, `GET/PUT/DELETE /api/items/:id` | saved items |
-| `PUT /api/invoices/:id/status` | paid / unpaid (Pro) |
+| `GET/POST /api/invoices/:id/payments`, `PATCH …/:paymentId`, `POST …/:paymentId/void` | the payment ledger: view · record (idempotent, 409 `exceeds`) · edit reference/note · void (any account, `invoice_payments`) |
+| `PUT /api/invoices/:id/status` | only undoes a legacy “marked paid” (`unpaid`); `paid` is refused — record the payment |
 | `GET /api/dashboard?today=` | Pro dashboard totals + recent invoices |
 | `POST /api/test/oauth-sign-in` | **test only** — see below |
 

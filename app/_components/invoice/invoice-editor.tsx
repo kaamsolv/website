@@ -145,12 +145,12 @@ export function InvoiceEditor() {
       if (profile.current) lastProfile.current = sellerKey(profile.current, profile.current.logo);
       const id = new URLSearchParams(window.location.search).get('id');
       if (id) {
-        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid'; recurEvery?: string | null; recurNext?: string | null }>(`/api/invoices/${encodeURIComponent(id)}`);
+        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid'; amountPaid?: number; recurEvery?: string | null; recurNext?: string | null }>(`/api/invoices/${encodeURIComponent(id)}`);
         if (r.ok && r.body.invoice) {
           if (isRecurEvery(r.body.recurEvery) && r.body.recurNext) setRecur({ every: r.body.recurEvery, next: r.body.recurNext });
           const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null, signature: profile.current?.signature ?? null });
           lastSaved.current = docKey(loaded);
-          setPaid(r.body.status ?? 'unpaid');
+          setPay({ status: r.body.status ?? 'unpaid', amountPaid: r.body.amountPaid ?? 0 });
           setSavedId(id);
           setSaveState('saved');
           setInv(loaded);
@@ -290,9 +290,10 @@ export function InvoiceEditor() {
   const customersAtLimit =
     canCustomers && customerLimit !== null && me.status === 'signed-in' && me.usage.customers >= customerLimit;
 
-  // Paid / unpaid (Pro), for saved invoices.
-  const canTrack = signedIn && can('invoice_dashboard');
-  const [paid, setPaid] = useState<'unpaid' | 'paid'>('unpaid');
+  // Payments (every account), for saved invoices: the editor only points at the payments page, where the ledger lives.
+  // `amountPaid` is what the server has recorded; once it is more than zero the currency is fixed and the total can't fall below it.
+  const canTrack = signedIn && can('invoice_payments');
+  const [pay, setPay] = useState<{ status: 'unpaid' | 'paid'; amountPaid: number }>({ status: 'unpaid', amountPaid: 0 });
 
   // Pro (Stage 2C-1): quotations, templates and brand colour. Hidden from free accounts.
   const canQuote = signedIn && can('invoice_quote_mode');
@@ -371,13 +372,6 @@ export function InvoiceEditor() {
           }
         : { description },
     );
-  }
-
-  async function togglePaid() {
-    const next = paid === 'paid' ? 'unpaid' : 'paid';
-    const r = await api(`/api/invoices/${savedId}/status`, { method: 'PUT', body: JSON.stringify({ status: next }) }).catch(() => null);
-    if (r?.ok) setPaid(next);
-    else setSaveMsg('Couldn’t change the paid status. Try again.');
   }
 
   function addItem() {
@@ -488,7 +482,9 @@ export function InvoiceEditor() {
         id={id}
         value={inv.currency}
         onChange={(e) => set({ currency: e.target.value as CurrencyCode })}
-        className="h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+        disabled={pay.amountPaid > 0}
+        title={pay.amountPaid > 0 ? 'Payments are recorded on this invoice, so its currency is fixed.' : undefined}
+        className="h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
         aria-label="Currency"
       >
         {CURRENCIES.map((c) => (
@@ -543,15 +539,19 @@ export function InvoiceEditor() {
             </button>
           )}
           {savedId && canTrack && !quote && (
-            <button type="button" onClick={() => void togglePaid()} className={SECONDARY} aria-pressed={paid === 'paid'}>
-              {paid === 'paid' ? (
+            <a href={`/app/invoices/${savedId}${pay.status === 'paid' && pay.amountPaid > 0 ? '' : '?record=1'}`} className={SECONDARY}>
+              {pay.status === 'paid' && pay.amountPaid > 0 ? (
                 <>
                   <Icon name="check" className="h-4 w-4 text-teal-500" /> Paid
                 </>
+              ) : pay.amountPaid > 0 ? (
+                `${formatMoney(pay.amountPaid, inv.currency)} received`
+              ) : pay.status === 'paid' ? (
+                'Marked paid'
               ) : (
-                'Mark as paid'
+                'Record payment'
               )}
-            </button>
+            </a>
           )}
           {signedIn && (!savedId || saveState === 'error') && (
             <button type="button" onClick={() => void save()} disabled={atLimit || saveState === 'saving'} className={SECONDARY}>

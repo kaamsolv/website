@@ -3,7 +3,8 @@
 **Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — free
 tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
 invoice (2B) deployed 2026-10-22; Pro Stages 2C-1 and 2C-2 deployed 2026-10-25
-(hidden until payments). Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+(hidden until payments). Payment ledger and partial payments (Stage C, every
+account) built 2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -48,8 +49,8 @@ The logo is stored once, on the business profile — never inside an invoice.
 - **Customers (free: 3) and items (free):** pick them by typing on the invoice
   (native suggestions); “Save as customer” from Bill to.
 - **Pro:** Invoices → Overview (`/app/invoices/overview`: billed this month,
-  unpaid, overdue per currency, recent) and Mark as paid in the editor and the
-  list.
+  still owed, overdue per currency, recent). (The 2A “Mark as paid” switch was
+  replaced by the payment ledger in Stage C — see “Payments”.)
 
 ## Free tier (Phase 1)
 
@@ -95,6 +96,9 @@ Field lengths (`app/lib/invoice/limits.ts`) keep a full invoice on one page.
 | `app/_components/invoice/react-pdf-server-stub.ts` | Server stand-in for `@react-pdf/renderer` (via `turbopack.resolveAlias` in `next.config.mjs`) so the PDF engine stays out of the Worker bundle (−587 KiB gzip) |
 | `public/fonts/` | Inter Regular/Bold TTF + `OFL.txt` (PDF font; has ₹) |
 | `tests/e2e/invoice.spec.ts` | Playwright: desktop/phone × light/dark, PDF text, 10-item one-page, currency, a11y |
+| `app/lib/invoice/payments.ts` | Payment maths and checks: paise, `paymentSummary()` (state, balance, %, overdue), input cleaning, ledger error names |
+| `db/payments.ts` | Ledger data access: record (idempotent), void, edit note, history — scoped by user |
+| `app/app/invoices/[id]/` + `app/_components/account/invoice-payments.tsx` | The payments page; `status-badge.tsx`, `payment-progress.tsx` are shared with the list |
 
 Every paid behaviour goes through `can('<key>')`: item limit →
 `invoice_unlimited_items`; footer → `invoice_watermark_remove`; Design →
@@ -241,12 +245,182 @@ Same rules as 2C-1: hidden from free accounts, each feature checked with
   `GET /api/invoices/due`, `GET /api/invoices/export`,
   `POST /api/invoices/batch`, `GET /api/fx` (all Pro-gated).
 
+## Payments (Stage C — every account; built, not yet deployed)
+
+Record what a client has paid, see what's still owed, correct mistakes. **Every
+signed-in account has it** (`invoice_payments`, free and Pro) — it is basic
+recordkeeping, not a paywall. Collection analytics, ageing and reports stay Pro
+(later stages). Tests: `test/payments.test.mts`, `test/payments-migration.test.mts`,
+`tests/e2e/payments.spec.ts`.
+
+### One status model, one source of truth
+
+The **ledger** (`invoice_payments`) is the source of truth. `invoices.amount_paid`
+is its running total — recomputed from the non-voided entries by triggers, never
+incremented and never written by the app — and `invoices.status` follows it. The
+`unpaid | paid` enum is **unchanged**; "partially paid" is derived, so no enum
+migration and no old code breaks.
+
+| State shown | Stored as | Means |
+|---|---|---|
+| **Unpaid** | `status = unpaid`, `amount_paid = 0` | Nothing received |
+| **Partially paid** | `status = unpaid`, `amount_paid > 0` | Some received, balance outstanding |
+| **Paid** | `status = paid`, `amount_paid >= total` | The ledger covers the invoice |
+| **Marked paid** | `status = paid`, `amount_paid = 0` | Legacy: marked paid before the ledger existed; **no payments on record** |
+
+One function turns the stored numbers into a state, balance and percentage:
+`paymentSummary()` in `app/lib/invoice/payments.ts` (used by the API, the list, the
+payments page and the CSV, so they can't disagree). Collection % is whole percent,
+rounded **down** and never 100 until the ledger really covers the total; it is
+blank for "Marked paid" (nothing to measure). **Overdue** = a balance is still owed
+and the due date is before today (due today is not overdue).
+
+An invoice can't become Paid with a balance outstanding: the database refuses to flip
+`unpaid → paid` unless the ledger covers it, and derives `status`/`paid_at` from the
+ledger whatever a caller writes. `paid_at` is the date of the last payment. There is
+no "Mark as paid" switch any more — recording the payment settles the invoice.
+
+### The ledger (`invoice_payments`, migration 0010)
+
+Amount (`numeric(14,2)`, > 0), currency (copied from the invoice), date received,
+method (UPI · bank transfer · cash · card · cheque · other), optional reference
+(≤ 100) and note (≤ 400), a per-form idempotency key, owner, timestamps, and
+`voided_at` / `void_reason`. Foreign keys cascade from the invoice and the user.
+
+Rules the **database** enforces (AFTER-INSERT/UPDATE triggers, under the invoice
+row's lock), whoever writes the row:
+
+| Rule | Error name |
+|---|---|
+| The invoice is the **same user's** own invoice (so a hand-written insert can't touch someone else's) | `payment_owner` |
+| It is an invoice, not a quotation | `payment_quote` |
+| Same currency as the invoice | `payment_currency` |
+| Total of non-voided payments **never exceeds the invoice total** | `payment_exceeds` |
+| Date is real, ≥ 2000-01-01, and not after tomorrow UTC (time-zone slack) | `payment_date` |
+| At most 200 entries per invoice (voided included) | `payment_cap` |
+| Amount, date, method, currency, invoice, owner never change; a voided entry is frozen; nothing is un-voided | `payment_immutable` / `payment_voided` |
+| Once an invoice has payments its **currency and type are fixed** and its **total can't fall below** what was received | `invoice_has_payments` / `invoice_total_below_paid` |
+| No `unpaid → paid` without the ledger covering the total | `invoice_unsettled` |
+
+The API checks the same things first, to give plain messages ("That's more than is
+owed — only ₹15,000.00 is outstanding"); the app never trusts a browser total or
+balance. Raising an invoice's total after a payment is allowed (a Paid invoice then
+shows Partially paid); lowering it to exactly what was received settles it.
+
+**Concurrency.** Neon over HTTP can't hold a transaction across statements, so each
+change is one SQL statement and the triggers do the rest under `SELECT … FOR UPDATE`
+on the invoice row. Two payments at the same instant are applied one after the other;
+the second sees the first and is refused if the invoice is covered.
+
+**Idempotency.** The form creates one `clientKey` (uuid) per payment and keeps it
+across retries. Recording is `INSERT … ON CONFLICT (user_id, client_key) DO NOTHING`
+(all rules are in AFTER triggers, so a repeat changes nothing): a double click, a
+retry after a dropped connection or a second tab returns the payment already
+recorded (`200`, `duplicate: true`) instead of a second one — even when the first
+already settled the invoice. The same key with a *different* payment is a `409`.
+
+### Correcting mistakes: void, then record again
+
+Amount, date and method are never edited. **Void** takes the payment out of the totals
+(the invoice gets the amount back and moves Paid → Partially paid → Unpaid as
+needed); the entry **stays in the history**, struck through, with the reason. Then
+record the right payment. Only the **reference and note** can be edited in place.
+Voiding twice is harmless. Rows are never hard-deleted by the app; they go only with
+the invoice or the account (cascade).
+
+**Audit trail:** `invoice_payment_events` (append-only, written by the triggers) keeps
+every record, void and edit, with old and new values for edits. Read by support, not
+shown in the app.
+
+### Invoices marked paid before the ledger existed (reconciliation)
+
+Migration 0010 changes **no existing row**. An invoice that was marked paid keeps
+`status = paid` with `amount_paid = 0`: **"Marked paid — no payments on record."** We do
+not invent an amount, date or method.
+
+- It counts as **settled** (nothing outstanding, not overdue) but **not as money
+  received**: it adds nothing to "Received" or to the collection rate, and is
+  reported on its own.
+- Its payments page says so and offers **Record the payments you received** and
+  **Mark unpaid** (only for this legacy state; an invoice with payments can't be
+  marked unpaid — void instead).
+- Recording a payment against it needs the caller to say it is replacing the mark
+  (`reconcile: true`; the page asks first and states the consequence). The entries are
+  capped at the invoice total. If they cover it, it becomes **Paid**, now with a real
+  record. If only part was ever paid, it honestly becomes **Partially paid** with the
+  rest outstanding — the page warns before doing that.
+- From the first entry on it is an ordinary ledger invoice; nothing is flagged.
+- Editing such an invoice keeps its status, as before.
+
+### Dashboard and report formulas (for Stage D; Overview already uses these)
+
+Per currency — **never summed across currencies, never converted** (the on-screen FX
+reference stays a labelled estimate). Quotations never count. "Today" is the visitor's
+calendar date. `balance = total − amount_paid`.
+
+| Figure | Formula |
+|---|---|
+| **Invoiced** (range) | Σ `total` of invoices with `issue_date` in the range. Invoice **value**, not money. |
+| **Received** (range) | Σ `amount` of **non-voided** ledger entries with `paid_on` in the range, on any invoice (cash basis). "Marked paid" invoices add 0. |
+| **Outstanding** (now) | Σ `balance` of invoices with `status = unpaid` (Unpaid and Partially paid). Paid and Marked paid owe 0. |
+| **Overdue outstanding** | Σ `balance` of those with `due_date < today` (strictly before; no due date = never overdue). |
+| **Collection rate** (invoices issued in range) | Σ `amount_paid` ÷ Σ `total` over invoices issued in the range **excluding Marked paid**; whole %, rounded down; "—" when the denominator is 0. Marked-paid invoices are listed separately ("N settled with no payment records"). |
+| **Ageing** (Stage D) | Outstanding grouped by `today − due_date`: not yet due · 1–30 · 31–60 · over 60 days overdue — using the **balance**, not the original total. |
+
+Received (range) ÷ Invoiced (range) compares different invoice cohorts, so charts
+labelled "invoiced vs collected" say what basis they use. **In Stage C** the Pro
+Overview's "Unpaid" is Outstanding, "Overdue" is Overdue outstanding, "Billed this
+month" is Invoiced (this month) — tested in `test/payments.test.mts`. The rest ships
+with Stage D.
+
+### Where it appears
+
+- **`/app/invoices/[id]`** (new, any signed-in account): total · received ·
+  outstanding, status badges, a progress bar (`role="progressbar"`, with the amounts
+  printed — never colour alone), **Record payment** (amount prefilled with what is
+  owed, date defaults to today, method, optional reference and note → a **review
+  step** "Record ₹5,000.00 received on 20 Oct 2026 by UPI? ₹15,000.00 will still be
+  outstanding." → Confirm), the history with Edit note / Void, and the legacy notice.
+  `?record=1` opens the form ready to type.
+- **All invoices**: status badge for every account (Unpaid · Partially paid · Paid ·
+  Marked paid · Overdue), a compact progress bar and "₹X outstanding" for partly paid
+  rows, and **Record payment** / **Payments** in place of Mark paid. Deleting an
+  invoice with payments says they go with it.
+- **Editor**: the toolbar button is a link to the payments page ("Record payment" /
+  "₹5,000.00 received" / "Paid" / "Marked paid"); the currency is locked once money is
+  recorded; a save that would drop the total below what was received is refused with a
+  plain message (409 `below_paid`).
+- **CSV export** (Pro): the Status column reads Paid · Partially paid · Unpaid · Marked
+  paid, and "Paid on" is the last payment date. Received/balance columns and a payments
+  report come in Stage F.
+
+### API
+
+| Route | |
+|---|---|
+| `GET /api/invoices/:id/payments` | invoice facts + the whole ledger (voided included) |
+| `POST /api/invoices/:id/payments` | record. `{ amount, paidOn, method, reference?, note?, clientKey, today, reconcile? }` → 201, or 200 for a recognised repeat; 409 `exceeds` · `legacy_paid` · `cap` · `key_reused` |
+| `PATCH /api/invoices/:id/payments/:paymentId` | `{ reference, note }` only |
+| `POST /api/invoices/:id/payments/:paymentId/void` | `{ reason? }` |
+| `PUT /api/invoices/:id/status` | kept for old tabs: `"paid"` → 409 `record_payment`; `"unpaid"` works only on a legacy "Marked paid" (else 409 `has_payments`) |
+
+All need a signed-in account with `invoice_payments`, a same-origin request, and
+scope every query by the signed-in user (another user's invoice or payment is a 404).
+
+### Not in Stage C
+
+Write-off / adjustment (a balance clears only by recording payments), overpayments and
+credit notes, refunds, collection charts, ageing, customer-level totals, the payments
+report, reminders, and any automatic email. Each is a later, separately approved stage.
+
 ## Paid tier (Stages 2–3)
 
 Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_save`, `invoice_client_directory`, `invoice_templates`,
 `invoice_brand_color`, `invoice_quote_mode`, `invoice_recurring`,
 `invoice_csv_export`, `invoice_batch_csv`. All seeded on the `invoice_pro` plan.
+`invoice_payments` (record and view payments) is on `free_account` **and**
+`invoice_pro`; `invoice_dashboard` (Overview, collection analytics) stays Pro.
 
 - Stage 2B (free): **built** — see "GST tax invoice" above.
 - Stage 2C-1 (Pro): **built** — see above.
@@ -261,6 +435,7 @@ client directory, recurring and CSV export of saved history.
 
 ## Not doing
 
-Login for the free tier · collecting payments from the user's clients · GST
+Login for the free tier · collecting payments from the user's clients (we record
+what they received; we never take or move money) · GST
 filing-level compliance (GSTIN, HSN/SAC, e-invoicing/IRN) · multi-page in free ·
 team seats · upsell clutter inside the free tool.
