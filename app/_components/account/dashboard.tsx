@@ -103,6 +103,9 @@ export function Dashboard() {
         <a href="/app/business/customers" className={SECONDARY}>
           + Add customer
         </a>
+        <a href="/app/invoices/collections" className={SECONDARY}>
+          Payments &amp; collections
+        </a>
       </div>
     </div>
   );

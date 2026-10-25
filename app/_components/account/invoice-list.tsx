@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PRIMARY, SECONDARY } from './account-shell';
+import { InvoiceFilterBar, type FilterTotal } from './invoice-filter-bar';
 import { PaymentProgress } from './payment-progress';
 import { StatusBadge } from './status-badge';
 import { RecurCard } from './recur-card';
@@ -11,6 +12,7 @@ import { countPdfPages, pdfFilename, renderInvoicePdf } from '../invoice/generat
 import { downloadBlob } from '@/app/lib/image/export';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
 import { formatMoney } from '@/app/lib/invoice/money';
+import { FILTER_KEYS, hasFilterParams } from '@/app/lib/invoice/filters';
 import { paymentSummary } from '@/app/lib/invoice/payments';
 import { RECUR_SHORT, isRecurEvery } from '@/app/lib/invoice/recurring';
 import { computeTotals } from '@/app/lib/invoice/totals';
@@ -27,6 +29,9 @@ type Summary = {
   dueDate: string | null;
   status: 'unpaid' | 'paid';
   amountPaid: number;
+  /** Filtered lists only: what is still owed, and money received in the payment-date period asked for. */
+  balance?: number;
+  receivedInPeriod?: number;
   kind: 'invoice' | 'quote';
   recurEvery: string | null;
   recurNext: string | null;
@@ -61,16 +66,43 @@ export function InvoiceList() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Set when the page was opened with filters in the URL (links from Payments & collections).
+  const [filterInfo, setFilterInfo] = useState<{ totals: FilterTotal[]; capped: boolean; params: URLSearchParams } | null>(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/invoices', { cache: 'no-store', credentials: 'same-origin' }).catch(() => null);
+    const here = new URLSearchParams(window.location.search);
+    const filtering = hasFilterParams(here);
+    let url = '/api/invoices';
+    if (filtering) {
+      // The server does the filtering and the sums; "today" is this visitor's calendar date (for overdue and ageing).
+      const q = new URLSearchParams();
+      for (const k of FILTER_KEYS) {
+        const v = here.get(k);
+        if (v !== null) q.set(k, v);
+      }
+      q.set('today', isoDate(new Date()));
+      url += `?${q}`;
+    }
+    const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' }).catch(() => null);
     if (!res?.ok) {
-      setError('Couldn’t load your invoices. Refresh to try again.');
+      setError(filtering && res?.status === 400 ? 'Those filters aren’t valid.' : 'Couldn’t load your invoices. Refresh to try again.');
       return;
     }
-    setList(((await res.json()) as { invoices: Summary[] }).invoices);
+    const body = (await res.json()) as { invoices: Summary[]; filtered?: boolean; totals?: FilterTotal[]; capped?: boolean };
+    setList(body.invoices);
+    setFilterInfo(body.filtered ? { totals: body.totals ?? [], capped: !!body.capped, params: here } : null);
     setError(null);
   }, []);
+
+  useEffect(() => {
+    const id = filterInfo?.params.get('customer');
+    if (!id) return setCustomerName(null);
+    fetch('/api/customers', { credentials: 'same-origin', cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { rows?: { id: string; name: string }[] } | null) => setCustomerName(b?.rows?.find((c) => c.id === id)?.name ?? null))
+      .catch(() => undefined);
+  }, [filterInfo]);
 
   useEffect(() => {
     void load();
@@ -179,10 +211,21 @@ export function InvoiceList() {
   const count = me.status === 'signed-in' ? me.usage.invoiceSave : (list?.length ?? 0);
   const shown = list && quotes && filter !== 'all' ? list.filter((x) => x.kind === filter) : list;
 
-  if (error) return <p className="text-strong" role="alert">{error}</p>;
+  if (error) {
+    return (
+      <p className="text-strong" role="alert">
+        {error}{' '}
+        {hasFilterParams(new URLSearchParams(window.location.search)) && (
+          <a href="/app/invoices" className="font-semibold underline underline-offset-2">
+            Clear the filters
+          </a>
+        )}
+      </p>
+    );
+  }
   if (!list) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
 
-  if (list.length === 0) {
+  if (list.length === 0 && !filterInfo) {
     return (
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
         <p className="font-display text-xl font-bold text-ink">No saved invoices yet</p>
@@ -199,8 +242,12 @@ export function InvoiceList() {
 
   return (
     <div>
-      <RecurCard onChanged={load} />
-      {(csvOk || batchOk) && (
+      {filterInfo ? (
+        <InvoiceFilterBar params={filterInfo.params} totals={filterInfo.totals} capped={filterInfo.capped} shown={list.length} customerName={customerName} />
+      ) : (
+        <RecurCard onChanged={load} />
+      )}
+      {!filterInfo && (csvOk || batchOk) && (
         <div className="mb-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {csvOk && (
@@ -267,7 +314,7 @@ export function InvoiceList() {
           )}
         </div>
       )}
-      {quotes && (
+      {quotes && !filterInfo && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Segmented<Filter>
             legend="Show"
@@ -286,14 +333,14 @@ export function InvoiceList() {
         </div>
       )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-        <span>{saveLimit === null ? `${count} saved` : `${count} of ${saveLimit} saved`}</span>
+        <span>{filterInfo ? '' : saveLimit === null ? `${count} saved` : `${count} of ${saveLimit} saved`}</span>
         {notice && (
           <span className="font-semibold text-ink" role="status">
             {notice}
           </span>
         )}
       </div>
-      {shown && shown.length === 0 && (
+      {shown && shown.length === 0 && !filterInfo && (
         <p className="rounded-xl2 border border-dashed border-hair bg-surface p-6 text-center text-muted">
           {filter === 'quote' ? 'No quotations yet.' : 'No invoices yet.'}
         </p>
@@ -346,6 +393,14 @@ export function InvoiceList() {
                   </span>
                 ) : null;
               })()}
+              {filterInfo && inv.kind !== 'quote' && (
+                <span className="mt-1 block text-sm text-muted">
+                  {inv.balance !== undefined && inv.balance > 0 && inv.amountPaid === 0 && (
+                    <span className="mr-3 font-semibold text-ink">{formatMoney(inv.balance, inv.currency)} outstanding</span>
+                  )}
+                  {inv.receivedInPeriod !== undefined && <span>{formatMoney(inv.receivedInPeriod, inv.currency)} received in this period</span>}
+                </span>
+              )}
             </a>
             <div className="-ml-3 flex flex-wrap gap-1 md:ml-0">
               {quotes && inv.kind === 'quote' && (

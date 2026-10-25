@@ -1,6 +1,11 @@
 /**
  * GET  /api/invoices  — the signed-in user's saved invoices (summaries only:
  *                       no document, no logo), newest first.
+ *                       With filters (state, currency, bucket, issuedFrom/issuedTo, paidFrom/paidTo,
+ *                       customer — app/lib/invoice/filters.ts; `today` for overdue and ageing) it returns
+ *                       invoices only, capped at 200, plus totals over every match: that is what a
+ *                       Payments & Collections card or chart links to. Filtering only narrows the
+ *                       user's own invoices, so every account may use it. No filters: unchanged.
  * POST /api/invoices  — save a new one. Body: { invoice }. 403 `limit` when the
  *                       plan's save limit is reached (free account: 20).
  *
@@ -13,7 +18,9 @@ import { entitlementsFrom } from '@/app/lib/entitlements';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { getDb } from '@/db/client';
 import { getEntitlements } from '@/db/entitlements';
+import { hasFilterParams, parseInvoiceFilter } from '@/app/lib/invoice/filters';
 import { createInvoice, listInvoices } from '@/db/invoices';
+import { listInvoicesFiltered } from '@/db/invoice-filters';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +28,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const user = await requireUser(req);
   if (user instanceof Response) return user;
+  const q = new URL(req.url).searchParams;
+  if (hasFilterParams(q)) {
+    const parsed = parseInvoiceFilter(q);
+    if (!parsed.ok) return fail(400, 'invalid', parsed.message);
+    return json({ ok: true, filtered: true, ...(await listInvoicesFiltered(await getDb(), user.id, parsed.filter, parsed.today)) });
+  }
   return json({ ok: true, invoices: await listInvoices(await getDb(), user.id) });
 }
 

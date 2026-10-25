@@ -5,6 +5,38 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-26 — Payments & Collections, Stage D (Pro): decisions applied (built, not deployed)
+
+**Decided by:** product owner (plan approved with D1–D6 as recommended, plus two clarifications). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Payments & Collections".
+
+- **D1** Outstanding, overdue and ageing are **balances as of today**; the period applies to
+  invoiced, received, collection rate and the monthly chart. **D2** reuse the Pro key
+  `invoice_dashboard` (no new key, **no migration**). **D3** default period is the
+  current **Indian financial year (Apr–Mar)**. **D4** saved-customer filter included
+  (saved customers only). **D5** top-five "Needs chasing" included. **D6** no indexes
+  added; benchmarked first (5,000 invoices / 20,000 payments: dashboard median ≈ 41 ms,
+  24-month maximum ≈ 60 ms on in-memory Postgres).
+- **Clarification 1 — collection rate is the invoice-cohort rate**, labelled as such
+  ("Collection rate (invoices issued in this period)"), and kept visibly apart from
+  **Received** (cash that arrived in the period, any invoice). The page says they won't
+  match; marked-paid invoices are excluded from both and reported on their own.
+- **Clarification 2 — time, stated once:** business dates are plain calendar dates, never
+  converted; "today" is the browser's date, **required**, accepted only within a day of
+  server UTC (no server-clock fallback); the financial year, ranges, overdue and ageing are
+  all computed from that date, so IST just after midnight and 31 March ↔ 1 April behave
+  the same wherever the server runs. Boundary tests added.
+- **Everything is computed on the server from the ledger**; the browser lays numbers out.
+  One currency at a time, never summed or converted. Pro is enforced in the API (403, no
+  figures) as well as the page.
+- **Every drill-down reconciles:** the filter SQL (outstanding, overdue, buckets, payment
+  states) is defined once and shared with the figures; filtered lists return totals over
+  every match, which equal the card even when the list is cut at 200. Filtering one's own
+  invoices is open to every account; the analytics are Pro.
+- `/api/dashboard` and the Overview are unchanged apart from one link.
+
+---
+
 ## 2026-10-26 — Invoice payments, Stage C: a ledger, not a switch (built, not deployed)
 
 **Decided by:** product owner (plan approved with six changes). Detail:

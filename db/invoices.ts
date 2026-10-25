@@ -37,7 +37,7 @@ export type InvoiceSummary = {
   updatedAt: Date;
 };
 
-const SUMMARY_COLUMNS = {
+export const SUMMARY_COLUMNS = {
   id: invoices.id,
   number: invoices.number,
   clientName: invoices.clientName,

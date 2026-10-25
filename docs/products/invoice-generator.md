@@ -4,7 +4,8 @@
 tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
 invoice (2B) deployed 2026-10-22; Pro Stages 2C-1 and 2C-2 deployed 2026-10-25
 (hidden until payments). Payment ledger and partial payments (Stage C, every
-account) built 2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+account) built 2026-10-26 — not yet deployed. Pro Payments & Collections (Stage D) built
+2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -352,7 +353,7 @@ not invent an amount, date or method.
 - From the first entry on it is an ordinary ledger invoice; nothing is flagged.
 - Editing such an invoice keeps its status, as before.
 
-### Dashboard and report formulas (for Stage D; Overview already uses these)
+### Dashboard and report formulas (used by the Overview and by Payments & Collections)
 
 Per currency — **never summed across currencies, never converted** (the on-screen FX
 reference stays a labelled estimate). Quotations never count. "Today" is the visitor's
@@ -370,8 +371,8 @@ calendar date. `balance = total − amount_paid`.
 Received (range) ÷ Invoiced (range) compares different invoice cohorts, so charts
 labelled "invoiced vs collected" say what basis they use. **In Stage C** the Pro
 Overview's "Unpaid" is Outstanding, "Overdue" is Overdue outstanding, "Billed this
-month" is Invoiced (this month) — tested in `test/payments.test.mts`. The rest ships
-with Stage D.
+month" is Invoiced (this month) — tested in `test/payments.test.mts`. The Payments & Collections
+page (Stage D, below) uses the same definitions.
 
 ### Where it appears
 
@@ -413,6 +414,115 @@ Write-off / adjustment (a balance clears only by recording payments), overpaymen
 credit notes, refunds, collection charts, ageing, customer-level totals, the payments
 report, reminders, and any automatic email. Each is a later, separately approved stage.
 
+## Payments & Collections (Stage D — Pro; built, not yet deployed)
+
+**Invoices → Payments & collections** (`/app/invoices/collections`, Pro, `invoice_dashboard`):
+what you've billed, what has come in, and what is still owed — from the payment ledger,
+one currency at a time. No migration (it reads Stage C's tables). The Overview and
+`GET /api/dashboard` are unchanged. Tests: `test/collections-lib.test.mts`,
+`test/collections.test.mts`, `tests/e2e/collections.spec.ts`; benchmark:
+`scripts/benchmark-collections.mts`.
+
+### The figures (formulas as in "Dashboard and report formulas" above)
+
+| Card | Covers | Link goes to |
+|---|---|---|
+| **Invoiced** | invoices **issued in the period** — invoice value, not money | `issuedFrom/issuedTo` |
+| **Received** | **cash that arrived in the period**, on any invoice (including ones issued earlier) | `paidFrom/paidTo` — each row shows what it received in the period |
+| **Outstanding** | balances **as of today**; *not* limited to the period | `state=outstanding` |
+| **Overdue** | the part past its due date, as of today | `state=overdue` |
+| **Collection rate (invoices issued in this period)** | the **invoice-cohort** rate: money collected so far — to *any* date — on the invoices issued in the period ÷ their total; whole %, rounded down, "—" if none; marked-paid excluded | the issued-in-period list |
+
+**Cash received vs collection rate.** They answer different questions and are labelled so
+on the page (each card names its basis; a sentence under the cards says they "won't
+match"). Example: an invoice issued in April and paid in full in September counts in
+April's collection rate (100%), but its cash is **Received in September**, and April's
+Received is ₹0. Cash received in a period can also include money for invoices issued
+before it. The monthly chart is titled "Invoiced vs received" and says the two series can
+come from different invoices. Invoices **marked paid before payments were recorded** are
+not counted as received or in the rate; a note under the cards counts them and links to
+them.
+
+Outstanding, Overdue and the ageing chart are **positions as of today**, so the period
+picker does not change them (decision D1); Invoiced, Received, the collection rate and the
+monthly chart follow the period. Quotations are never counted.
+
+### Dates and time zones — one rule
+
+Every business date (issue, due, date received, "today", range ends) is a plain calendar
+date `YYYY-MM-DD`, with no time zone, and is **never converted**. Months are the
+`YYYY-MM` of the stored date; days are counted as whole calendar days.
+
+- **"Today" is the visitor's own calendar date**, sent as `today=`. It is **required**
+  (400 if missing — no fallback to the server's clock) and must be a real date **within
+  one day of the server's UTC date** (the biggest real UTC offset is 14 hours), so an
+  Indian visitor just after midnight IST is accepted, and a far-off date can't be used to
+  dodge "overdue".
+- **Indian financial year:** 1 April – 31 March, worked out from that calendar date. On 31
+  March it is still the old year; on 1 April the new one begins — wherever the server runs.
+  **This financial year** is the default; presets are this month, last 3 / 6 months (whole
+  months), this FY, last FY, and custom dates (1 to 24 months).
+- **Overdue** is `due_date < today` (due today is not overdue); **days overdue** is
+  `today − due_date`. **Ageing buckets:** not yet due (including no due date) · 1–30 ·
+  31–60 · over 60 days overdue — by the **balance**, not the original total.
+- Range ends are inclusive. Tested at the boundaries: IST midnight, 31 March ↔ 1 April,
+  due-on-the-day and the day after, leap February, year ends, UTC±14.
+
+### Currency
+
+One currency per view; when an account has more than one, a switch lists them (INR first).
+Every query filters `currency = $c` — nothing is summed or converted across currencies, and
+this page doesn't use the Overview's FX hint. A saved-customer filter limits every figure
+to that customer's invoices (invoices not linked to a saved customer can't be filtered by
+customer).
+
+### Charts and states
+
+- **Invoiced vs received, by month:** grouped columns in plain SVG (no chart library); the
+  series differ by pattern and position, not colour alone, with a text legend; each bar is
+  a real link whose name carries the amount ("Sep 26: received ₹5,000.00 in 1 payment.
+  View the invoices paid."); a "View as a table" version has the same numbers and links;
+  on a phone the chart scrolls sideways rather than shrinking its labels.
+- **Outstanding by age:** four rows (label, invoices, balance, a bar) — links when there
+  are invoices; they add up to Outstanding, which the page says.
+- **Needs chasing:** the five invoices longest past due, each opening its payments page.
+- **Empty:** no invoices ("Nothing to measure yet"); nothing in the period; nothing
+  received yet; nothing outstanding ("Nothing outstanding. Sorted."); nothing overdue; a
+  bad custom range is explained and not sent. Loading shows a skeleton, errors a retry.
+
+### API
+
+`GET /api/invoices/collections?from=&to=&today=[&currency=][&customer=]` — Pro only: **403
+(no figures at all) without `invoice_dashboard`**, checked before anything is read; 401
+signed out; 400 for a missing/implausible `today`, a bad or backwards range, more than 24
+months, an unknown currency or a malformed customer id. Returns the five figures, the
+zero-filled monthly series, the four ageing buckets and the needs-chasing list for one
+currency, plus the account's currency list. Every query is scoped to the signed-in user.
+
+`GET /api/invoices?state=&currency=&bucket=&issuedFrom=&issuedTo=&paidFrom=&paidTo=&customer=`
+(`today=` for overdue and ageing) — the drill-down: invoices only, capped at 200, plus
+**totals over every match, per currency**. Without those params the response is exactly as
+before. These filters only narrow a user's own invoices, so every account may use them.
+The SQL for "outstanding", "overdue", each bucket and each payment state is defined once
+(`db/invoice-filters.ts`) and shared with the dashboard figures, so **every drill-down
+reconciles with its card or bar** (tests assert it for each one).
+
+### Performance (benchmark, not a promise about Neon)
+
+`npx tsx scripts/benchmark-collections.mts` seeds one account with **5,000 invoices and
+20,000 payments** (plus 3,000 invoices / 12,000 payments of other accounts) on in-memory
+PGlite with the real migrations, checks every invoice's cached total against its ledger,
+and times the real queries (25 runs, medians): the whole INR dashboard for a financial
+year ≈ 41 ms (p95 61 ms); the 24-month maximum ≈ 60 ms; USD ≈ 24 ms; each drill-down list
+≈ 15–22 ms. The received-in-range query uses the Stage C partial index. That is query
+time only — Neon adds a network round trip per query (one lookup, then the rest in
+parallel). No index was added (decision D6); revisit only if real accounts show otherwise.
+
+### Not in Stage D
+
+Customer history and per-customer totals pages, list paging and search, the payments
+report and CSV additions, reminders or any email, write-off. (Stages E and F.)
+
 ## Paid tier (Stages 2–3)
 
 Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
@@ -420,7 +530,7 @@ Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_brand_color`, `invoice_quote_mode`, `invoice_recurring`,
 `invoice_csv_export`, `invoice_batch_csv`. All seeded on the `invoice_pro` plan.
 `invoice_payments` (record and view payments) is on `free_account` **and**
-`invoice_pro`; `invoice_dashboard` (Overview, collection analytics) stays Pro.
+`invoice_pro`; `invoice_dashboard` (Overview and Payments & collections) stays Pro.
 
 - Stage 2B (free): **built** — see "GST tax invoice" above.
 - Stage 2C-1 (Pro): **built** — see above.
