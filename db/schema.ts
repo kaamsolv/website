@@ -354,12 +354,18 @@ export const businessProfiles = pgTable(
     composition: boolean('composition').notNull().default(false),
     /** Signature image for the authorised-signatory block (data URL, downscaled in the browser). */
     signature: text('signature'),
+    // Stage 2C-1 (migration 0006) — Pro.
+    quotePrefix: text('quote_prefix').notNull().default('QT-'),
+    quoteNextNumber: integer('quote_next_number').notNull().default(1),
+    defaultTemplate: text('default_template').notNull().default('classic'),
+    defaultBrandColor: text('default_brand_color').notNull().default('#FE6336'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     check('business_profiles_logo_len', sql`char_length(${table.logo}) <= ${sql.raw(String(LOGO_MAX_STORED_CHARS))}`),
     check('business_profiles_next_number', sql`${table.nextNumber} >= 1`),
     check('business_profiles_due_days', sql`${table.defaultDueDays} between 0 and 365`),
+    check('business_profiles_quote_next_number', sql`${table.quoteNextNumber} >= 1`),
     check('business_profiles_signature_len', sql`char_length(${table.signature}) <= ${sql.raw(String(LOGO_MAX_STORED_CHARS))}`),
   ],
 );
@@ -432,6 +438,8 @@ export const invoices = pgTable(
     /** The saved customer it was billed to, if any. The document keeps its own copy. */
     customerId: uuid('customer_id').references(() => customers.id, { onDelete: 'set null' }),
     status: invoiceStatus('status').notNull().default('unpaid'),
+    /** 'invoice' or 'quote' (Pro quotations, migration 0006). Quotes have no paid status and don't count in totals. */
+    kind: text('kind').notNull().default('invoice'),
     paidAt: timestamp('paid_at', { withTimezone: true }),
     data: jsonb('data').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -439,6 +447,8 @@ export const invoices = pgTable(
   },
   (table) => [
     index('invoices_user_id_updated_at_idx').on(table.userId, table.updatedAt.desc()),
+    index('invoices_user_id_kind_idx').on(table.userId, table.kind),
+    check('invoices_kind', sql`${table.kind} in ('invoice', 'quote')`),
     check('invoices_data_len', sql`length(${table.data}::text) <= ${sql.raw(String(INVOICE_DATA_MAX_CHARS))}`),
   ],
 );

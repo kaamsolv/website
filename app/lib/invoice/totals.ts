@@ -1,4 +1,4 @@
-import { gstSummary, isBillOfSupply, isTaxInvoice, type GstSummary } from './gst-tax';
+import { gstSummary, isBillOfSupply, isGstEstimate, isTaxInvoice, type GstSummary } from './gst-tax';
 import type { Invoice, LineItem } from './types';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -34,7 +34,7 @@ export type Totals = {
 
 /** What the totals need. The GST fields are optional so plain invoices (and old ones) work unchanged. */
 export type TotalsInput = Pick<Invoice, 'items' | 'discountType' | 'discountValue' | 'taxRate'> &
-  Partial<Pick<Invoice, 'currency' | 'taxLabel' | 'seller' | 'client' | 'placeOfSupply' | 'docType'>>;
+  Partial<Pick<Invoice, 'currency' | 'taxLabel' | 'seller' | 'client' | 'placeOfSupply' | 'docType' | 'kind'>>;
 
 /**
  * Subtotal → discount (flat, or % of subtotal; never more than the subtotal)
@@ -66,8 +66,9 @@ export function computeTotals(invoice: TotalsInput): Totals {
 
   // GST tax invoice: each line at its own rate (or the invoice's), split by place of supply.
   if (invoice.currency && invoice.taxLabel !== undefined && invoice.seller && invoice.client) {
-    const ctx = { currency: invoice.currency, taxLabel: invoice.taxLabel, seller: invoice.seller, client: invoice.client, docType: invoice.docType, placeOfSupply: invoice.placeOfSupply };
-    if (isTaxInvoice(ctx)) {
+    const ctx = { currency: invoice.currency, taxLabel: invoice.taxLabel, seller: invoice.seller, client: invoice.client, docType: invoice.docType, placeOfSupply: invoice.placeOfSupply, kind: invoice.kind };
+    // Tax invoices, and quotations from GST-registered sellers (an estimate with the same split).
+    if (isTaxInvoice(ctx) || isGstEstimate(ctx)) {
       const rates = invoice.items.map((it, i) => {
         const raw = it.gstRate?.trim() ? it.gstRate : invoice.taxRate;
         const r = parseNumber(raw);

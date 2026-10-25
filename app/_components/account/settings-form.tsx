@@ -10,6 +10,8 @@ import { CURRENCY_LABELS } from '@/app/lib/invoice/money';
 import { cleanSettings, type Settings } from '@/app/lib/invoice/settings';
 import { CURRENCIES } from '@/app/lib/invoice/types';
 import { formatSequentialNumber } from '@/app/lib/invoice/validate';
+import { useEntitlements } from '@/app/lib/me-client';
+import { DesignPicker } from '../invoice/design-panel';
 
 type Form = Settings & { logo: string | null; signature: string | null };
 
@@ -30,6 +32,11 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInput = useRef<HTMLInputElement>(null);
   const signatureInput = useRef<HTMLInputElement>(null);
+  // Pro (Stage 2C-1): quotation numbering and the default design. Hidden from free accounts.
+  const { can } = useEntitlements();
+  const canQuote = can('invoice_quote_mode');
+  const canTemplates = can('invoice_templates');
+  const canColor = can('invoice_brand_color');
 
   useEffect(() => {
     fetch('/api/settings', { credentials: 'same-origin', cache: 'no-store' })
@@ -324,6 +331,43 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
           'Printed on every new invoice — you can still change it per invoice.',
         )}
       </Section>
+      )}
+
+      {part === 'invoice' && canQuote && (
+        <Section title="Quotations" intro="Quotations have their own numbers, separate from invoices.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {field('quotePrefix', 'Quotation prefix', text('quotePrefix', { max: MAX_LEN.prefix }), 'e.g. QT- or EST-')}
+            {field(
+              'quoteNextNumber',
+              'Next quotation number',
+              <input
+                id="s-quoteNextNumber"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={form.quoteNextNumber}
+                onChange={(e) => set({ quoteNextNumber: Number(e.target.value) })}
+                className={INPUT}
+                aria-invalid={errors.quoteNextNumber ? true : undefined}
+              />,
+            )}
+          </div>
+          <p className="text-sm text-muted">
+            Next quotation: <strong className="text-ink">{formatSequentialNumber(form.quoteNextNumber || 1, form.quotePrefix)}</strong>
+          </p>
+        </Section>
+      )}
+
+      {part === 'invoice' && (canTemplates || canColor) && (
+        <Section title="Design" intro="The look of new invoices and quotations. You can still change it on each one.">
+          <DesignPicker
+            value={{ template: form.defaultTemplate, color: form.defaultBrandColor }}
+            onChange={(d) => set({ defaultTemplate: d.template, defaultBrandColor: d.color })}
+            templates={canTemplates}
+            color={canColor}
+          />
+          {errors.defaultBrandColor && <p className="text-sm font-medium text-danger-600">{errors.defaultBrandColor}</p>}
+        </Section>
       )}
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-hair bg-canvas/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">

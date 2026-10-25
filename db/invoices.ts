@@ -9,6 +9,8 @@
 import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { computeTotals } from '../app/lib/invoice/totals.ts';
 import type { Settings } from '../app/lib/invoice/settings.ts';
+import { isTemplate } from '../app/lib/invoice/design.ts';
+import { addDays } from '../app/lib/invoice/defaults.ts';
 import { CURRENCIES, type Invoice } from '../app/lib/invoice/types.ts';
 import { formatSequentialNumber, sequenceOf } from '../app/lib/invoice/validate.ts';
 import type { Db } from './links.ts';
@@ -24,6 +26,7 @@ export type InvoiceSummary = {
   issueDate: string | null;
   dueDate: string | null;
   status: 'unpaid' | 'paid';
+  kind: string;
   updatedAt: Date;
 };
 
@@ -36,6 +39,7 @@ const SUMMARY_COLUMNS = {
   issueDate: invoices.issueDate,
   dueDate: invoices.dueDate,
   status: invoices.status,
+  kind: invoices.kind,
   updatedAt: invoices.updatedAt,
 };
 
@@ -49,6 +53,7 @@ function summaryOf(doc: Invoice) {
     total: Number.isFinite(total) ? total : 0,
     issueDate: doc.issueDate || null,
     dueDate: doc.dueDate || null,
+    kind: doc.kind === 'quote' ? 'quote' : 'invoice',
   };
 }
 
@@ -124,10 +129,15 @@ export async function getDashboard(
       overdueCount: sql<number>`(count(*) filter (where ${invoices.status} = 'unpaid' and ${invoices.dueDate} < ${today}::date))::int`,
     })
     .from(invoices)
-    .where(eq(invoices.userId, userId))
+    .where(and(eq(invoices.userId, userId), eq(invoices.kind, 'invoice')))
     .groupBy(invoices.currency);
   totals.sort((a, b) => (a.currency === 'INR' ? -1 : b.currency === 'INR' ? 1 : a.currency.localeCompare(b.currency)));
-  const recent = await db.select(SUMMARY_COLUMNS).from(invoices).where(eq(invoices.userId, userId)).orderBy(desc(invoices.updatedAt)).limit(5);
+  const recent = await db
+    .select(SUMMARY_COLUMNS)
+    .from(invoices)
+    .where(and(eq(invoices.userId, userId), eq(invoices.kind, 'invoice')))
+    .orderBy(desc(invoices.updatedAt))
+    .limit(5);
   return { totals, recent };
 }
 
@@ -143,14 +153,14 @@ export async function createInvoice(db: Db, userId: string, doc: Invoice, limit:
   const data = JSON.stringify(storable(doc));
   const capped = limit === null ? sql`true` : sql`(select count(*) from ${invoices} where ${invoices.userId} = ${userId}::uuid) < ${limit}`;
   const result = await db.execute<{ id: string }>(sql`
-    insert into ${invoices} (user_id, number, client_name, currency, total, issue_date, due_date, customer_id, data)
-    select ${userId}::uuid, ${s.number}, ${s.clientName}, ${s.currency}, ${s.total}, ${s.issueDate}::date, ${s.dueDate}::date,
+    insert into ${invoices} (user_id, number, client_name, currency, total, issue_date, due_date, kind, customer_id, data)
+    select ${userId}::uuid, ${s.number}, ${s.clientName}, ${s.currency}, ${s.total}, ${s.issueDate}::date, ${s.dueDate}::date, ${s.kind},
            ${ownCustomer(userId, doc.customerId)}, ${data}::jsonb
     where ${capped}
     returning id`);
   const id = (result as unknown as { rows: { id: string }[] }).rows[0]?.id;
   if (!id) return { ok: false, reason: 'limit' };
-  await advanceNumberIfUsed(db, userId, doc.number);
+  await advanceNumberIfUsed(db, userId, doc.number, doc.kind);
   return { ok: true, id };
 }
 
@@ -160,7 +170,7 @@ export async function updateInvoice(db: Db, userId: string, id: string, doc: Inv
     .set({ ...summaryOf(doc), customerId: ownCustomer(userId, doc.customerId), data: storable(doc), updatedAt: new Date() })
     .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
     .returning({ id: invoices.id });
-  if (rows.length) await advanceNumberIfUsed(db, userId, doc.number);
+  if (rows.length) await advanceNumberIfUsed(db, userId, doc.number, doc.kind);
   return rows.length > 0;
 }
 
@@ -174,8 +184,8 @@ export async function deleteInvoice(db: Db, userId: string, id: string): Promise
 
 // ─── Business profile / Settings ─────────────────────────────────────────────
 
-/** Settings plus the logo, signature and the ready-made next number (e.g. INV-0001). */
-export type BusinessProfile = Settings & { logo: string | null; signature: string | null; nextNumber: string };
+/** Settings plus the logo, signature and the ready-made next numbers (e.g. INV-0001, QT-0001). */
+export type BusinessProfile = Settings & { logo: string | null; signature: string | null; nextNumber: string; nextQuoteNumber: string };
 
 export const DEFAULT_SETTINGS: Settings = {
   name: '',
@@ -198,6 +208,10 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultDueDays: 14,
   defaultNotes: '',
   composition: false,
+  quotePrefix: 'QT-',
+  quoteNextNumber: 1,
+  defaultTemplate: 'classic',
+  defaultBrandColor: '#FE6336',
 };
 
 export async function getProfile(db: Db, userId: string): Promise<BusinessProfile | null> {
@@ -207,6 +221,8 @@ export async function getProfile(db: Db, userId: string): Promise<BusinessProfil
   return {
     ...rest,
     defaultCurrency: (CURRENCIES as readonly string[]).includes(rest.defaultCurrency) ? (rest.defaultCurrency as Settings['defaultCurrency']) : 'INR',
+    defaultTemplate: isTemplate(rest.defaultTemplate) ? rest.defaultTemplate : 'classic',
+    nextQuoteNumber: formatSequentialNumber(rest.quoteNextNumber, rest.quotePrefix),
     nextSequence: nextNumber,
     logo,
     nextNumber: formatSequentialNumber(nextNumber, rest.invoicePrefix),
@@ -252,9 +268,27 @@ export async function saveProfile(
     .onConflictDoUpdate({ target: businessProfiles.userId, set: values });
 }
 
-/** INV-0007 saved → the next new invoice is INV-0008 (with the account's prefix). Other formats leave it alone. */
-async function advanceNumberIfUsed(db: Db, userId: string, number: string): Promise<void> {
-  const [row] = await db.select({ prefix: businessProfiles.invoicePrefix }).from(businessProfiles).where(eq(businessProfiles.userId, userId));
+/**
+ * INV-0007 saved → the next new invoice is INV-0008 (with the account's prefix);
+ * QT-0003 saved as a quotation → the next quotation is QT-0004. Other formats leave it alone.
+ */
+async function advanceNumberIfUsed(db: Db, userId: string, number: string, kind?: Invoice['kind']): Promise<void> {
+  const [row] = await db
+    .select({ prefix: businessProfiles.invoicePrefix, quotePrefix: businessProfiles.quotePrefix })
+    .from(businessProfiles)
+    .where(eq(businessProfiles.userId, userId));
+  if (kind === 'quote') {
+    const usedQuote = sequenceOf(number, row?.quotePrefix ?? 'QT-');
+    if (usedQuote === null) return;
+    await db
+      .insert(businessProfiles)
+      .values({ userId, quoteNextNumber: usedQuote + 1 })
+      .onConflictDoUpdate({
+        target: businessProfiles.userId,
+        set: { quoteNextNumber: sql`greatest(${businessProfiles.quoteNextNumber}, ${usedQuote + 1})` },
+      });
+    return;
+  }
   const used = sequenceOf(number, row?.prefix ?? 'INV-');
   if (used === null) return;
   await db
@@ -264,4 +298,29 @@ async function advanceNumberIfUsed(db: Db, userId: string, number: string): Prom
       target: businessProfiles.userId,
       set: { nextNumber: sql`greatest(${businessProfiles.nextNumber}, ${used + 1})` },
     });
+}
+
+/**
+ * A saved quotation → a new invoice with the same client and lines, the next
+ * invoice number, `issueDate` and the account's days-to-pay. The quotation
+ * stays as it was. Null if the id isn't this user's quotation.
+ */
+export async function convertQuote(
+  db: Db,
+  userId: string,
+  id: string,
+  issueDate: string,
+  limit: number | null,
+): Promise<CreateResult | null> {
+  const quote = await getInvoice(db, userId, id);
+  if (!quote || quote.invoice.kind !== 'quote') return null;
+  const profile = await getProfile(db, userId);
+  const invoice: Invoice = {
+    ...quote.invoice,
+    kind: undefined,
+    number: profile?.nextNumber ?? formatSequentialNumber(1),
+    issueDate,
+    dueDate: addDays(issueDate, profile?.defaultDueDays ?? 14),
+  };
+  return createInvoice(db, userId, invoice, limit);
 }

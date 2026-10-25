@@ -5,6 +5,25 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-22 — Stage 2C-1: Invoice Pro — no footer, multi-page, templates, brand colour, quotations
+
+**Decided by:** product owner (plan approved). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Pro — Stage 2C-1".
+
+- Stage 2C split in two: **2C-1** (this) and **2C-2** (recurring, CSV export,
+  batch from CSV, currency rates via Frankfurter / ECB — source approved).
+- Pro stays **hidden** from free accounts until payments exist (Stage 3): no
+  tags, no "coming soon".
+- Multi-page for Pro only (up to 200 lines); free keeps 10 lines on one page.
+- Three templates (Classic default, Minimal, Bold) + brand colour (8 swatches
+  or hex); text on the colour auto-picks white or navy.
+- Quotations: own numbering (`QT-`), valid 30 days, never a tax invoice (GST
+  shown as an estimate), no UPI QR, no paid/unpaid; convert to a new invoice
+  keeps the quotation. Overview counts invoices only.
+- Migration 0006 (additive).
+
+---
+
 ## 2026-10-22 — Stage 2B: GST tax invoice (free)
 
 **Decided by:** product owner (plan approved). Detail:

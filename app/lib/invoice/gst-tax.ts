@@ -54,7 +54,7 @@ export function isPlaceOfSupply(code: unknown): code is string {
   return code === EXPORT_CODE || isStateCode(code);
 }
 
-type Ctx = Pick<Invoice, 'currency' | 'taxLabel' | 'seller' | 'client'> & Partial<Pick<Invoice, 'docType' | 'placeOfSupply'>>;
+type Ctx = Pick<Invoice, 'currency' | 'taxLabel' | 'seller' | 'client'> & Partial<Pick<Invoice, 'docType' | 'placeOfSupply' | 'kind'>>;
 
 export function isBillOfSupply(inv: Partial<Pick<Invoice, 'docType'>>): boolean {
   return inv.docType === 'bill_of_supply';
@@ -66,9 +66,17 @@ export function sellerStateOf(inv: Pick<Invoice, 'seller'>): string {
   return g ? g.slice(0, 2) : (inv.seller.state ?? '');
 }
 
-/** True when this invoice should be a GST tax invoice. */
+/** True when this invoice should be a GST tax invoice. A quotation never is (it's an estimate). */
 export function isTaxInvoice(inv: Ctx): boolean {
-  return inv.currency === 'INR' && inv.taxLabel.trim() === 'GST' && !!validGstin(inv.seller.gstin) && !isBillOfSupply(inv);
+  return inv.kind !== 'quote' && inv.currency === 'INR' && inv.taxLabel.trim() === 'GST' && !!validGstin(inv.seller.gstin) && !isBillOfSupply(inv);
+}
+
+/**
+ * GST split for a quotation: the same place-of-supply maths as a tax invoice,
+ * shown as an estimate. Only when the seller has a GSTIN and charges GST in INR.
+ */
+export function isGstEstimate(inv: Ctx): boolean {
+  return inv.kind === 'quote' && inv.currency === 'INR' && inv.taxLabel.trim() === 'GST' && !!validGstin(inv.seller.gstin) && !isBillOfSupply(inv);
 }
 
 /** Place of supply: chosen, else the client's GSTIN state, else the client's state, else the seller's. */

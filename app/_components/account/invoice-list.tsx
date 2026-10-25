@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PRIMARY, SECONDARY } from './account-shell';
 import { StatusBadge } from './status-badge';
+import { Segmented } from '../choice';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from '../invoice/generate-pdf';
 import { downloadBlob } from '@/app/lib/image/export';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
@@ -20,7 +21,10 @@ type Summary = {
   issueDate: string | null;
   dueDate: string | null;
   status: 'unpaid' | 'paid';
+  kind: 'invoice' | 'quote';
 };
+
+type Filter = 'all' | 'invoice' | 'quote';
 
 const ROW_BTN =
   'inline-flex h-10 items-center justify-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60';
@@ -29,6 +33,10 @@ export function InvoiceList() {
   const me = useMe();
   const { can, limit } = useEntitlements();
   const tracking = can('invoice_dashboard');
+  // Pro (Stage 2C-1). Hidden from free accounts.
+  const quotes = can('invoice_quote_mode');
+  const designOk = can('invoice_templates') || can('invoice_brand_color');
+  const [filter, setFilter] = useState<Filter>('all');
   const today = isoDate(new Date());
   const [list, setList] = useState<Summary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +72,7 @@ export function InvoiceList() {
     setNotice(`${inv.number} marked ${next}.`);
   }
 
-  async function act(id: string, kind: 'duplicate' | 'delete' | 'download', number: string) {
+  async function act(id: string, kind: 'duplicate' | 'delete' | 'download' | 'convert', number: string) {
     setNotice(null);
     if (kind === 'delete' && !window.confirm(`Delete ${number}? This can’t be undone.`)) return;
     setBusy(`${kind}:${id}`);
@@ -76,23 +84,34 @@ export function InvoiceList() {
         ]);
         if (!inv.invoice) throw new Error('missing');
         const doc: Invoice = { ...inv.invoice, logo: prof.profile?.logo ?? null, signature: prof.profile?.signature ?? null };
-        const blob = await renderInvoicePdf(doc, computeTotals(doc), { watermark: !can('invoice_watermark_remove') });
+        const blob = await renderInvoicePdf(doc, computeTotals(doc), {
+          watermark: !can('invoice_watermark_remove'),
+          design: designOk ? (doc.design ?? null) : null,
+        });
         downloadBlob(blob, pdfFilename(doc));
-        setNotice((await countPdfPages(blob)) > 1 ? 'Downloading — it runs onto a second page.' : 'Done — your PDF is downloading.');
+        // Pro documents flow onto more pages by design; free ones are meant to fit one.
+        const overflow = !can('invoice_unlimited_items') && (await countPdfPages(blob)) > 1;
+        setNotice(overflow ? 'Downloading — it runs onto a second page.' : 'Done — your PDF is downloading.');
         return;
       }
-      const res = await fetch(kind === 'delete' ? `/api/invoices/${id}` : `/api/invoices/${id}/duplicate`, {
+      const res = await fetch(kind === 'delete' ? `/api/invoices/${id}` : `/api/invoices/${id}/${kind}`, {
         method: kind === 'delete' ? 'DELETE' : 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: kind === 'duplicate' ? JSON.stringify({ issueDate: isoDate(new Date()) }) : undefined,
+        body: kind === 'delete' ? undefined : JSON.stringify({ issueDate: isoDate(new Date()) }),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string; id?: string };
       if (!res.ok) {
         setNotice(body.message ?? 'That didn’t work. Try again.');
         return;
       }
-      setNotice(kind === 'delete' ? `Deleted ${number}.` : `Copied ${number}. The copy is at the top.`);
+      setNotice(
+        kind === 'delete'
+          ? `Deleted ${number}.`
+          : kind === 'convert'
+            ? `Made an invoice from ${number}. It’s at the top — the quotation stays as it was.`
+            : `Copied ${number}. The copy is at the top.`,
+      );
       await Promise.all([load(), refreshMe()]);
     } catch {
       setNotice('That didn’t work. Check your connection and try again.');
@@ -103,6 +122,7 @@ export function InvoiceList() {
 
   const saveLimit = limit('invoice_save');
   const count = me.status === 'signed-in' ? me.usage.invoiceSave : (list?.length ?? 0);
+  const shown = list && quotes && filter !== 'all' ? list.filter((x) => x.kind === filter) : list;
 
   if (error) return <p className="text-strong" role="alert">{error}</p>;
   if (!list) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
@@ -121,6 +141,24 @@ export function InvoiceList() {
 
   return (
     <div>
+      {quotes && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Segmented<Filter>
+            legend="Show"
+            hideLegend
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'invoice', label: 'Invoices' },
+              { value: 'quote', label: 'Quotations' },
+            ]}
+            value={filter}
+            onChange={setFilter}
+          />
+          <a href="/invoice-generator?type=quote" className={SECONDARY}>
+            + New quotation
+          </a>
+        </div>
+      )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
         <span>{saveLimit === null ? `${count} saved` : `${count} of ${saveLimit} saved`}</span>
         {notice && (
@@ -129,22 +167,38 @@ export function InvoiceList() {
           </span>
         )}
       </div>
-      <ul aria-label="Saved invoices" className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface">
-        {list.map((inv) => (
+      {shown && shown.length === 0 && (
+        <p className="rounded-xl2 border border-dashed border-hair bg-surface p-6 text-center text-muted">
+          {filter === 'quote' ? 'No quotations yet.' : 'No invoices yet.'}
+        </p>
+      )}
+      <ul aria-label="Saved invoices" className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface empty:hidden">
+        {(shown ?? []).map((inv) => (
           <li key={inv.id} className="grid gap-2 p-4 md:grid-cols-[1fr_auto] md:items-center md:gap-4">
             <a href={`/invoice-generator?id=${inv.id}`} className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
               <span className="flex flex-wrap items-baseline gap-x-3">
-                <span className="font-semibold text-ink group-hover:underline">{inv.number || 'Untitled invoice'}</span>
+                <span className="font-semibold text-ink group-hover:underline">
+                  {inv.number || (inv.kind === 'quote' ? 'Untitled quotation' : 'Untitled invoice')}
+                </span>
+                {inv.kind === 'quote' && (
+                  <span className="rounded-full border border-hair bg-wash px-2 py-0.5 text-xs font-semibold text-strong">Quote</span>
+                )}
                 <span className="truncate text-strong">{inv.clientName || 'No client yet'}</span>
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-3 text-sm text-muted">
                 <span className="tabular-nums font-semibold text-ink">{formatMoney(inv.total, inv.currency)}</span>
-                {tracking && <StatusBadge status={inv.status} dueDate={inv.dueDate} today={today} />}
+                {tracking && inv.kind !== 'quote' && <StatusBadge status={inv.status} dueDate={inv.dueDate} today={today} />}
                 {inv.issueDate && <span>{displayDate(inv.issueDate)}</span>}
+                {inv.kind === 'quote' && inv.dueDate && <span>Valid until {displayDate(inv.dueDate)}</span>}
               </span>
             </a>
             <div className="-ml-3 flex flex-wrap gap-1 md:ml-0">
-              {tracking && (
+              {quotes && inv.kind === 'quote' && (
+                <button type="button" className={ROW_BTN} disabled={busy !== null} onClick={() => act(inv.id, 'convert', inv.number)} aria-label={`Convert ${inv.number} to an invoice`}>
+                  {busy === `convert:${inv.id}` ? 'Converting…' : 'Convert to invoice'}
+                </button>
+              )}
+              {tracking && inv.kind !== 'quote' && (
                 <button type="button" className={ROW_BTN} disabled={busy !== null} onClick={() => void setStatus(inv)} aria-label={`Mark ${inv.number} as ${inv.status === 'paid' ? 'unpaid' : 'paid'}`}>
                   {inv.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
                 </button>

@@ -5,6 +5,7 @@
  * The logo is always dropped — it lives on the business profile, not the invoice.
  */
 
+import { cleanDesign } from './design';
 import { isPlaceOfSupply } from './gst-tax';
 import { gstinProblem, isStateCode, normalizeGstin } from './india';
 import { MAX_LEN } from './limits';
@@ -34,7 +35,12 @@ function obj(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanResult {
+/**
+ * `allowQuote` / `allowDesign`: the account's Pro entitlements. Without them the
+ * fields are dropped, so a free account can't save a quotation or a design by
+ * editing the request.
+ */
+export function cleanInvoice(input: unknown, opts: { maxItems: number; allowQuote?: boolean; allowDesign?: boolean }): CleanResult {
   const raw = obj(input);
   if (!Array.isArray(raw.items)) return { ok: false, message: 'That invoice is missing its items.' };
   const max = Math.min(opts.maxItems, MAX_ITEMS_ANY_PLAN);
@@ -78,6 +84,10 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
     : {};
   const customerId = typeof raw.customerId === 'string' && UUID_RE.test(raw.customerId) ? { customerId: raw.customerId } : {};
   // Stage 2B: GST particulars.
+  const proExtras = {
+    ...(opts.allowQuote && raw.kind === 'quote' ? { kind: 'quote' as const } : {}),
+    ...(opts.allowDesign && raw.design ? { design: cleanDesign(raw.design) } : {}),
+  };
   const gstExtras = {
     ...(isPlaceOfSupply(raw.placeOfSupply) ? { placeOfSupply: raw.placeOfSupply } : {}),
     ...(raw.reverseCharge === true ? { reverseCharge: true } : {}),
@@ -110,6 +120,7 @@ export function cleanInvoice(input: unknown, opts: { maxItems: number }): CleanR
       ...payment,
       ...customerId,
       ...gstExtras,
+      ...proExtras,
       items: items.length ? items : [{ id: 'item-1', description: '', qty: '1', rate: '' }],
       discountType: raw.discountType === 'flat' ? 'flat' : 'percent',
       discountValue: numText(raw.discountValue),

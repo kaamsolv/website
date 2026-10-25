@@ -42,6 +42,8 @@ export async function POST(req: Request) {
   }
   const cleaned = cleanInvoice((body as { invoice?: unknown })?.invoice, {
     maxItems: ent.can('invoice_unlimited_items') ? MAX_ITEMS_ANY_PLAN : MAX_FREE_ITEMS,
+    allowQuote: ent.can('invoice_quote_mode'),
+    allowDesign: ent.can('invoice_templates') || ent.can('invoice_brand_color'),
   });
   if (!cleaned.ok) return fail(400, 'invalid', cleaned.message);
 

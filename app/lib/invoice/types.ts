@@ -73,6 +73,10 @@ export type Invoice = {
   docType?: 'invoice' | 'bill_of_supply';
   /** Signature image (data URL) — from the business profile, never stored in the invoice. */
   signature?: string | null;
+  /** Invoice (default) or quotation (Pro: invoice_quote_mode). A quotation's `dueDate` is "Valid until". */
+  kind?: 'invoice' | 'quote';
+  /** PDF template and brand colour (Pro: invoice_templates / invoice_brand_color). */
+  design?: { template: 'classic' | 'minimal' | 'bold'; color: string };
 };
 
 export const EMPTY_PAYMENT: PaymentDetails = { accountName: '', accountNumber: '', ifsc: '', bankName: '', upiId: '', showUpiQr: false };
