@@ -2,7 +2,7 @@
 
 **Routes:** `/pdf-tools` (hub), `/compress-pdf`, `/merge-pdf`, `/split-pdf`,
 `/pdf-to-jpg`, `/jpg-to-pdf` · **Category:** Documents · **Status:** Stage 1
-(free tools) built, not deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md)
+(free tools) **live** since 2026-10-25. Decisions: [`DECISIONS.md`](../DECISIONS.md)
 (2026-10-25 entry).
 
 ## What it is
