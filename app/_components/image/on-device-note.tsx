@@ -1,5 +1,11 @@
 /** "Processed on your device" reassurance shared by in-browser tools. */
-export function OnDeviceNote({ subject = 'image' }: { subject?: 'image' | 'text' }) {
+const BODY = {
+  image: 'Your image isn’t uploaded to KaamSolv.',
+  text: 'Your text isn’t sent to KaamSolv or saved anywhere.',
+  files: 'Files stay on your device — nothing is uploaded to KaamSolv.',
+};
+
+export function OnDeviceNote({ subject = 'image' }: { subject?: keyof typeof BODY }) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-teal-300 bg-tealx-100 p-4">
       <svg
@@ -15,7 +21,7 @@ export function OnDeviceNote({ subject = 'image' }: { subject?: 'image' | 'text'
       <div>
         <p className="text-sm font-semibold text-ink">Processed on your device</p>
         <p className="text-sm text-strong">
-          {subject === 'text' ? 'Your text isn’t sent to KaamSolv or saved anywhere.' : 'Your image isn’t uploaded to KaamSolv.'}
+          {BODY[subject]}
         </p>
       </div>
     </div>

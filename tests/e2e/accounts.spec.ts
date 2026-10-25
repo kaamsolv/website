@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
  * hand. Email sign-in is the real flow; the link is read from the dev outbox.
  */
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.KK_E2E_BASE ?? 'http://localhost:3000';
 const SECRET = process.env.KK_E2E_SECRET ?? '';
 const SHOTS = 'test-results/screenshots';
 const E2E_SAVE_LIMIT = 3;

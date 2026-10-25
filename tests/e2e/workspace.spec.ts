@@ -10,7 +10,7 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
  * "pro-" get a test-only manual Pro grant in that database.
  */
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.KK_E2E_BASE ?? 'http://localhost:3000';
 const SECRET = process.env.KK_E2E_SECRET ?? '';
 const SHOTS = 'test-results/screenshots';
 const ORIGIN = { origin: BASE };

@@ -34,6 +34,9 @@ import {
 import { deleteAccount } from '../db/accounts.ts';
 import { consumeRateLimits } from '../db/rate-limits.ts';
 import { ENTITLEMENT_KEYS, entitlementsFrom } from '../app/lib/entitlements.ts';
+
+/** Invoice Pro grants every invoice key; other tools' keys belong to their own plans. */
+const INVOICE_KEYS = ENTITLEMENT_KEYS.filter((k) => k.startsWith('invoice_'));
 import { newInvoice } from '../app/lib/invoice/defaults.ts';
 import { cleanInvoice, formatSequentialNumber } from '../app/lib/invoice/validate.ts';
 import { rateLimitChecks } from '../app/lib/rate-limit.ts';
@@ -67,7 +70,7 @@ test('seed: free account saves 20 invoices; Pro grants every invoice key, unlimi
     [['invoice_client_directory', 3], ['invoice_item_catalogue', null], ['invoice_save', 20]],
   );
   const pro = rows.filter((r) => r.planKey === 'invoice_pro');
-  assert.deepEqual(new Set(pro.map((r) => r.featureKey)), new Set(ENTITLEMENT_KEYS));
+  assert.deepEqual(new Set(pro.map((r) => r.featureKey)), new Set(INVOICE_KEYS));
   assert.equal(pro.find((r) => r.featureKey === 'invoice_save')?.limitValue, null);
 });
 
@@ -81,7 +84,8 @@ test('entitlements: anonymous none; free 20; manual Pro all; expired or cancelle
 
   await db.insert(subscriptions).values({ userId: id, provider: 'manual', providerRef: 'manual:test:1', planKey: 'invoice_pro', status: 'active' });
   const pro = entitlementsFrom(await getEntitlements(db, id));
-  for (const key of ENTITLEMENT_KEYS) assert.equal(pro.can(key), true, key);
+  for (const key of INVOICE_KEYS) assert.equal(pro.can(key), true, key);
+  assert.equal(pro.can('pdf_large_files'), false, 'Invoice Pro is not PDF Pro');
   assert.equal(pro.limit('invoice_save'), null, 'Pro is unlimited even though free says 20');
 
   await db.update(subscriptions).set({ currentPeriodEnd: new Date(Date.now() - 1000) }).where(eq(subscriptions.userId, id));

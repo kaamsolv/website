@@ -34,6 +34,11 @@ export default function PrivacyPage() {
           browser and are not uploaded.
         </li>
         <li>
+          <strong>PDF tools</strong> (Compress, Merge, Split, PDF to JPG, JPG to PDF). Your PDFs and images are
+          processed in your browser and are not uploaded. The page loads the PDF reader&apos;s decoder and font
+          files from kaamsolv.com; nothing about your files is sent with them.
+        </li>
+        <li>
           <strong>QR Code Generator.</strong> The QR code is built in your browser. Links, Wi-Fi passwords,
           contact details and UPI IDs you enter are not sent to us or to any QR service.
         </li>

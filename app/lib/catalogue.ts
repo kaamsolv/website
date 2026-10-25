@@ -162,9 +162,11 @@ export const TOOLS: Tool[] = [
 
   // Documents
   { name: 'PDF to Word', slug: 'pdf-to-word', url: '/documents/pdf-to-word', category: 'Documents', blurb: 'Turn a PDF into an editable Word document.', keywords: ['pdf', 'word', 'docx', 'convert', 'edit pdf'], status: 'planned', popularRank: 4 },
-  { name: 'JPG to PDF', slug: 'jpg-to-pdf', url: '/documents/jpg-to-pdf', category: 'Documents', blurb: 'Combine photos and scans into one PDF.', keywords: ['jpg', 'image to pdf', 'scan', 'combine'], status: 'planned' },
-  { name: 'Merge PDF', slug: 'merge-pdf', url: '/documents/merge-pdf', category: 'Documents', blurb: 'Join several PDFs into a single file.', keywords: ['merge', 'combine pdf', 'join'], status: 'planned' },
-  { name: 'Split PDF', slug: 'split-pdf', url: '/documents/split-pdf', category: 'Documents', blurb: 'Pull out the pages you need.', keywords: ['split', 'extract pages', 'separate'], status: 'planned' },
+  { name: 'Compress PDF', slug: 'compress-pdf', url: '/compress-pdf', category: 'Documents', blurb: 'Make a PDF smaller for email and upload forms.', keywords: ['compress pdf', 'reduce pdf size', 'shrink pdf', 'pdf size', 'smaller pdf', 'kb'], status: 'live' },
+  { name: 'Merge PDF', slug: 'merge-pdf', url: '/merge-pdf', category: 'Documents', blurb: 'Join several PDFs into a single file.', keywords: ['merge', 'combine pdf', 'join'], status: 'live' },
+  { name: 'Split PDF', slug: 'split-pdf', url: '/split-pdf', category: 'Documents', blurb: 'Pull out the pages you need.', keywords: ['split', 'extract pages', 'separate'], status: 'live' },
+  { name: 'PDF to JPG', slug: 'pdf-to-jpg', url: '/pdf-to-jpg', category: 'Documents', blurb: 'Every page of a PDF as a JPG image.', keywords: ['pdf to image', 'pdf to jpeg', 'pdf to picture', 'convert pdf', 'images'], status: 'live' },
+  { name: 'JPG to PDF', slug: 'jpg-to-pdf', url: '/jpg-to-pdf', category: 'Documents', blurb: 'Combine photos and scans into one PDF.', keywords: ['jpg', 'image to pdf', 'scan', 'combine', 'photo to pdf', 'png to pdf'], status: 'live' },
   { name: 'Resume Generator', slug: 'resume-generator-documents', url: '/generators/resume-generator', category: 'Documents', blurb: 'Fill a clean template, download a polished resume.', keywords: ['resume', 'cv', 'template'], status: 'planned' },
 
   // Images & Files

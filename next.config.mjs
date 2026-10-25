@@ -16,11 +16,23 @@ const nextConfig = {
 
   /**
    * Browser-only libraries: give the server build a stub so they stay out of
-   * the Cloudflare Worker bundle (free plan: 3 MB gzip). Invoice PDFs and HEIC
-   * decoding only ever run in the browser.
+   * the Cloudflare Worker bundle (free plan: 3 MB gzip). Invoice PDFs, HEIC
+   * decoding and the PDF tools only ever run in the browser.
    */
   turbopack: {
     resolveAlias: {
+      '@cantoo/pdf-lib': {
+        browser: './node_modules/@cantoo/pdf-lib/es/index.js',
+        default: './app/lib/pdf/server-stubs/pdf-lib.ts',
+      },
+      'pdfjs-dist/legacy/build/pdf.mjs': {
+        browser: 'pdfjs-dist/legacy/build/pdf.min.mjs',
+        default: './app/lib/pdf/server-stubs/pdfjs.ts',
+      },
+      'pdfjs-dist/legacy/build/pdf.worker.mjs': {
+        browser: 'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+        default: './app/lib/pdf/server-stubs/pdfjs.ts',
+      },
       '@react-pdf/renderer': {
         browser: '@react-pdf/renderer/lib/react-pdf.browser.js',
         default: './app/_components/invoice/react-pdf-server-stub.ts',

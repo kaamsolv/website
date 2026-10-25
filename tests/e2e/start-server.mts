@@ -49,7 +49,8 @@ await client.close();
 console.log(`[e2e] fresh database in ${E2E_DB_DIR}/ (free save limit ${E2E_SAVE_LIMIT}; "pro-" emails get Pro — test-only)`);
 
 // Same flags as `npm run dev` (incl. --hostname 0.0.0.0), so tests see what you see.
-const child = spawn('npx', ['next', 'dev', '--hostname', '0.0.0.0', '--port', '3000'], {
+const port = process.env.KK_E2E_PORT ?? '3000';
+const child = spawn('npx', ['next', 'dev', '--hostname', '0.0.0.0', '--port', port], {
   cwd: root,
   stdio: 'inherit',
   shell: process.platform === 'win32',
