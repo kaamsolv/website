@@ -9,6 +9,7 @@ import { CURRENCIES, type CurrencyCode } from './types';
 import { gstinProblem, hsnProblem, ifscProblem, isStateCode, normalizeGstin, normalizeIfsc, upiProblem } from './india';
 import { MAX_LEN } from './limits';
 import { cleanPrefix } from './validate';
+import { DEFAULT_BRAND_COLOR, DEFAULT_TEMPLATE, isHexColor, isTemplate, type TemplateId } from './design';
 
 export type Settings = {
   name: string;
@@ -33,6 +34,11 @@ export type Settings = {
   defaultNotes: string;
   /** Composition scheme: documents are a Bill of Supply, with no tax (Stage 2B). */
   composition: boolean;
+  /** Pro (Stage 2C-1): quotation numbering and the default design. */
+  quotePrefix: string;
+  quoteNextNumber: number;
+  defaultTemplate: TemplateId;
+  defaultBrandColor: string;
 };
 
 export type Customer = {
@@ -95,6 +101,15 @@ export function cleanSettings(input: unknown): Cleaned<Settings> {
   const defaultCurrency = CURRENCIES.includes(r.defaultCurrency as CurrencyCode) ? (r.defaultCurrency as CurrencyCode) : 'INR';
   const defaultTaxLabel = typeof r.defaultTaxLabel === 'string' ? r.defaultTaxLabel.trim().slice(0, MAX_LEN.taxLabel) : 'GST';
   const defaultTaxRate = checkRate(errors, 'defaultTaxRate', text(r.defaultTaxRate, 24), 'Tax rate');
+  const rawQuotePrefix = typeof r.quotePrefix === 'string' ? r.quotePrefix : 'QT-';
+  const quotePrefix = cleanPrefix(rawQuotePrefix);
+  if (quotePrefix !== rawQuotePrefix.trim()) errors.quotePrefix = 'Use letters, digits, - or / (up to 10).';
+  const quoteNextNumber = Number(r.quoteNextNumber ?? 1);
+  if (!Number.isInteger(quoteNextNumber) || quoteNextNumber < 1 || quoteNextNumber > 999_999_999) errors.quoteNextNumber = 'The next number must be a whole number, 1 or more.';
+  const defaultTemplate = isTemplate(r.defaultTemplate) ? r.defaultTemplate : DEFAULT_TEMPLATE;
+  const defaultBrandColor = r.defaultBrandColor === undefined ? DEFAULT_BRAND_COLOR : String(r.defaultBrandColor);
+  if (!isHexColor(defaultBrandColor)) errors.defaultBrandColor = 'Use a colour like #FE6336.';
+
   const defaultDueDays = Number(r.defaultDueDays ?? 14);
   if (!Number.isInteger(defaultDueDays) || defaultDueDays < 0 || defaultDueDays > 365) errors.defaultDueDays = 'Days to pay must be between 0 and 365.';
 
@@ -122,6 +137,10 @@ export function cleanSettings(input: unknown): Cleaned<Settings> {
       defaultDueDays,
       defaultNotes: text(r.defaultNotes, MAX_LEN.notes),
       composition: r.composition === true,
+      quotePrefix,
+      quoteNextNumber,
+      defaultTemplate,
+      defaultBrandColor: defaultBrandColor.toUpperCase(),
     },
   };
 }

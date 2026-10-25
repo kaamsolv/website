@@ -1,8 +1,8 @@
 # Invoice Generator
 
-**Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — Phase 1
-(free tier), deployed 2026-10-21. Pro Stage 1 (accounts + saving) built, not
-deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+**Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — free
+tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
+invoice (2B) deployed 2026-10-22. Pro Stage 2C-1 built, not deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -87,14 +87,17 @@ Field lengths (`app/lib/invoice/limits.ts`) keep a full invoice on one page.
 | `app/lib/entitlements.ts` | Keys, `useEntitlements()`, `can()` — free set is empty |
 | `app/_components/invoice/invoice-editor.tsx` | Paper sheet, toolbar, live totals |
 | `app/_components/invoice/paper-fields.tsx` | Paper input/textarea styles |
-| `app/_components/invoice/invoice-pdf.tsx` | react-pdf A4 template (lazy) |
+| `app/_components/invoice/invoice-pdf.tsx` | react-pdf A4 template (lazy): three looks, brand colour, multi-page, quotation labels |
+| `app/_components/invoice/design-panel.tsx` | Template + brand colour picker (editor Design panel and Invoice settings) |
+| `app/lib/invoice/design.ts` | Templates, swatches, hex check, white-or-navy text on the colour |
 | `app/_components/invoice/generate-pdf.tsx` | Dynamic import, filename, page count |
 | `app/_components/invoice/react-pdf-server-stub.ts` | Server stand-in for `@react-pdf/renderer` (via `turbopack.resolveAlias` in `next.config.mjs`) so the PDF engine stays out of the Worker bundle (−587 KiB gzip) |
 | `public/fonts/` | Inter Regular/Bold TTF + `OFL.txt` (PDF font; has ₹) |
 | `tests/e2e/invoice.spec.ts` | Playwright: desktop/phone × light/dark, PDF text, 10-item one-page, currency, a11y |
 
 Every paid behaviour goes through `can('<key>')`: item limit →
-`invoice_unlimited_items`; footer → `invoice_watermark_remove`.
+`invoice_unlimited_items`; footer → `invoice_watermark_remove`; Design →
+`invoice_templates` / `invoice_brand_color`; quotations → `invoice_quote_mode`.
 
 ## Testing
 
@@ -136,7 +139,45 @@ Notification 9/2025-CT(Rate) (rates from 22 Sept 2025), Notification
 - **Not done:** e-invoicing/IRN, online GSTIN lookup, cess, LUT/bond for
   exports, credit/debit notes, round-off line.
 
-## Paid tier (Stages 2–3 — not built)
+## Pro — Stage 2C-1 (built, not deployed)
+
+Hidden from free accounts until Pro can be bought (Stage 3): no "Pro" tags, no
+"coming soon". Each feature is checked with `can()` in the editor, the PDF and
+the API. Tests: `test/pro.test.mts`, `tests/e2e/pro.spec.ts`.
+
+- **No footer** (`invoice_watermark_remove`) — "Made with KaamSolv" left off.
+- **Multi-page** (`invoice_unlimited_items`, up to 200 lines): the table header
+  repeats on every page, rows never split, the closing block (totals, tax
+  summary, signatory, notes, payment details) stays together, page 2 onwards
+  has "Invoice INV-0042 · continued", and "Page 1 of 3" appears only past one
+  page. The "runs onto a second page" warning is for free invoices only.
+- **Templates** (`invoice_templates`): Classic (default, today's look), Minimal
+  (hairlines, no fills — for black-and-white printing), Bold (colour header
+  band, filled table header, total in a colour box). Same particulars in all.
+- **Brand colour** (`invoice_brand_color`): 8 swatches or a `#RRGGBB` hex, on
+  the accent rule, table header, total line and Bold's band. Text on the
+  colour is white or navy, whichever has more contrast (WCAG luminance).
+- Editor: **Design** button → panel (template, colour); Preview PDF shows it.
+  The paper keeps one layout and takes the accent colour. Invoice settings →
+  **Design** sets the default for new invoices. Stored as `invoice.design`.
+- **Quotations** (`invoice_quote_mode`): Invoice / Quotation switch on unsaved
+  documents, or **+ New quotation** on All invoices (`?type=quote`). Title
+  QUOTATION, "Quote no.", **Valid until** (+30 days), own numbering (`QT-0001`,
+  prefix and next number in Invoice settings). Never a tax invoice: with a
+  GSTIN and GST its GST shows as an estimate ("A tax invoice follows on
+  supply"); no reverse charge, no paid/unpaid, no UPI QR, signatory only if a
+  signature was added. **Convert to invoice** (editor or list) makes a new
+  invoice — same client, lines and design, the next invoice number, today, the
+  account's days to pay — and leaves the quotation as it was. Copying a
+  quotation gives the next quotation. All invoices filters All · Invoices ·
+  Quotations; Overview counts invoices only.
+- Server: `cleanInvoice` keeps `kind: 'quote'` and `design` only with the
+  matching entitlement, so a free account can't save them by editing the
+  request. `POST /api/invoices/:id/convert` is Pro-only.
+- Data: migration `0006_pro_design_quotes.sql` (`invoices.kind`,
+  `business_profiles.quote_prefix/quote_next_number/default_template/default_brand_color`).
+
+## Paid tier (Stages 2–3)
 
 Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_save`, `invoice_client_directory`, `invoice_templates`,
@@ -144,9 +185,9 @@ Keys: `invoice_watermark_remove`, `invoice_unlimited_items` (multi-page),
 `invoice_csv_export`, `invoice_batch_csv`. All seeded on the `invoice_pro` plan.
 
 - Stage 2B (free): **built** — see "GST tax invoice" above.
-- Stage 2C (Pro): footer-free, multi-page, templates, brand colour, quotations,
-  recurring copies, CSV, and currency reference rates (Frankfurter / ECB —
-  source to be approved).
+- Stage 2C-1 (Pro): **built** — see above.
+- Stage 2C-2 (Pro): recurring copies, CSV export, batch from CSV, currency
+  reference rates (Frankfurter / ECB, approved 2026-10-22).
 - Stage 3 (payments): Razorpay (registered business); needs prices, Razorpay
   activation, and the GST status of the business.
 - Recurring = reminder + one-click copy each period; no emails to clients.

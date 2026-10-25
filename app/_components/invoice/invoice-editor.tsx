@@ -5,13 +5,16 @@ import { Icon } from '../icons';
 import { PAPER_MUTED, PAPER_TEXT, PaperCaption, PaperInput, PaperTextarea } from './paper-fields';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from './generate-pdf';
 import { SavedDatalists, useSavedLists } from './saved-lists';
+import { DesignPicker } from './design-panel';
+import { Segmented } from '../choice';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
-import { addDays, DEFAULT_DUE_DAYS, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
+import { addDays, DEFAULT_DUE_DAYS, QUOTE_VALID_DAYS, hasContent, newInvoice, newLineItem, withFreshItemIds } from '@/app/lib/invoice/defaults';
 import { clearInvoiceDraft, loadInvoiceDraft, saveInvoiceDraft } from '@/app/lib/invoice/draft';
 import { readLogo } from '@/app/lib/invoice/logo';
 import { GST_RATES, GST_RATES_NOTE, isListedGstRate, TAX_LABELS } from '@/app/lib/invoice/gst';
-import { EXPORT_CODE, isTaxInvoice, placeOfSupplyLabel, placeOfSupplyOf, taxInvoiceNumberProblem } from '@/app/lib/invoice/gst-tax';
+import { EXPORT_CODE, isGstEstimate, isTaxInvoice, placeOfSupplyLabel, placeOfSupplyOf, taxInvoiceNumberProblem } from '@/app/lib/invoice/gst-tax';
+import { DEFAULT_DESIGN } from '@/app/lib/invoice/design';
 import { GST_STATES, hsnProblem } from '@/app/lib/invoice/india';
 import { rupeesInWords } from '@/app/lib/invoice/words';
 import { LOGO_MAX_BYTES, LOGO_MAX_PX, LOGO_TYPES, MAX_FREE_ITEMS, MAX_LEN } from '@/app/lib/invoice/limits';
@@ -30,7 +33,7 @@ const PAPER_SELECT =
   'h-9 rounded-md border border-[#AEB6C6] bg-white px-1.5 text-sm text-[#0C2248] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FE6336]/40';
 
 /** GET /api/business-profile — Settings + logo + next number. */
-type Profile = Settings & { logo: string | null; signature?: string | null; nextNumber: string };
+type Profile = Settings & { logo: string | null; signature?: string | null; nextNumber: string; nextQuoteNumber?: string };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /** What gets saved for the invoice itself (the logo lives on the profile). */
@@ -48,9 +51,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<{ ok: boolean; 
   return { ok: res.ok, status: res.status, body: (await res.json().catch(() => ({}))) as T };
 }
 
-/** A new invoice that starts from the saved business details. */
-/** A new invoice that starts from Settings: details, numbering, defaults, payment details. */
-function fromProfile(p: Profile): Invoice {
+/**
+ * A new invoice that starts from Settings: details, numbering, defaults, payment
+ * details. Pro: the default design, and a quotation when asked for.
+ */
+function fromProfile(p: Profile, opts: { design: boolean; quote: boolean }): Invoice {
   const base = newInvoice();
   const dueDays = Number.isInteger(p.defaultDueDays) ? p.defaultDueDays : DEFAULT_DUE_DAYS;
   const payment: PaymentDetails = {
@@ -61,7 +66,7 @@ function fromProfile(p: Profile): Invoice {
     upiId: p.upiId ?? '',
     showUpiQr: !!p.showUpiQr,
   };
-  return {
+  const inv: Invoice = {
     ...base,
     number: p.nextNumber,
     dueDate: addDays(base.issueDate, dueDays),
@@ -81,6 +86,24 @@ function fromProfile(p: Profile): Invoice {
     signature: p.signature ?? null,
     ...(p.composition ? { docType: 'bill_of_supply' as const, taxLabel: '', taxRate: '' } : {}),
     ...(hasPaymentDetails(payment) ? { payment } : {}),
+    ...(opts.design ? { design: { template: p.defaultTemplate ?? DEFAULT_DESIGN.template, color: p.defaultBrandColor ?? DEFAULT_DESIGN.color } } : {}),
+  };
+  return opts.quote ? switchKind(inv, true, p) : inv;
+}
+
+/**
+ * Invoice ⇄ quotation: the untouched next number swaps to the other sequence
+ * (INV-0008 ⇄ QT-0003) and the due / valid-until date resets from the issue date.
+ */
+function switchKind(cur: Invoice, toQuote: boolean, p: Profile | null): Invoice {
+  const fromNo = toQuote ? p?.nextNumber : p?.nextQuoteNumber;
+  const toNo = toQuote ? p?.nextQuoteNumber : p?.nextNumber;
+  const days = toQuote ? QUOTE_VALID_DAYS : Number.isInteger(p?.defaultDueDays) ? p!.defaultDueDays : DEFAULT_DUE_DAYS;
+  return {
+    ...cur,
+    kind: toQuote ? 'quote' : undefined,
+    number: toNo && cur.number === fromNo ? toNo : cur.number,
+    dueDate: cur.issueDate ? addDays(cur.issueDate, days) : cur.dueDate,
   };
 }
 
@@ -127,9 +150,18 @@ export function InvoiceEditor() {
         setSaveMsg('That invoice isn’t in your account any more — here’s a new one instead.');
         window.history.replaceState(null, '', '/invoice-generator');
       }
+      // "New quotation" (Pro) from All invoices.
+      const wantQuote = new URLSearchParams(window.location.search).get('type') === 'quote' && can('invoice_quote_mode');
+      if (window.location.search.includes('type=')) window.history.replaceState(null, '', '/invoice-generator');
+      const designOk = can('invoice_templates') || can('invoice_brand_color');
       // Carried over from before signing in? Keep it; otherwise start from the profile.
-      if (draft && hasContent(draft)) setInv(withFreshItemIds(draft));
-      else setInv(profile.current ? fromProfile(profile.current) : newInvoice());
+      if (draft && hasContent(draft)) {
+        const kept = withFreshItemIds(draft);
+        if (wantQuote && kept.kind !== 'quote') {
+          setInv(switchKind(kept, true, profile.current));
+          setSaveMsg('Your unsaved draft is open as a quotation — switch back to Invoice above to keep it as an invoice.');
+        } else setInv(kept);
+      } else setInv(profile.current ? fromProfile(profile.current, { design: designOk, quote: wantQuote }) : newInvoice());
     })();
   }, [me.status]);
 
@@ -232,7 +264,8 @@ export function InvoiceEditor() {
   // Stage 2B: a GST tax invoice (seller GSTIN + INR + GST), or a Bill of Supply (composition).
   const taxInv = !!inv && isTaxInvoice(inv);
   const billOfSupply = !!inv && inv.docType === 'bill_of_supply';
-  const gstWithoutGstin = !!inv && taxType === 'GST' && inv.currency === 'INR' && !taxInv && parseFloat(inv.taxRate) > 0;
+  const gstEstimate = !!inv && isGstEstimate(inv);
+  const gstWithoutGstin = !!inv && taxType === 'GST' && inv.currency === 'INR' && !taxInv && !gstEstimate && parseFloat(inv.taxRate) > 0;
   const showOtherRate = gstOther || (!!inv && inv.taxRate.trim() !== '' && !isListedGstRate(inv.taxRate));
 
   const saveLimit = limit('invoice_save');
@@ -252,10 +285,19 @@ export function InvoiceEditor() {
   const canTrack = signedIn && can('invoice_dashboard');
   const [paid, setPaid] = useState<'unpaid' | 'paid'>('unpaid');
 
+  // Pro (Stage 2C-1): quotations, templates and brand colour. Hidden from free accounts.
+  const canQuote = signedIn && can('invoice_quote_mode');
+  const canDesign = signedIn && (can('invoice_templates') || can('invoice_brand_color'));
+  const [designOpen, setDesignOpen] = useState(false);
+  const [converting, setConverting] = useState(false);
+
   if (!inv || !totals) {
     return <div className="mx-auto min-h-[60vh] max-w-[794px] animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
   }
 
+  const quote = inv.kind === 'quote';
+  const docWord = quote ? 'quotation' : 'invoice';
+  const design = canDesign ? (inv.design ?? DEFAULT_DESIGN) : DEFAULT_DESIGN;
   const set = (patch: Partial<Invoice>) => setInv((cur) => (cur ? { ...cur, ...patch } : cur));
   const setSeller = (patch: Partial<Invoice['seller']>) => setInv((cur) => (cur ? { ...cur, seller: { ...cur.seller, ...patch } } : cur));
   const setClient = (patch: Partial<Invoice['client']>) => setInv((cur) => (cur ? { ...cur, client: { ...cur.client, ...patch } } : cur));
@@ -344,8 +386,9 @@ export function InvoiceEditor() {
     // Open the preview tab now (inside the click) so pop-up blockers allow it.
     const tab = kind === 'preview' ? window.open('', '_blank') : null;
     try {
-      const blob = await renderInvoicePdf(inv!, totals!, { watermark: !can('invoice_watermark_remove') });
-      const pages = await countPdfPages(blob);
+      const blob = await renderInvoicePdf(inv!, totals!, { watermark: !can('invoice_watermark_remove'), design: canDesign ? design : null });
+      // Pro invoices flow onto more pages by design; free ones are meant to fit one.
+      const pages = can('invoice_unlimited_items') ? 1 : await countPdfPages(blob);
       const overflow = pages > 1 ? ' It runs onto a second page — shorten the notes or item descriptions to fit one.' : '';
       if (kind === 'download') {
         downloadBlob(blob, pdfFilename(inv!));
@@ -365,8 +408,25 @@ export function InvoiceEditor() {
     }
   }
 
+  /** A saved quotation → a new invoice (same client and lines); the editor opens on it. */
+  async function convertToInvoice() {
+    setConverting(true);
+    setSaveMsg(null);
+    const r = await api<{ id?: string; message?: string }>(`/api/invoices/${savedId}/convert`, {
+      method: 'POST',
+      body: JSON.stringify({ issueDate: newInvoice().issueDate }),
+    }).catch(() => null);
+    if (!r?.ok || !r.body.id) {
+      setConverting(false);
+      setSaveMsg(r?.body.message ?? 'Couldn’t make the invoice. Try again.');
+      return;
+    }
+    void refreshMe();
+    window.location.assign(`/invoice-generator?id=${r.body.id}`);
+  }
+
   async function startNew() {
-    if (!savedId && dirty && !window.confirm('Start a new invoice? This one will be cleared — it isn’t saved.')) return;
+    if (!savedId && dirty && !window.confirm(`Start a new ${docWord}? This one will be cleared — it isn’t saved.`)) return;
     clearInvoiceDraft();
     setSavedId(null);
     setSaveState('idle');
@@ -385,7 +445,7 @@ export function InvoiceEditor() {
       profile.current = p.body.profile;
       lastProfile.current = sellerKey(p.body.profile, p.body.profile.logo);
     }
-    setInv(profile.current ? fromProfile(profile.current) : newInvoice());
+    setInv(profile.current ? fromProfile(profile.current, { design: canDesign, quote: quote && canQuote }) : newInvoice());
   }
 
   const saveStatus =
@@ -417,6 +477,24 @@ export function InvoiceEditor() {
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 border border-hair bg-surface p-3 md:sticky md:top-20 md:z-20">
         {currencySelect('currency-top')}
+        {canQuote && !savedId && (
+          <Segmented
+            legend="Document type"
+            hideLegend
+            options={[
+              { value: 'invoice', label: 'Invoice' },
+              { value: 'quote', label: 'Quotation' },
+            ]}
+            value={quote ? 'quote' : 'invoice'}
+            onChange={(k) => setInv((cur) => (cur ? switchKind(cur, k === 'quote', profile.current) : cur))}
+          />
+        )}
+        {canDesign && (
+          <button type="button" onClick={() => setDesignOpen((o) => !o)} aria-expanded={designOpen} aria-controls="design-panel" className={SECONDARY}>
+            <span className="h-3.5 w-3.5 rounded-full border border-hair" style={{ backgroundColor: design.color }} aria-hidden="true" />
+            Design
+          </button>
+        )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {signedIn && saveStatus && (
             <span className={`text-sm font-medium ${saveState === 'error' ? 'text-danger-600' : 'text-muted'}`} role="status">
@@ -424,7 +502,12 @@ export function InvoiceEditor() {
               {saveStatus}
             </span>
           )}
-          {savedId && canTrack && (
+          {savedId && quote && canQuote && (
+            <button type="button" onClick={() => void convertToInvoice()} disabled={converting || unsynced} className={SECONDARY}>
+              {converting ? 'Converting…' : 'Convert to invoice'}
+            </button>
+          )}
+          {savedId && canTrack && !quote && (
             <button type="button" onClick={() => void togglePaid()} className={SECONDARY} aria-pressed={paid === 'paid'}>
               {paid === 'paid' ? (
                 <>
@@ -452,6 +535,28 @@ export function InvoiceEditor() {
           </button>
         </div>
       </div>
+
+      {canDesign && designOpen && (
+        <section id="design-panel" aria-labelledby="design-h" className="mb-4 rounded-xl2 border border-hair bg-surface p-4 sm:p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 id="design-h" className="font-display text-base font-bold text-ink">
+                Design
+              </h2>
+              <p className="text-sm text-muted">Shows on the PDF — press Preview PDF to see it.</p>
+            </div>
+            <button type="button" onClick={() => setDesignOpen(false)} className={SECONDARY}>
+              Done
+            </button>
+          </div>
+          <DesignPicker
+            value={design}
+            onChange={(d) => set({ design: d })}
+            templates={can('invoice_templates')}
+            color={can('invoice_brand_color')}
+          />
+        </section>
+      )}
 
       <p className="mb-4 flex items-start gap-2 text-sm text-muted">
         <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" />
@@ -558,15 +663,16 @@ export function InvoiceEditor() {
           {/* Invoice meta */}
           <section aria-labelledby="meta-h" className="space-y-2 md:w-60">
             <h2 id="meta-h" className="text-2xl font-bold tracking-wide md:text-right">
-              {taxInv ? 'TAX INVOICE' : billOfSupply ? 'BILL OF SUPPLY' : 'INVOICE'}
+              {quote ? 'QUOTATION' : taxInv ? 'TAX INVOICE' : billOfSupply ? 'BILL OF SUPPLY' : 'INVOICE'}
             </h2>
             {taxInv && <p className={`text-xs md:text-right ${PAPER_MUTED}`}>This is a GST tax invoice.</p>}
-            {billOfSupply && <p className={`text-xs md:text-right ${PAPER_MUTED}`}>Composition taxable person, not eligible to collect tax on supplies</p>}
+            {gstEstimate && <p className={`text-xs md:text-right ${PAPER_MUTED}`}>GST shown is an estimate. A tax invoice follows on supply.</p>}
+            {billOfSupply && !quote && <p className={`text-xs md:text-right ${PAPER_MUTED}`}>Composition taxable person, not eligible to collect tax on supplies</p>}
             <div>
-              <PaperCaption htmlFor="inv-number">Invoice no.</PaperCaption>
+              <PaperCaption htmlFor="inv-number">{quote ? 'Quote no.' : 'Invoice no.'}</PaperCaption>
               <PaperInput
                 id="inv-number"
-                label="Invoice number"
+                label={quote ? 'Quotation number' : 'Invoice number'}
                 value={inv.number}
                 maxLength={MAX_LEN.number}
                 aria-invalid={(taxInv && !!taxInvoiceNumberProblem(inv.number)) || undefined}
@@ -579,21 +685,23 @@ export function InvoiceEditor() {
                 <PaperCaption htmlFor="inv-date">Date</PaperCaption>
                 <PaperInput
                   id="inv-date"
-                  label="Invoice date"
+                  label={quote ? 'Quotation date' : 'Invoice date'}
                   type="date"
                   value={inv.issueDate}
-                  onChange={(e) => set({ issueDate: e.target.value, dueDate: e.target.value ? addDays(e.target.value, DEFAULT_DUE_DAYS) : inv.dueDate })}
+                  onChange={(e) =>
+                    set({ issueDate: e.target.value, dueDate: e.target.value ? addDays(e.target.value, quote ? QUOTE_VALID_DAYS : DEFAULT_DUE_DAYS) : inv.dueDate })
+                  }
                 />
               </div>
               <div>
-                <PaperCaption htmlFor="inv-due">Due date</PaperCaption>
-                <PaperInput id="inv-due" label="Due date" type="date" value={inv.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />
+                <PaperCaption htmlFor="inv-due">{quote ? 'Valid until' : 'Due date'}</PaperCaption>
+                <PaperInput id="inv-due" label={quote ? 'Valid until' : 'Due date'} type="date" value={inv.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />
               </div>
             </div>
           </section>
         </div>
 
-        <div className="my-7 h-0.5 w-10 bg-[#FE6336]" aria-hidden="true" />
+        <div className="my-7 h-0.5 w-10" style={{ backgroundColor: design.color }} aria-hidden="true" />
 
         {/* Client */}
         <section aria-labelledby="to-h" className="max-w-sm space-y-1.5">
@@ -613,7 +721,7 @@ export function InvoiceEditor() {
           <PaperTextarea label="Client address" placeholder="Client address" value={inv.client.address} maxLength={MAX_LEN.address} onChange={(e) => setClient({ address: e.target.value })} rows={2} />
           <PaperInput label="Client email" type="email" inputMode="email" placeholder="Client email" value={inv.client.email} maxLength={MAX_LEN.email} onChange={(e) => setClient({ email: e.target.value })} />
           <GstinField label="Client GSTIN" value={inv.client.gstin ?? ''} onChange={(gstin) => setClient({ gstin })} />
-          {taxInv && (
+          {(taxInv || gstEstimate) && (
             <div className="space-y-2 pt-2">
               <label className={`block text-[11px] font-semibold uppercase tracking-wide ${PAPER_MUTED}`} htmlFor="inv-pos">
                 Place of supply
@@ -626,10 +734,12 @@ export function InvoiceEditor() {
                 ))}
                 <option value={EXPORT_CODE}>{placeOfSupplyLabel(EXPORT_CODE)}</option>
               </select>
-              <label className={`flex min-h-11 items-center gap-2 text-sm md:min-h-9 ${PAPER_MUTED}`}>
-                <input type="checkbox" checked={!!inv.reverseCharge} onChange={(e) => set({ reverseCharge: e.target.checked })} className="h-4 w-4 accent-[#FE6336]" />
-                Tax payable on reverse charge
-              </label>
+              {taxInv && (
+                <label className={`flex min-h-11 items-center gap-2 text-sm md:min-h-9 ${PAPER_MUTED}`}>
+                  <input type="checkbox" checked={!!inv.reverseCharge} onChange={(e) => set({ reverseCharge: e.target.checked })} className="h-4 w-4 accent-[#FE6336]" />
+                  Tax payable on reverse charge
+                </label>
+              )}
             </div>
           )}
           {inv.shipTo === undefined ? (
@@ -720,7 +830,7 @@ export function InvoiceEditor() {
                       <Icon name="close" className="h-4 w-4" />
                     </button>
                   </div>
-                  {taxInv && (
+                  {(taxInv || gstEstimate) && (
                     <div className={`col-span-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:col-span-5 ${PAPER_MUTED}`}>
                       <label className="flex items-center gap-1.5">
                         HSN/SAC
@@ -745,7 +855,7 @@ export function InvoiceEditor() {
                         onChange={(e) => setItem(it.id, { gstRate: e.target.value || undefined })}
                         className={`${PAPER_SELECT} h-8 text-xs`}
                       >
-                        <option value="">GST: invoice rate{inv.taxRate.trim() ? ` (${inv.taxRate.trim()}%)` : ''}</option>
+                        <option value="">GST: {quote ? 'quotation' : 'invoice'} rate{inv.taxRate.trim() ? ` (${inv.taxRate.trim()}%)` : ''}</option>
                         {GST_RATES.map((r) => (
                           <option key={r} value={r}>
                             GST {r}%
@@ -898,7 +1008,7 @@ export function InvoiceEditor() {
                 {money(totals.total)}
               </dd>
             </div>
-            {inv.currency === 'INR' && totals.total > 0 && (taxInv || billOfSupply) && (
+            {inv.currency === 'INR' && totals.total > 0 && (taxInv || billOfSupply || gstEstimate) && (
               <p className={`text-xs ${PAPER_MUTED}`}>{rupeesInWords(totals.total)}</p>
             )}
           </dl>

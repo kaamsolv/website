@@ -124,7 +124,7 @@ test('lists carry summaries only — no document, no logo; stored invoices never
   const id = await makeUser('list@example.test');
   await createInvoice(db, id, { ...sample(), logo: 'data:image/png;base64,AAAA' }, 20);
   const [row] = await listInvoices(db, id);
-  assert.deepEqual(Object.keys(row).sort(), ['clientName', 'currency', 'dueDate', 'id', 'issueDate', 'number', 'status', 'total', 'updatedAt']);
+  assert.deepEqual(Object.keys(row).sort(), ['clientName', 'currency', 'dueDate', 'id', 'issueDate', 'kind', 'number', 'status', 'total', 'updatedAt']);
   assert.equal(row.total, 2360); // 2 × 1000 + 18%
   const [stored] = await db.select({ data: invoices.data }).from(invoices).where(eq(invoices.userId, id));
   assert.equal('logo' in (stored.data as object), false);

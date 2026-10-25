@@ -18,7 +18,9 @@ without an account. An account adds saving.
 | Saved customers | — | **3** | unlimited |
 | Saved items (HSN/SAC, unit, rate, GST) | — | ✓ | ✓ |
 | Dashboard + paid / unpaid / overdue | — | — | ✓ |
-| Other Pro features (footer-free, multi-page, templates, …) | — | — | ✓ |
+| No footer, multi-page (up to 200 lines) | — | — | ✓ |
+| Templates + brand colour, quotations (+ convert to invoice) | — | — | ✓ |
+| Recurring, CSV, currency rates (Stage 2C-2) | — | — | ✓ |
 
 Customers and items also have a hidden anti-abuse ceiling of 1,000 rows each
 (`DIRECTORY_HARD_CAP`) for every plan — not a paywall, never shown unless hit.
@@ -98,7 +100,8 @@ documents.
 | `GET /api/me` · `DELETE /api/me` | who/entitlements/usage · delete account (`{confirm:"DELETE"}`) |
 | `GET/POST /api/invoices` | list summaries · save new (403 `limit`) |
 | `GET/PUT/DELETE /api/invoices/:id` | one invoice |
-| `POST /api/invoices/:id/duplicate` | copy with next number and new dates |
+| `POST /api/invoices/:id/duplicate` | copy with next number and new dates (a quotation copies as the next quotation) |
+| `POST /api/invoices/:id/convert` | quotation → new invoice, next invoice number (Pro) |
 | `GET/PUT /api/business-profile` | seller details + logo (the editor's save) |
 | `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
 | `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |

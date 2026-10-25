@@ -32,6 +32,8 @@ export function withFreshItemIds(inv: Invoice): Invoice {
 }
 
 export const DEFAULT_DUE_DAYS = 14;
+/** A quotation is valid for 30 days by default (Pro). */
+export const QUOTE_VALID_DAYS = 30;
 
 export function newInvoice(now: Date = new Date()): Invoice {
   const issueDate = isoDate(now);

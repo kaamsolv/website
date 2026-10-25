@@ -1,4 +1,4 @@
-import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Font, Image, Page, StyleSheet, Text, View, type Styles } from '@react-pdf/renderer';
 import { hasPaymentDetails, type Invoice } from '@/app/lib/invoice/types';
 import { parseNumber, type Totals } from '@/app/lib/invoice/totals';
 import { formatMoney } from '@/app/lib/invoice/money';
@@ -6,10 +6,13 @@ import { displayDate } from '@/app/lib/invoice/defaults';
 import { EXPORT_CODE, placeOfSupplyLabel } from '@/app/lib/invoice/gst-tax';
 import { stateName } from '@/app/lib/invoice/india';
 import { rupeesInWords } from '@/app/lib/invoice/words';
+import { DEFAULT_DESIGN, textOn, type Design } from '@/app/lib/invoice/design';
 
 /*
- * The PDF template (A4, one page). Loaded only by generate-pdf.tsx, in the
- * browser. Inter (OFL, public/fonts) is embedded: the built-in PDF fonts have
+ * The PDF template (A4). Loaded only by generate-pdf.tsx, in the browser.
+ * Three looks (classic, minimal, bold) and a brand colour (Pro, design.ts).
+ * Long invoices flow onto more pages: the table header repeats, rows and the
+ * closing block never split, and page numbers appear only past one page. Inter (OFL, public/fonts) is embedded: the built-in PDF fonts have
  * no ₹ glyph.
  */
 const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -31,7 +34,10 @@ const CORAL = '#FE6336';
 // Larger text sets its own lineHeight — the page's inherited value is resolved at
 // the 9.5 pt body size, which made headings overlap the line below.
 const s = StyleSheet.create({
-  page: { fontFamily: 'Inter', fontSize: 9.5, color: NAVY, paddingTop: 36, paddingBottom: 48, paddingHorizontal: 44, lineHeight: 1.3 },
+  page: { fontFamily: 'Inter', fontSize: 9.5, color: NAVY, paddingTop: 36, paddingBottom: 48, paddingHorizontal: 44 },
+  // Body line height lives here, not on the Page: page-level render-time text
+  // (running header, page numbers) that inherits it is dropped by react-pdf.
+  body: { fontSize: 9.5, lineHeight: 1.3 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between' },
   logo: { maxWidth: 120, maxHeight: 48, objectFit: 'contain', marginBottom: 6 },
   seller: { width: '55%' },
@@ -65,6 +71,13 @@ const s = StyleSheet.create({
   qr: { width: 72, height: 72 },
   qrCaption: { fontSize: 6.5, color: MUTED, textAlign: 'center', marginTop: 2 },
   footer: { position: 'absolute', bottom: 24, left: 44, right: 44, textAlign: 'center', fontSize: 7.5, color: '#8A93A6' },
+  // Stage 2C-1 — more than one page (text filled in at render time).
+  running: { position: 'absolute', top: 16, left: 44, right: 44, fontSize: 7.5, color: '#8A93A6' },
+  pageNo: { position: 'absolute', bottom: 24, left: 44, right: 44, fontSize: 7.5, color: '#8A93A6', textAlign: 'right' },
+  // Stage 2C-1 — templates
+  band: { marginTop: -36, marginHorizontal: -44, paddingHorizontal: 44, paddingVertical: 18, marginBottom: 16 },
+  bandTitle: { fontSize: 20, lineHeight: 1.15, fontWeight: 700, letterSpacing: 1.5 },
+  hairline: { height: 0.75, backgroundColor: LINE, marginTop: 14, marginBottom: 12 },
   // Stage 2B — GST tax invoice
   docNote: { fontSize: 7.5, color: MUTED, textAlign: 'right', marginTop: -6, marginBottom: 8, maxWidth: 200 },
   parties: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -96,12 +109,15 @@ export function InvoiceDocument({
   totals,
   watermark,
   upiQr = null,
+  design = null,
 }: {
   invoice: Invoice;
   totals: Totals;
   watermark: boolean;
   /** PNG data URL of the "Scan to pay" UPI QR (made in generate-pdf.tsx), if wanted. */
   upiQr?: string | null;
+  /** Template and brand colour (Pro). Null: the classic look in coral. */
+  design?: Design | null;
 }) {
   const money = (n: number) => formatMoney(n, invoice.currency);
   const pay = hasPaymentDetails(invoice.payment) ? invoice.payment : null;
@@ -111,7 +127,31 @@ export function InvoiceDocument({
   const items = invoice.items.filter((it, i) => it.description.trim() || it.rate.trim() || totals.lines[i]?.amount);
   const gst = totals.gst;
   const billOfSupply = invoice.docType === 'bill_of_supply';
-  const title = gst ? 'TAX INVOICE' : billOfSupply ? 'BILL OF SUPPLY' : 'INVOICE';
+  const quote = invoice.kind === 'quote';
+  const title = quote ? 'QUOTATION' : gst ? 'TAX INVOICE' : billOfSupply ? 'BILL OF SUPPLY' : 'INVOICE';
+  const docName = quote ? 'Quotation' : 'Invoice';
+  // A quotation is never a tax invoice: no reverse charge, and a signatory only if one was added.
+  const showSign = quote ? !!invoice.signature : !!(gst || billOfSupply);
+
+  const { template, color } = design ?? DEFAULT_DESIGN;
+  const onColor = textOn(color);
+  const t = {
+    title: template === 'minimal' ? { fontSize: 16 } : {},
+    thead:
+      template === 'bold'
+        ? { backgroundColor: color }
+        : template === 'minimal'
+          ? { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: color }
+          : { borderBottomWidth: 1.5, borderBottomColor: color },
+    th: template === 'bold' ? { color: onColor } : {},
+    grand:
+      template === 'bold'
+        ? { backgroundColor: color, borderTopWidth: 0, paddingHorizontal: 6, paddingBottom: 6 }
+        : { borderTopColor: color, borderTopWidth: template === 'minimal' ? 0.75 : 1.5 },
+    grandText: template === 'bold' ? { color: onColor } : {},
+  };
+  const thead = [s.thead, t.thead];
+  const th = (col: Styles[string]) => [s.th, t.th, col];
   const stateLine = (code: string | undefined) => (code && stateName(code) ? `State: ${stateName(code)} (${code})` : null);
   const sellerState = gst?.sellerState || invoice.seller.state;
   const clientState = invoice.client.gstin?.slice(0, 2) || invoice.client.state || (gst && gst.placeOfSupply !== EXPORT_CODE ? gst.placeOfSupply : undefined);
@@ -120,12 +160,19 @@ export function InvoiceDocument({
 
   return (
     <Document
-      title={`Invoice ${invoice.number}`}
+      title={`${docName} ${invoice.number}`}
       author={invoice.seller.name || undefined}
       creator="KaamSolv Invoice Generator"
       producer="KaamSolv"
     >
       <Page size="A4" style={s.page}>
+        <Text style={s.running} fixed render={({ pageNumber }) => (pageNumber > 1 ? `${docName} ${invoice.number} · continued` : '')} />
+        <View style={s.body}>
+        {template === 'bold' ? (
+          <View style={[s.band, { backgroundColor: color }]}>
+            <Text style={[s.bandTitle, { color: onColor }]}>{title}</Text>
+          </View>
+        ) : null}
         <View style={s.rowBetween}>
           <View style={s.seller}>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
@@ -142,10 +189,11 @@ export function InvoiceDocument({
             {gst && stateLine(sellerState) ? <Text style={s.muted}>{stateLine(sellerState)}</Text> : null}
           </View>
           <View style={s.meta}>
-            <Text style={s.title}>{title}</Text>
-            {billOfSupply ? <Text style={s.docNote}>Composition taxable person, not eligible to collect tax on supplies</Text> : null}
+            {template === 'bold' ? null : <Text style={[s.title, t.title]}>{title}</Text>}
+            {billOfSupply && !quote ? <Text style={s.docNote}>Composition taxable person, not eligible to collect tax on supplies</Text> : null}
+            {quote && gst ? <Text style={s.docNote}>GST shown is an estimate. A tax invoice follows on supply.</Text> : null}
             <View style={s.metaRow}>
-              <Text style={s.metaLabel}>Invoice no.</Text>
+              <Text style={s.metaLabel}>{quote ? 'Quote no.' : 'Invoice no.'}</Text>
               <Text>{invoice.number}</Text>
             </View>
             <View style={s.metaRow}>
@@ -154,7 +202,7 @@ export function InvoiceDocument({
             </View>
             {invoice.dueDate ? (
               <View style={s.metaRow}>
-                <Text style={s.metaLabel}>Due</Text>
+                <Text style={s.metaLabel}>{quote ? 'Valid until' : 'Due'}</Text>
                 <Text>{displayDate(invoice.dueDate)}</Text>
               </View>
             ) : null}
@@ -164,7 +212,7 @@ export function InvoiceDocument({
                 <Text>{placeOfSupplyLabel(gst.placeOfSupply)}</Text>
               </View>
             ) : null}
-            {gst ? (
+            {gst && !quote ? (
               <View style={s.metaRow}>
                 <Text style={s.metaLabel}>Reverse charge</Text>
                 <Text>{invoice.reverseCharge ? 'Yes' : 'No'}</Text>
@@ -173,7 +221,7 @@ export function InvoiceDocument({
           </View>
         </View>
 
-        <View style={s.rule} />
+        {template === 'classic' ? <View style={[s.rule, { backgroundColor: color }]} /> : <View style={s.hairline} />}
 
         <View style={s.parties}>
           <View style={invoice.shipTo?.trim() ? s.party : undefined}>
@@ -202,13 +250,13 @@ export function InvoiceDocument({
 
         {gst ? (
           <View style={s.table}>
-            <View style={s.thead}>
-              <Text style={[s.th, s.gHsn]}>HSN/SAC</Text>
-              <Text style={[s.th, s.gDesc]}>Description</Text>
-              <Text style={[s.th, s.gQty]}>Qty</Text>
-              <Text style={[s.th, s.gRate]}>Rate</Text>
-              <Text style={[s.th, s.gPct]}>GST</Text>
-              <Text style={[s.th, s.gAmt]}>Amount</Text>
+            <View style={thead} fixed>
+              <Text style={th(s.gHsn)}>HSN/SAC</Text>
+              <Text style={th(s.gDesc)}>Description</Text>
+              <Text style={th(s.gQty)}>Qty</Text>
+              <Text style={th(s.gRate)}>Rate</Text>
+              <Text style={th(s.gPct)}>GST</Text>
+              <Text style={th(s.gAmt)}>Amount</Text>
             </View>
             {items.map((it) => {
               const idx = invoice.items.indexOf(it);
@@ -226,11 +274,11 @@ export function InvoiceDocument({
           </View>
         ) : (
         <View style={s.table}>
-          <View style={s.thead}>
-            <Text style={[s.th, s.cDesc]}>Description</Text>
-            <Text style={[s.th, s.cQty]}>Qty</Text>
-            <Text style={[s.th, s.cRate]}>Rate</Text>
-            <Text style={[s.th, s.cAmt]}>Amount</Text>
+          <View style={thead} fixed>
+            <Text style={th(s.cDesc)}>Description</Text>
+            <Text style={th(s.cQty)}>Qty</Text>
+            <Text style={th(s.cRate)}>Rate</Text>
+            <Text style={th(s.cAmt)}>Amount</Text>
           </View>
           {items.map((it) => {
             const idx = invoice.items.indexOf(it);
@@ -246,6 +294,7 @@ export function InvoiceDocument({
         </View>
         )}
 
+        <View wrap={false}>
         <View style={s.bottom}>
           <View style={s.notes}>
             {invoice.notes.trim() ? (
@@ -311,20 +360,20 @@ export function InvoiceDocument({
                 <Text>{money(totals.tax)}</Text>
               </View>
             ) : null}
-            <View style={s.grand}>
-              <Text style={s.grandText}>Total</Text>
-              <Text style={s.grandText}>{money(totals.total)}</Text>
+            <View style={[s.grand, t.grand]}>
+              <Text style={[s.grandText, t.grandText]}>Total</Text>
+              <Text style={[s.grandText, t.grandText]}>{money(totals.total)}</Text>
             </View>
             {invoice.currency === 'INR' && totals.total > 0 && (gst || billOfSupply) ? <Text style={s.words}>{rupeesInWords(totals.total)}</Text> : null}
           </View>
         </View>
 
-        {gst || billOfSupply ? (
+        {(gst && gst.rows.length > 0) || showSign ? (
           <View style={s.closing} wrap={false}>
         {gst && gst.rows.length > 0 ? (
           <View style={s.summary}>
             <View style={s.sHead}>
-              <Text style={[s.th, s.sFirst]}>GST rate</Text>
+              <Text style={[s.th, s.sFirst]}>{quote ? 'GST rate (est.)' : 'GST rate'}</Text>
               <Text style={[s.th, s.sCell, gst.split === 'inter' ? { width: '34%' } : {}]}>Taxable value</Text>
               {gst.split === 'inter' ? (
                 <Text style={[s.th, s.sCell, { width: '25%' }]}>IGST</Text>
@@ -355,20 +404,25 @@ export function InvoiceDocument({
         ) : (
           <View />
         )}
-          <View style={s.sign}>
-            <Text style={s.muted}>For {invoice.seller.name || 'the supplier'}</Text>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
-            {invoice.signature ? <Image src={invoice.signature} style={s.signImg} /> : <View style={s.signSpace} />}
-            <Text style={s.signLine}>Authorised signatory</Text>
-          </View>
+          {showSign ? (
+            <View style={s.sign}>
+              <Text style={s.muted}>For {invoice.seller.name || 'the supplier'}</Text>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
+              {invoice.signature ? <Image src={invoice.signature} style={s.signImg} /> : <View style={s.signSpace} />}
+              <Text style={s.signLine}>Authorised signatory</Text>
+            </View>
+          ) : null}
           </View>
         ) : null}
+        </View>
 
+        </View>
         {watermark ? (
           <Text style={s.footer} fixed>
             Made with KaamSolv · kaamsolv.com
           </Text>
         ) : null}
+        <Text style={s.pageNo} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : '')} />
       </Page>
     </Document>
   );
