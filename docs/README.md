@@ -15,11 +15,14 @@ Decision log: [`DECISIONS.md`](DECISIONS.md).
 | Design system | Built — standards in [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) |
 | Homepage | **Live** |
 | QR Code Generator | **Live** — [`products/qr-code-generator.md`](products/qr-code-generator.md) |
-| Image converters (10) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
+| Image tools (12: converters, compressor, resize to KB) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
 | URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
 | PDF tools (Compress, Merge, Split, PDF↔JPG) | **Live** (Stage 1, free) — [`products/pdf-tools.md`](products/pdf-tools.md) |
-| Invoice Generator | **Live** (Phase 1, free tier); Pro Stage 1 (accounts + saving) built, not deployed — [`products/invoice-generator.md`](products/invoice-generator.md) |
-| Everything else in the catalogue | Planned — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
+| Invoice Generator | **Live** — free tier, accounts and saving, workspace, GST tax invoice; Pro Stage 2C-1 (templates, multi-page, quotations) live but hidden until payments — [`products/invoice-generator.md`](products/invoice-generator.md) |
+| Accounts (Google + email link, entitlements, `/app` hub) | **Live** — [`products/accounts.md`](products/accounts.md) |
+| Calculators (GST, EMI, Percentage, Discount, Salary/CTC, Age, Tip, Split Bill) | **Live** |
+| Writing tools (Word Counter, Character Counter, Case Converter, Text Cleaner, Lorem Ipsum) | **Live** |
+| Everything else in the catalogue | Planned (33 tools live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack
 
@@ -28,7 +31,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md).
   No `cdn.tailwindcss.com`. Fonts self-hosted via `next/font`.
 - **Cloudflare Workers** via OpenNext — worker `kaamsolv`, custom domains
   `kaamsolv.com` + `www`.
-- **Neon Postgres** (Singapore) for the URL Shortener; **PGlite** for local/test.
+- **Neon Postgres** (Singapore) for the URL Shortener, accounts and saved invoices; **PGlite** for local/test.
 
 Hosting, domain, secrets, deploy & migration procedure:
 [`infra/deployment.md`](infra/deployment.md).
