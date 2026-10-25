@@ -5,9 +5,9 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
-## 2026-10-25 — Google Analytics 4 (consent-first) — awaiting owner review
+## 2026-10-25 — Google Analytics 4 (consent-first) — deployed (d6193c4d)
 
-**Decided by:** product owner (plan approved; GA4 ID to be supplied at deploy).
+**Decided by:** product owner. Deployed 2026-10-25 from branch `claude/exciting-spence-025d65` with `NEXT_PUBLIC_GA_ID` set at build time (Worker version `d6193c4d-7c5c-49c0-8338-0223c65d536c`). Enhanced measurement to be switched off in the GA4 stream.
 
 - **GA4 via `gtag.js`, no new dependency.** `app/_components/analytics.tsx`
   (mounted in the root layout) + `app/lib/analytics.ts`. Measurement ID from
