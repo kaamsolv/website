@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { ImageDropzone } from './image-dropzone';
 import { ImageFileCard } from './image-file-card';
 import { ImageResultCard } from './image-result-card';
@@ -39,7 +38,6 @@ function ensureOutputFormat(format: FormatId): OutputFormat {
 }
 
 export function ImageConverterWorkspace({ tool }: Props) {
-  const router = useRouter();
   const [from, setFrom] = useState<FormatId>(tool.from);
   const [to, setTo] = useState<OutputFormat>(ensureOutputFormat(tool.to));
   const [phase, setPhase] = useState<Phase>('empty');
@@ -84,15 +82,16 @@ export function ImageConverterWorkspace({ tool }: Props) {
     };
   }, [clearUrls]);
 
-  const syncUrl = useCallback(
-    (nextFrom: FormatId, nextTo: OutputFormat) => {
-      const slug = slugForPair(nextFrom, nextTo);
-      if (slug && slug !== tool.slug) {
-        router.replace(`/${slug}`, { scroll: false });
-      }
-    },
-    [router, tool.slug],
-  );
+  // Each pair URL is its own page; a router navigation would remount the
+  // workspace and drop the upload. replaceState only changes the address
+  // (Next.js keeps its router in step), so a refresh or a shared link opens
+  // the right converter.
+  const syncUrl = useCallback((nextFrom: FormatId, nextTo: OutputFormat) => {
+    const slug = slugForPair(nextFrom, nextTo);
+    if (slug && window.location.pathname !== `/${slug}`) {
+      window.history.replaceState(null, '', `/${slug}`);
+    }
+  }, []);
 
   const handleFromChange = (nextFrom: FormatId) => {
     const nextTo = defaultOutputForInput(nextFrom, to) as OutputFormat;
