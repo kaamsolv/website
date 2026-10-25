@@ -440,6 +440,9 @@ export const invoices = pgTable(
     status: invoiceStatus('status').notNull().default('unpaid'),
     /** 'invoice' or 'quote' (Pro quotations, migration 0006). Quotes have no paid status and don't count in totals. */
     kind: text('kind').notNull().default('invoice'),
+    /** Pro recurring (migration 0007): repeats weekly/monthly/quarterly/yearly; `recurNext` is the date the reminder is due. */
+    recurEvery: text('recur_every'),
+    recurNext: date('recur_next'),
     paidAt: timestamp('paid_at', { withTimezone: true }),
     data: jsonb('data').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -449,6 +452,8 @@ export const invoices = pgTable(
     index('invoices_user_id_updated_at_idx').on(table.userId, table.updatedAt.desc()),
     index('invoices_user_id_kind_idx').on(table.userId, table.kind),
     check('invoices_kind', sql`${table.kind} in ('invoice', 'quote')`),
+    check('invoices_recur_every', sql`${table.recurEvery} is null or ${table.recurEvery} in ('week', 'month', 'quarter', 'year')`),
+    index('invoices_user_recur_next_idx').on(table.userId, table.recurNext).where(sql`${table.recurNext} is not null`),
     check('invoices_data_len', sql`length(${table.data}::text) <= ${sql.raw(String(INVOICE_DATA_MAX_CHARS))}`),
   ],
 );

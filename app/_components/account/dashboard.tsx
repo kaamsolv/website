@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { SECONDARY } from './account-shell';
+import { RecurCard } from './recur-card';
+import { rateText, useFxRates } from '../invoice/fx-line';
 import { StatusBadge } from './status-badge';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
+import { FX_NOTE, toInr, type FxRate } from '@/app/lib/invoice/fx';
 import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 
@@ -14,6 +17,7 @@ type Recent = { id: string; number: string; clientName: string; currency: Curren
 export function Dashboard() {
   const [data, setData] = useState<{ today: string; totals: Totals[]; recent: Recent[] } | null>(null);
   const [error, setError] = useState(false);
+  const rates = useFxRates();
 
   useEffect(() => {
     // The visitor's own calendar decides "this month" and "overdue".
@@ -38,8 +42,12 @@ export function Dashboard() {
   const rows = data.totals.length ? data.totals : [{ currency: 'INR' as CurrencyCode, billedThisMonth: 0, unpaid: 0, overdue: 0, overdueCount: 0 }];
   return (
     <div className="space-y-8">
-      {rows.map((t) => (
-        <section key={t.currency} aria-label={`Totals in ${t.currency}`} className="grid gap-4 sm:grid-cols-3">
+      <RecurCard />
+      {rows.map((t) => {
+        const rate: FxRate | undefined = t.currency === 'INR' ? undefined : rates?.[t.currency as 'USD' | 'EUR' | 'GBP' | 'AED'];
+        return (
+        <div key={t.currency}>
+        <section aria-label={`Totals in ${t.currency}`} className="grid gap-4 sm:grid-cols-3">
           <Stat label="Billed this month" value={formatMoney(t.billedThisMonth, t.currency)} />
           <Stat label="Unpaid" value={formatMoney(t.unpaid, t.currency)} />
           <Stat
@@ -49,7 +57,16 @@ export function Dashboard() {
             alert={t.overdueCount > 0}
           />
         </section>
-      ))}
+        {rate && (
+          <p className="mt-2 text-sm text-muted" data-testid={`fx-${t.currency}`}>
+            In rupees, roughly: <span className="font-semibold text-ink">{formatMoney(toInr(t.billedThisMonth, rate), 'INR')}</span> billed ·{' '}
+            <span className="font-semibold text-ink">{formatMoney(toInr(t.unpaid, rate), 'INR')}</span> unpaid ·{' '}
+            <span className="font-semibold text-ink">{formatMoney(toInr(t.overdue, rate), 'INR')}</span> overdue. {rateText(t.currency, rate)}. {FX_NOTE}
+          </p>
+        )}
+        </div>
+        );
+      })}
 
       <section aria-labelledby="recent-h">
         <div className="mb-3 flex items-center justify-between">

@@ -82,6 +82,31 @@ separately before it ran). Detail: [`products/pdf-tools.md`](./products/pdf-tool
 
 ---
 
+## 2026-10-25 — Stage 2C-2: Invoice Pro — recurring, CSV export, batch from CSV, currency rates
+
+**Decided by:** product owner (plan approved with four clarifications). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Pro — Stage 2C-2".
+
+- Hidden from free accounts, like 2C-1, until payments exist.
+- **Recurring is a reminder, not automation:** a "Due to repeat" card with
+  Create / Skip. No emails to clients, no scheduled jobs. "Today" is the
+  browser's local date, accepted within a day of server UTC.
+- **CSV export:** one row per invoice, or one row per line item (HSN/SAC view);
+  matches the PDF's totals; formula-safe cells; 5,000-invoice cap.
+- **Batch from CSV:** max 50 invoices, checked in the browser and again on the
+  server; ZIP of PDFs built in the browser with `fflate` (no new dependency);
+  recoverable from All invoices ("Download N as ZIP"). Re-uploading the same
+  file makes the invoices again (flagged in the preview, not blocked).
+- **Currency rates:** Frankfurter (free, no key), the blended feed — not
+  ECB-only, which lacks AED. On screen and Overview only, never on the PDF, and
+  labelled as a reference rate (GST on exports uses the notified rate). Kept
+  Pro, as asked on 2026-10-22; costs nothing to serve, so the gate is a
+  product choice.
+- Migration 0007 (additive; rollback SQL in `infra/deployment.md`).
+- `docs/README.md` status table brought up to date (separate docs commit).
+
+---
+
 ## 2026-10-22 — Stage 2C-1: Invoice Pro — no footer, multi-page, templates, brand colour, quotations
 
 **Decided by:** product owner (plan approved). Detail:

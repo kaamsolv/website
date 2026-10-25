@@ -163,6 +163,17 @@ version with the same code.
 | `0005_gst_invoice.sql` | `business_profiles.composition`, `business_profiles.signature` (size-capped) | applied 2026-10-22 |
 | `0006_pro_design_quotes.sql` | `invoices.kind` (+ index, check); `business_profiles.quote_prefix`, `quote_next_number`, `default_template`, `default_brand_color` | applied 2026-10-25 (before the Stage 2C-1 deploy) |
 
+| `0007_recurring.sql` | `invoices.recur_every`, `invoices.recur_next` (+ check, partial index `invoices_user_recur_next_idx`) | **not yet** — apply with the Stage 2C-2 deploy |
+
+**Rolling back 0007** (Drizzle has no down migrations; run against Neon only if the deploy is reverted). Safe — the columns are additive and old code ignores them:
+
+```sql
+DROP INDEX invoices_user_recur_next_idx;
+ALTER TABLE invoices DROP CONSTRAINT invoices_recur_every;
+ALTER TABLE invoices DROP COLUMN recur_next, DROP COLUMN recur_every;
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
+
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and
 `npm run link:reports`.
