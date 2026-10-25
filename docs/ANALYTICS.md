@@ -1,6 +1,6 @@
 # KaamSolv — Analytics (GA4)
 
-Status: **live** since 2026-10-25 (Worker `8866be1c`; first deployed as `d6193c4d`). Decision: [`DECISIONS.md`](DECISIONS.md) (2026-10-25).
+Status: **live** since 2026-10-25 (Worker `866f7459`; first deployed as `d6193c4d`). Decision: [`DECISIONS.md`](DECISIONS.md) (2026-10-25).
 Rule of thumb: **no consent → no Google request, no cookie.** Anything that
 changes what is collected must update `app/privacy/page.tsx` in the same change.
 
