@@ -2,8 +2,8 @@
 
 **Route:** `/invoice-generator` · **Category:** Business · **Status:** Live — free
 tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
-invoice (2B) deployed 2026-10-22; Pro Stage 2C-1 deployed 2026-10-25. Pro Stage
-2C-2 built, not deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+invoice (2B) deployed 2026-10-22; Pro Stages 2C-1 and 2C-2 deployed 2026-10-25
+(hidden until payments). Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -178,7 +178,7 @@ the API. Tests: `test/pro.test.mts`, `tests/e2e/pro.spec.ts`.
 - Data: migration `0006_pro_design_quotes.sql` (`invoices.kind`,
   `business_profiles.quote_prefix/quote_next_number/default_template/default_brand_color`).
 
-## Pro — Stage 2C-2 (built, not deployed)
+## Pro — Stage 2C-2 (live, hidden until payments)
 
 Same rules as 2C-1: hidden from free accounts, each feature checked with
 `can()` in the UI and on the server. Tests: `test/recurring.test.mts`,
