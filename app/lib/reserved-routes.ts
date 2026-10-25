@@ -34,6 +34,7 @@ const ROUTE_SEGMENTS = [
   'age-calculator',
   'gst-calculator',
   'emi-calculator',
+  'salary-calculator',
   'invoice-generator',
   'calculators',
   'converters',

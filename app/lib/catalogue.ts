@@ -142,7 +142,6 @@ export const TOOLS: Tool[] = [
   // Money
   { name: 'GST Calculator', slug: 'gst-calculator', url: '/gst-calculator', category: 'Money', blurb: 'Add or remove GST, both ways, in seconds.', keywords: ['tax', 'gst', 'india', 'inclusive', 'exclusive', '18%'], status: 'live', popularRank: 1 },
   { name: 'EMI Calculator', slug: 'emi-calculator', url: '/emi-calculator', category: 'Money', blurb: 'Monthly payment on a loan, plus total interest.', keywords: ['loan', 'interest', 'home loan', 'car loan', 'installment'], status: 'live', popularRank: 2 },
-  { name: 'Salary Calculator', slug: 'salary-calculator', url: '/calculators/salary-calculator', category: 'Money', blurb: 'Turn a package into monthly take-home.', keywords: ['take home', 'in hand', 'net pay', 'deductions'], status: 'planned' },
   { name: 'Percentage Calculator', slug: 'percentage-calculator', url: '/percentage-calculator', category: 'Money', blurb: 'Percentages, increases and decreases without the second-guess.', keywords: ['percent', '%', 'change', 'of'], status: 'live' },
   { name: 'Discount Calculator', slug: 'discount-calculator', url: '/discount-calculator', category: 'Money', blurb: 'Final price after a discount, and what you saved.', keywords: ['sale', 'off', 'markdown', 'price'], status: 'live' },
 
@@ -205,7 +204,7 @@ export const TOOLS: Tool[] = [
   // India
   { name: 'Indian Number to Words', slug: 'indian-number-to-words', url: '/generators/indian-number-to-words', category: 'India', blurb: 'Rupees in figures to words, lakh and crore style.', keywords: ['rupees in words', 'lakh', 'crore', 'cheque', 'amount in words'], status: 'planned' },
   { name: 'Indian Currency Converter', slug: 'indian-currency-converter', url: '/calculators/indian-currency-converter', category: 'India', blurb: 'Between lakh/crore and million/billion.', keywords: ['lakh to million', 'crore to million', 'convert'], status: 'planned' },
-  { name: 'Salary / CTC Calculator', slug: 'salary-ctc-calculator', url: '/calculators/salary-ctc-calculator', category: 'India', blurb: 'Break a CTC into basic, HRA, PF and take-home.', keywords: ['ctc', 'in hand salary', 'pf', 'hra', 'gross'], status: 'planned' },
+  { name: 'Salary Calculator', slug: 'salary-calculator', url: '/salary-calculator', category: 'India', blurb: 'Your CTC, turned into monthly in-hand salary.', keywords: ['ctc', 'in hand salary', 'take home', 'net pay', 'salary', 'pf', 'hra', 'gross', 'new tax regime', 'old tax regime', 'income tax'], status: 'live' },
   { name: 'Gratuity Calculator', slug: 'gratuity-calculator', url: '/calculators/gratuity-calculator', category: 'India', blurb: 'What you’re owed at the end of a long stint.', keywords: ['gratuity', 'payment of gratuity act', 'end of service'], status: 'planned' },
 
   // Creators

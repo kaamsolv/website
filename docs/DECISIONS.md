@@ -5,6 +5,51 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-25 — Salary Calculator (CTC → in-hand), India
+
+**Decided by:** product owner (plan approved).
+
+- **One tool, not two.** The catalogue's "Salary Calculator" (Money) and
+  "Salary / CTC Calculator" (India) are merged into one live tool at
+  `/salary-calculator`, category **India**. Logic in `app/lib/calc/salary.ts`
+  (unit tests `test/calc-salary.test.mts`), UI in
+  `app/_components/calc/salary-calculator.tsx`.
+- **v1 scope:** CTC + optional bonus in; monthly and yearly in-hand out, new and
+  old regime compared, full breakdown, Copy. Old regime takes one "deductions
+  you claim" box (80C incl. PF, 80D, HRA exemption, home-loan interest). No
+  HRA/80C sub-calculators, no state professional-tax table (one field, default
+  ₹200/month, capped at ₹2,500/year), no ESI/NPS, no senior-citizen slabs.
+- **Rules (checked 25 Oct 2026, FY 2026-27, Income-tax Act 2025 in force from
+  1 Apr 2026):**
+  - New-regime slabs 0–4L nil, 5/10/15/20/25%, 30% above ₹24L; standard deduction
+    ₹75,000; rebate to nil up to ₹12L taxable, with marginal relief above it.
+    Budget 2026 left slabs unchanged. Source: incometax.gov.in (AY 2026-27
+    page) and news coverage of Budget 2026.
+  - Old regime (under 60): 2.5L nil, 5/20/30%; standard deduction ₹50,000;
+    rebate up to ₹12,500 at ≤ ₹5L. Professional tax is deductible in the old
+    regime only.
+  - Surcharge 10/15/25% (old 37% above ₹5 Cr) with marginal relief; 4% cess.
+  - **EPF wage ceiling ₹25,000/month from 17 Sep 2026** (PIB PRID 2310811,
+    2313829). Used for the whole FY, not prorated.
+  - Labour codes (21 Nov 2025): wages ≥ 50% of pay; allowances above 50% count
+    back as wages for PF and gratuity. Default Basic = 50% of fixed pay.
+- **Calculation choices:** gratuity = annual basic × 15/26 ÷ 12 (≈ 4.81%) when
+  it's in the CTC; employer PF is not taxable salary; monthly in-hand excludes
+  the tax attributable to variable pay (tax with bonus − tax without), which
+  the page states; professional tax is paid once in cash and, in the old
+  regime only, also lowers taxable income.
+- **Benchmark check (25 Oct 2026):** with the same PF and professional tax
+  entered, ClearTax matched our in-hand except for gratuity (₹6L: ₹43,800 vs
+  ₹42,598; ₹12L: ₹93,800 vs ₹91,396 — the gap is exactly our gratuity). At ₹25L
+  ClearTax also taxes the employer's PF (₹1,75,561 vs ₹1,72,666). Groww has no
+  income-tax step and gave no usable result; AmbitionBox needs a
+  company/designation form submitted, so it wasn't tested. The page says other
+  calculators may show more and why; it doesn't name them.
+- **Re-check** `SALARY_RULES` / `SALARY_RULES_CHECKED` after every Budget,
+  any EPFO ceiling change and the labour-code rules as states notify them.
+
+---
+
 ## 2026-10-22 — Stage 2C-1: Invoice Pro — no footer, multi-page, templates, brand colour, quotations
 
 **Decided by:** product owner (plan approved). Detail:
