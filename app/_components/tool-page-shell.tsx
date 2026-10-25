@@ -25,10 +25,13 @@ export function ToolPageShell({
   steps,
   faq,
   related,
+  tool: toolOverride,
   children,
 }: {
   /** Catalogue slug — name, URL and category come from the catalogue. */
   slug: string;
+  /** For a page that isn't one catalogue tool (e.g. the /pdf-tools hub). */
+  tool?: Tool;
   h1: string;
   intro: string;
   steps: ToolStep[];
@@ -37,7 +40,7 @@ export function ToolPageShell({
   related?: string[];
   children: React.ReactNode;
 }) {
-  const tool = TOOLS.find((t) => t.slug === slug)!;
+  const tool = toolOverride ?? TOOLS.find((t) => t.slug === slug)!;
   const cat = CATEGORIES.find((c) => c.name === tool.category)!;
   const accent = ACCENT[cat.accent];
   const relatedTools: Tool[] = liveFirst(

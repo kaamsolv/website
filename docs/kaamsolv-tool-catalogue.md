@@ -75,9 +75,11 @@ A tool exists **once**. Where the source brief listed the same tool under two ca
   { "name":"Profit Margin Calculator", "slug":"profit-margin-calculator", "url":"/calculators/profit-margin-calculator", "primary_category":"Business", "secondary_categories":["Money"], "tool_type":"calculator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"free_forever" },
 
   { "name":"PDF to Word", "slug":"pdf-to-word", "url":"/documents/pdf-to-word", "primary_category":"Documents", "secondary_categories":[], "tool_type":"document-tool", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
-  { "name":"JPG to PDF", "slug":"jpg-to-pdf", "url":"/documents/jpg-to-pdf", "primary_category":"Documents", "secondary_categories":["Images & Files"], "tool_type":"document-tool", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
-  { "name":"Merge PDF", "slug":"merge-pdf", "url":"/documents/merge-pdf", "primary_category":"Documents", "secondary_categories":[], "tool_type":"document-tool", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
-  { "name":"Split PDF", "slug":"split-pdf", "url":"/documents/split-pdf", "primary_category":"Documents", "secondary_categories":[], "tool_type":"document-tool", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
+  { "name":"JPG to PDF", "slug":"jpg-to-pdf", "url":"/jpg-to-pdf", "primary_category":"Documents", "secondary_categories":["Images & Files"], "tool_type":"document-tool", "status":"built", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
+  { "name":"Merge PDF", "slug":"merge-pdf", "url":"/merge-pdf", "primary_category":"Documents", "secondary_categories":[], "tool_type":"document-tool", "status":"built", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
+  { "name":"Split PDF", "slug":"split-pdf", "url":"/split-pdf", "primary_category":"Documents", "secondary_categories":[], "tool_type":"document-tool", "status":"built", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
+  { "name":"Compress PDF", "slug":"compress-pdf", "url":"/compress-pdf", "primary_category":"Documents", "secondary_categories":[], "tool_type":"document-tool", "status":"built", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
+  { "name":"PDF to JPG", "slug":"pdf-to-jpg", "url":"/pdf-to-jpg", "primary_category":"Documents", "secondary_categories":["Images & Files"], "tool_type":"document-tool", "status":"built", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
   { "name":"Resume Generator", "slug":"resume-generator-documents", "url":"/generators/resume-generator", "primary_category":"Documents", "secondary_categories":["Career"], "tool_type":"generator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"premium_feature" },
 
   { "name":"JPG to PNG", "slug":"jpg-to-png", "url":"/image-tools/jpg-to-png", "primary_category":"Images & Files", "secondary_categories":[], "tool_type":"image-converter", "status":"planned", "build_priority":3, "acquisition_role":"seo_traffic", "monetisation_role":"freemium_core" },
@@ -116,6 +118,8 @@ A tool exists **once**. Where the source brief listed the same tool under two ca
   { "name":"Meme Generator", "slug":"meme-generator", "url":"/generators/meme-generator", "primary_category":"Creators", "secondary_categories":[], "tool_type":"generator", "status":"planned", "build_priority":null, "acquisition_role":"social_share", "monetisation_role":"free_forever" }
 ]
 ```
+
+*PDF tools (2026-10-25): live at top-level URLs like every other tool — see `products/pdf-tools.md`. "built" = built, not yet deployed; `app/lib/catalogue.ts` is the source the site reads.*
 
 *(60 tools total: 5 per category × 10 categories, minus GST Calculator/Salary Calculator's cross-listing being modelled as secondary-category references rather than duplicate rows — see §6.)*
 

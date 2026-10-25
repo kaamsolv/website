@@ -50,6 +50,38 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-25 — PDF tools, Stage 1 (free): libraries, routes, keys
+
+**Decided by:** product owner (§46 kickoff + plan approved; install approved
+separately before it ran). Detail: [`products/pdf-tools.md`](./products/pdf-tools.md).
+
+- **Libraries:** `pdfjs-dist` 6.4 (rendering; moved from dev to production
+  dependency, same version) + **`@cantoo/pdf-lib` 2.11.1, pinned** (writing).
+  Chosen over the original `pdf-lib` (no release since Nov 2021; the fork keeps
+  its API and is maintained) and over pdf.js-only (it can't rewrite images, so
+  no real compression). `mupdf.js` rejected: AGPL-3.0 and ~10 MB WASM. Both load
+  only on first use and are stubbed out of the Worker.
+- **pdf.js runtime files** (WASM decoders for scanned PDFs, standard fonts,
+  ~1.9 MB) served as static assets from `public/vendor/pdfjs/`, synced by
+  `npm run pdfjs:sync` and checked by a test. Not in the plan; needed for JBIG2 /
+  JPEG 2000 scans to render.
+- **Routes:** hub `/pdf-tools` + `/compress-pdf`, `/merge-pdf`, `/split-pdf`,
+  `/pdf-to-jpg`, `/jpg-to-pdf` — top-level like every live tool, not
+  `/documents/…`. New catalogue tools: Compress PDF, PDF to JPG. PDF to Word
+  stays planned.
+- **Free tier:** 10 MB per file (owner's choice; flagged that many scans people
+  need to compress are 10–20 MB — revisit with real use), merge 3, JPG → PDF 5,
+  standard compression, no daily cap, no watermark, no sign-up.
+- **Entitlement keys:** `pdf_batch_compress`, `pdf_unlimited_merge`,
+  `pdf_advanced_split`, `pdf_convert_office`, `pdf_ocr`, `pdf_large_files`, plus
+  **`pdf_batch_convert`** (added: the brief's "batch image conversion" had no
+  key). Checked per key in `app/lib/pdf/limits.ts`. No plan seeded yet — Pro
+  features are Stage 2.
+- **Not in v1:** editing, e-signatures, PowerPoint, unlocking, server uploads,
+  PDF → Word/Excel and OCR (each a separate decision).
+
+---
+
 ## 2026-10-22 — Stage 2C-1: Invoice Pro — no footer, multi-page, templates, brand colour, quotations
 
 **Decided by:** product owner (plan approved). Detail:

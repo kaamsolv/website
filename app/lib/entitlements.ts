@@ -28,6 +28,22 @@ export const ENTITLEMENT_KEYS = [
   'invoice_dashboard',
   /** Currency reference rates on invoices (Pro, Stage 2C). */
   'invoice_fx_rates',
+  // PDF tools (docs/products/pdf-tools.md). Nobody holds these yet: the Pro
+  // features behind them ship in PDF Stage 2. Limits live in app/lib/pdf/limits.ts.
+  /** Compress several PDFs at once, plus the "strong" level. */
+  'pdf_batch_compress',
+  /** Merge more than 3 PDFs, with page order across files. */
+  'pdf_unlimited_merge',
+  /** Split by ranges / every N pages, export as ZIP. */
+  'pdf_advanced_split',
+  /** PDF → Word / Excel (separate decision; not built). */
+  'pdf_convert_office',
+  /** Text recognition for scanned PDFs (separate decision; not built). */
+  'pdf_ocr',
+  /** 50 MB per file instead of 10 MB. */
+  'pdf_large_files',
+  /** More than 5 images into one PDF; batch PDF → JPG. */
+  'pdf_batch_convert',
 ] as const;
 
 /** Hidden anti-abuse ceiling on saved customers/items, for every plan. Not a paywall. */

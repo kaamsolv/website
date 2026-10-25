@@ -1,0 +1,3 @@
+# Vendored runtime files (pdf.js decoders, fonts): keep byte-for-byte as shipped.
+# test/pdf-validate.test.mts compares them with node_modules.
+public/vendor/** -text

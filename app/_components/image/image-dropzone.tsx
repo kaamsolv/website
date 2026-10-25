@@ -10,9 +10,13 @@ type Props = {
   /** Accept several files at once; each is passed to `onFiles` (falls back to `onFile`). */
   multiple?: boolean;
   onFiles?: (files: File[]) => void;
+  /** Headline, e.g. "Drop your PDF here" (defaults to image wording). */
+  title?: string;
+  /** Small print under the browse link (defaults to the types and the 25 MB limit). */
+  detail?: string;
 };
 
-export function ImageDropzone({ accept, extensions, disabled, onFile, multiple = false, onFiles }: Props) {
+export function ImageDropzone({ accept, extensions, disabled, onFile, multiple = false, onFiles, title, detail }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -70,12 +74,12 @@ export function ImageDropzone({ accept, extensions, disabled, onFile, multiple =
         <path d="M12 16V4M8 8l4-4 4 4" />
         <path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
       </svg>
-      <p className="font-display font-bold text-ink">{multiple ? 'Drop your images here' : 'Drop your image here'}</p>
+      <p className="font-display font-bold text-ink">{title ?? (multiple ? 'Drop your images here' : 'Drop your image here')}</p>
       <p className="mt-1 text-sm text-muted">
         or{' '}
         <span className="font-semibold text-coral-600 underline">browse your device</span>
       </p>
-      <p className="mt-2 text-xs text-faint">{extLabel} · up to 25 MB</p>
+      <p className="mt-2 text-xs text-faint">{detail ?? `${extLabel} · up to 25 MB`}</p>
       <input
         ref={inputRef}
         type="file"
