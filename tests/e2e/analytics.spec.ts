@@ -13,6 +13,8 @@ import { LIVE_TOOLS } from '../../app/lib/catalogue';
 const GA_ID = process.env.KK_E2E_GA_ID ?? '';
 const SHOTS = 'test-results/screenshots';
 const GOOGLE = /google-analytics\.com|googletagmanager\.com|analytics\.google\.com/;
+const SITE = 'http://localhost:3000';
+const SECRET = process.env.KK_E2E_SECRET ?? '';
 
 /** Every request to a Google analytics host; gtag.js itself is answered with an empty script. */
 async function watchGoogle(page: Page): Promise<string[]> {
@@ -103,7 +105,7 @@ test.describe('analytics with consent', () => {
     expect(named(list, 'page_view')).toHaveLength(1);
     expect(named(list, 'page_view')[0].params).toMatchObject({ page_path: '/gst-calculator' });
     expect(JSON.stringify(list)).not.toContain('secret');
-    expect(named(list, 'tool_open').map((e) => e.params)).toEqual([{ tool_name: 'gst-calculator', tool_category: 'money' }]);
+    expect(named(list, 'tool_open').map((e) => e.params)).toEqual([{ tool_name: 'gst-calculator', tool_category: 'money', page_location: `${SITE}/gst-calculator` }]);
     expect(named(list, 'tool_success')).toHaveLength(0);
 
     await page.getByLabel('Price before GST').fill('98765');
@@ -111,7 +113,7 @@ test.describe('analytics with consent', () => {
     await page.getByLabel('Price before GST').fill('98766');
     list = await events(page);
     expect(named(list, 'tool_success').map((e) => e.params)).toEqual([
-      { tool_name: 'gst-calculator', tool_category: 'money', tool_type: 'calculator' },
+      { tool_name: 'gst-calculator', tool_category: 'money', tool_type: 'calculator', page_location: `${SITE}/gst-calculator` },
     ]); // once, not per keystroke
     expect(JSON.stringify(list)).not.toMatch(/98765|98766|116542|1,16,542/);
 
@@ -142,7 +144,112 @@ test.describe('analytics with consent', () => {
       a.click();
     });
     list = await events(page);
-    expect(named(list, 'outbound_click').map((e) => e.params)).toEqual([{ link_domain: 'example.org' }]);
+    expect(named(list, 'outbound_click').map((e) => e.params)).toEqual([{ link_domain: 'example.org', page_location: `${SITE}/tools` }]);
+  });
+
+  test('every event carries a clean page_location, even from a URL with a query string and a fragment', async ({ page }) => {
+    await watchGoogle(page);
+    await page.goto('/gst-calculator?id=TEST123&token=SHOULD_NOT_SEND#private-fragment');
+    await accept(page).click();
+    await page.getByLabel('Price before GST').fill('1000');
+    await expect.poll(async () => named(await events(page), 'tool_success').length).toBe(1);
+    await page.evaluate(() => {
+      const a = document.createElement('a');
+      a.href = 'https://example.org/x?y=1#z';
+      a.addEventListener('click', (e) => e.preventDefault());
+      document.body.appendChild(a);
+      a.click();
+    });
+    const list = await events(page);
+    const sent = list.filter((e) => e.cmd === 'event');
+    expect(sent.map((e) => e.name).sort()).toEqual(['outbound_click', 'page_view', 'tool_open', 'tool_success']);
+    for (const e of sent) expect(e.params.page_location, `${e.name}`).toBe(`${SITE}/gst-calculator`);
+    expect(JSON.stringify(list)).not.toMatch(/TEST123|SHOULD_NOT_SEND|private-fragment|token=/);
+    // Google's own automatic measurements get the cleaned address as their default too.
+    const defaults = list.filter((e) => e.cmd === 'set');
+    expect(defaults.length).toBeGreaterThan(0);
+    expect(await page.evaluate(() => (window as unknown as { dataLayer: ArrayLike<unknown>[] }).dataLayer.filter((a) => a[0] === 'set').map((a) => a[1]))).toEqual(
+      defaults.map(() => ({ page_location: `${SITE}/gst-calculator` })),
+    );
+
+    // A saved-invoice style address: the id must not travel.
+    await page.goto('/invoice-generator?id=TEST123&token=SHOULD_NOT_SEND#private-fragment');
+    await expect.poll(async () => named(await events(page), 'page_view').length).toBe(1);
+    const inv = await events(page);
+    for (const e of inv.filter((x) => x.cmd === 'event')) expect(e.params.page_location, e.name).toBe(`${SITE}/invoice-generator`);
+    expect(JSON.stringify(inv)).not.toMatch(/TEST123|SHOULD_NOT_SEND|private-fragment|token=/);
+
+    // …and the page you came from is cleaned the same way.
+    await page.evaluate(() => {
+      const a = document.createElement('a');
+      a.href = '/tools';
+      a.id = 'zz-go-tools';
+      a.textContent = 'go';
+      document.body.appendChild(a);
+    });
+    await Promise.all([page.waitForURL('**/tools'), page.locator('#zz-go-tools').click()]);
+    await expect.poll(async () => named(await events(page), 'page_view').length).toBe(1);
+    const next = named(await events(page), 'page_view')[0];
+    expect(next.params.page_location).toBe(`${SITE}/tools`);
+    expect(next.params.page_referrer).toBe(`${SITE}/invoice-generator`);
+  });
+
+  test('account pages load no Google script and send nothing; a public page still sends its outbound click', async ({ page }) => {
+    const seen = await watchGoogle(page);
+    await page.addInitScript(() => localStorage.setItem('kaamsolv-analytics', 'granted'));
+    const res = await page.request.post('/api/test/oauth-sign-in', {
+      headers: { 'x-kk-e2e-secret': SECRET },
+      data: { email: `ga-${Date.now()}@example.test`, name: 'Pat' },
+    });
+    expect(res.status()).toBe(200);
+    const clickOut = () =>
+      page.evaluate(() => {
+        const a = document.createElement('a');
+        a.href = 'https://example.org/somewhere?x=1';
+        a.addEventListener('click', (e) => e.preventDefault());
+        document.body.appendChild(a);
+        a.click();
+      });
+
+    for (const path of ['/app', '/app/invoices', '/app/qr/codes']) {
+      await page.goto(path);
+      await expect(page.getByRole('main')).toBeVisible();
+      await clickOut();
+      await page.waitForTimeout(500);
+      // Not just "no events": Google's script isn't requested, nothing is set up, nothing is sent.
+      expect(await events(page), path).toEqual([]);
+      expect(seen, path).toEqual([]);
+    }
+
+    await page.goto('/about');
+    await clickOut();
+    await expect.poll(async () => named(await events(page), 'outbound_click').length).toBe(1);
+    expect(named(await events(page), 'outbound_click')[0].params).toEqual({ link_domain: 'example.org', page_location: `${SITE}/about` });
+  });
+
+  test('moving from a public page into the account area switches Google off, and back on again', async ({ page }) => {
+    await watchGoogle(page);
+    await page.goto('/gst-calculator');
+    await accept(page).click();
+    await expect.poll(async () => named(await events(page), 'page_view').length).toBe(1);
+    const off = () => page.evaluate((id) => (window as unknown as Record<string, unknown>)[`ga-disable-${id}`], GA_ID);
+    expect(await off()).toBe(false);
+
+    await page.evaluate(() => window.history.pushState(null, '', '/app/qr/codes?id=SYNTH'));
+    await expect.poll(off).toBe(true);
+    const before = (await events(page)).length;
+    await page.evaluate(() => {
+      const a = document.createElement('a');
+      a.href = 'https://example.org/x';
+      a.addEventListener('click', (e) => e.preventDefault());
+      document.body.appendChild(a);
+      a.click();
+    });
+    await page.waitForTimeout(400);
+    expect((await events(page)).length, 'nothing added while inside the account area').toBe(before);
+
+    await page.evaluate(() => window.history.pushState(null, '', '/tools'));
+    await expect.poll(off).toBe(false);
   });
 
   test('words typed into a text tool are never sent', async ({ page }) => {
@@ -170,7 +277,7 @@ test.describe('analytics with consent', () => {
     const list = await events(page);
     expect(named(list, 'tool_success')).toHaveLength(1);
     expect(named(list, 'file_download').map((e) => e.params)).toEqual([
-      { tool_name: 'png-to-jpg', tool_category: 'images-files', file_ext: 'jpg' },
+      { tool_name: 'png-to-jpg', tool_category: 'images-files', file_ext: 'jpg', page_location: `${SITE}/png-to-jpg` },
     ]);
     expect(JSON.stringify(list)).not.toContain('passport');
   });

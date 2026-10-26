@@ -89,14 +89,62 @@ export function installGtag(): void {
   }
 }
 
+/** The signed-in area: analytics is off there entirely (its URLs carry ids). */
+export function isAccountPath(pathname: string): boolean {
+  return pathname === '/app' || pathname.startsWith('/app/');
+}
+
+/** Analytics runs only with an ID, with consent, and never on account pages. */
 function active(): boolean {
-  return ANALYTICS_ENABLED && readConsent() === 'granted';
+  return ANALYTICS_ENABLED && readConsent() === 'granted' && !isAccountPath(location.pathname);
+}
+
+/**
+ * A URL as analytics may see it: origin and path only — never a query string or
+ * fragment, and nothing past `/app` inside the account area (those paths hold ids).
+ * Returns '' for anything that isn't a web URL. Never throws.
+ */
+export function cleanUrl(raw: string, base?: string): string {
+  try {
+    const u = new URL(raw, base);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return `${u.origin}${isAccountPath(u.pathname) ? '/app' : u.pathname}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * The one way an event leaves the site. Google fills in `page_location` (and
+ * `page_referrer`) with the full URL on its own, query string and all, so every
+ * event sets both explicitly, from here. Call sites pass only their own fixed labels.
+ */
+/**
+ * Make the cleaned address the default for everything Google's script measures
+ * on its own too (it otherwise reads the full URL itself). Call once the tag is
+ * set up and again on every route change. Events we send set the same values
+ * explicitly in `send()`.
+ */
+export function syncCleanLocation(): void {
+  if (!active()) return;
+  installGtag();
+  const defaults: Record<string, string> = { page_location: cleanUrl(location.href) };
+  if (document.referrer) {
+    const referrer = cleanUrl(document.referrer);
+    if (referrer) defaults.page_referrer = referrer;
+  }
+  (window as unknown as GtagWindow).gtag!('set', defaults);
 }
 
 function send(name: string, params: Record<string, string | number | boolean>): void {
   if (!active()) return;
   installGtag();
-  (window as unknown as GtagWindow).gtag!('event', name, params);
+  const clean: Record<string, string | number | boolean> = { ...params, page_location: cleanUrl(location.href) };
+  if (document.referrer) {
+    const referrer = cleanUrl(document.referrer);
+    if (referrer) clean.page_referrer = referrer;
+  }
+  (window as unknown as GtagWindow).gtag!('event', name, clean);
 }
 
 // ---------------------------------------------------------------- tool lookup
@@ -121,14 +169,10 @@ let lastPagePath = '';
 /** One page_view per path change; path only — never the query string or hash. */
 export function trackPageView(pathname: string): void {
   // The signed-in area has ids in its URLs and nothing public to measure.
-  if (pathname === '/app' || pathname.startsWith('/app/')) return;
+  if (isAccountPath(pathname)) return;
   if (pathname === lastPagePath) return;
   lastPagePath = pathname;
-  send('page_view', {
-    page_location: `${location.origin}${pathname}`,
-    page_path: pathname,
-    page_title: document.title,
-  });
+  send('page_view', { page_path: pathname, page_title: document.title });
 }
 
 /** Forget the last path (e.g. after consent is withdrawn and later granted again). */
@@ -186,8 +230,9 @@ export function trackFileDownload(filename: string): void {
   send('file_download', { ...toolParams(tool), file_ext: FILE_EXTENSIONS.has(ext) ? ext : 'other' });
 }
 
-/** A click on a link to another site. Only the domain is sent. */
+/** A click on a link to another site, on a public page. Only the domain is sent. */
 export function trackOutboundClick(href: string): void {
+  if (isAccountPath(location.pathname)) return;
   let url: URL;
   try {
     url = new URL(href, location.href);

@@ -19,7 +19,7 @@ export default function PrivacyPage() {
     <TextPage
       title="Privacy"
       intro="The short version: most KaamSolv tools run entirely in your browser and send us nothing. You don't need an account. If you create one, we keep only what you save and what signing in needs."
-      updated="2026-10-25"
+      updated="2026-10-26"
     >
       <h2>Who we are</h2>
       <p>
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
         <strong>Google Analytics</strong> is <strong>off until you say yes</strong>. When you first visit, a small
         banner asks. If you choose “No thanks”, nothing is sent to Google and no Google cookie is set. If you choose
         “Accept analytics”, Google Analytics sets cookies (<code>_ga</code> and <code>_ga_…</code>) and receives the page
-        you&apos;re on, your approximate location, your browser and device type, and your IP address (Google says Google
+        you&apos;re on (its address and its title), the page you came from, your approximate location, your browser and device type, and your IP address (Google says Google
         Analytics 4 doesn&apos;t log or store IP addresses). It also receives a few tool events:
         that a tool page was opened, that a tool finished its job, that a file was downloaded (only its type, such as
         “pdf”), that something failed (only a short label, such as “network”), and which other website you
@@ -149,7 +149,10 @@ export default function PrivacyPage() {
       </p>
       <p>
         We <strong>never</strong> send Google your files, file names, text, numbers, invoice details, the links you
-        shorten, or error messages. Pages inside your account aren&apos;t counted. We&apos;ve switched off Google&apos;s
+        shorten, or error messages. We cut page addresses off before any <code>?</code> or <code>#</code> before giving
+        them to Google Analytics, and we ask its script to use those shortened addresses for anything it measures on
+        its own too. On your account pages (addresses starting <code>/app</code>) we don&apos;t load Google Analytics at
+        all, so nothing there is counted. We&apos;ve switched off Google&apos;s
         advertising features and signals in how we set Analytics up on this site.
       </p>
       <AnalyticsChoice />
