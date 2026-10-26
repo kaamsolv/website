@@ -159,6 +159,9 @@ version with the same code.
 - `npm run db:migrate` — apply pending migrations: to Neon when `DATABASE_URL` is
   set, else to local PGlite (`.pglite/`). **On Neon this runs statement by statement and is not atomic** —
   fine for a tiny migration on a throwaway branch, not for production (see "Applying a migration to production").
+  **It also reads `.env.local` and `.env` when `DATABASE_URL` isn't already set, and has no `--expect-host` check** — so never run it
+  anywhere a production connection string is in scope. (`db:migrate:atomic` and `db:rehearsal:prepare` read no `.env` file and refuse
+  to contact anything until the host you typed matches.)
 - `npm run db:migrate:atomic` — Neon only: applies pending migrations and their journal rows as **one transaction**;
   dry run unless `--confirm`. Use this for production.
 - **Production migrations are a manual, deliberate step**, never part of the
@@ -252,12 +255,26 @@ committed, there is no journal row, and a re-run stops at the first `CREATE TABL
 by hand. (`test/atomic-migration.test.mts` reproduces exactly this.)
 
 **`npm run db:migrate:atomic`** (`db/migrate-atomic.mts`; logic and tests in `db/atomic-migration.ts` / `test/atomic-migration.test.mts`) sends the
-pending migrations' statements **and their journal rows as one Neon HTTP transaction**: all of it commits or none of it does. It reads the same
+pending migrations' statements **and their journal rows as one Neon HTTP transaction**. If the database reports an error, the whole transaction rolls back; if the
+connection is lost before an answer arrives, whether it committed is **unknown** and the tool says so. That atomicity is Postgres's and
+Neon's batch behaviour: it is demonstrated on PGlite (below) and **has not yet been confirmed against Neon** — step 4 is where it is. It reads the same
 files, splits them the same way, writes the same journal row (`hash`, `created_at`) as drizzle, so `db:migrate` afterwards sees an up-to-date database
-(proved on PGlite for 0010 and for a from-scratch build). It refuses to run on a database whose journal doesn't match the checkout. Without `--confirm`
+(proved on PGlite for 0010 and for a from-scratch build). It refuses to run on a database whose journal doesn't match the checkout (a different journal time, or different content). A row whose hash matches this file with LF or with CRLF line endings counts as the same migration, with a note — git on Windows changes line endings between checkouts, and drizzle itself ignores the hash — but any other difference stops it. Without `--confirm`
 it is a **read-only dry run**; applying also needs `--confirm --restore-point-taken`. **It never chooses a target for you:** `DATABASE_URL` must be set in the environment of
 that one command (no `.env` file is read, so a production string left in `.env.local` is never picked up), and `--expect-host <host>` — typed by you, every time, dry run included —
-must equal that URL's host or nothing is contacted. It prints the host only; anything it prints is scrubbed of the connection string and password.
+must equal that URL's host or nothing is contacted. It prints the host only, and every error it prints is one line — name, code, message — scrubbed of the connection string and
+password; an error that escapes is caught and printed the same way, never as Node's dump of the error object (which for an invalid URL contains the whole string).
+
+**Timeouts, and a second operator.** The transaction starts with `SET LOCAL lock_timeout` (default **5 s**) and `SET LOCAL statement_timeout` (default **60 s**) — before anything that changes the schema, and
+undone when the transaction ends — so an `ALTER TABLE` that cannot get its lock (a long query on `invoices`, say) fails and rolls back instead of queueing and stalling the app behind it. Change them
+deliberately with `--lock-timeout-ms` (500–120000) and `--statement-timeout-ms` (5000–1800000); anything else is refused (0 would mean "wait forever" to Postgres). They are conservative choices, **not
+measurements, and not validated on Neon**; a larger table may need more. A timeout the database reports (SQLSTATE 55P03 or 57014) is a confirmed rollback; one the client or a gateway gives up on carries
+no such code and stays "outcome unknown". PGlite enforces neither timeout and has one session, so the tests prove only that the two settings come first, are local to the transaction, are bounded, and that a timeout-shaped
+failure part-way leaves nothing behind — not that a timeout fires. Next the transaction takes an advisory lock and, before changing anything, checks that the journal still has exactly the number of rows the plan was made from, so a
+second operator's stale plan fails with `migration_state_changed` (a confirmed rollback) instead of applying a migration twice — without that check, a migration with no DDL in it *would* be applied twice (a test shows it).
+**Even so, run it from one terminal at a time.**
+**Exit codes:** 0 = done, dry run, or nothing to apply · 1 = refused, or the apply failed (the message says whether it was rolled back or the outcome is unknown) · 3 = the migration was applied and committed but
+reading the journal back afterwards failed — it was **not** rolled back; run the dry run before doing anything else. A refusal never says what the host is: that answer has to come from you.
 
 **Procedure — none of this has been run against production; each step waits for the owner's go-ahead.**
 
@@ -265,10 +282,43 @@ must equal that URL's host or nothing is contacted. It prints the host only; any
    `npm run typecheck && npm test && npm run cf:build`; `npx playwright test`.
 2. **Restore point**: create a Neon restore point (or branch) of `production` and note the time. Confirm the restore window your Neon plan allows.
 3. **Read-only check**: `DATABASE_URL=<production> npm run db:migrate:atomic -- --expect-host <production host>` (dry run). Expect "Applied 10 of 11. Pending: 1 (0010_invoice_payments)". Anything else — stop.
-4. **Rehearse on a dedicated non-production Neon branch** that has **no users and no customer data** (an empty or schema-only branch; never a data copy of
-   production). Apply with the same command (`--expect-host <that host> --confirm --restore-point-taken`), then `DATABASE_URL=<that branch> npx tsx scripts/rehearse-payments.mts --expect-host <that host> --non-production` (concurrent payments, one
-   idempotency key sent ten times at once, a void or a total-lowering edit racing a payment, then a ledger reconciliation sweep). The script refuses without `--non-production`, and refuses any
-   database that has a user in it. This is the only step that exercises the Neon driver adapter and real concurrent connections; PGlite is serial.
+4. **Rehearse on a brand-new, empty, non-production Neon database** — a new Neon project, never a branch of production or any data copy. Nothing here has been run yet; it needs the
+   owner's go-ahead and the database. In a fresh PowerShell, from the repo root (the connection string lives only in that session — do not paste it anywhere; delete the project's rehearsal role afterwards):
+
+   ```powershell
+   $env:DATABASE_URL = '<the rehearsal database URL>'
+   $h = (npm run --silent db:host)               # the host only — from the same parser the tools use. "unset" or "unreadable": stop and fix DATABASE_URL.
+   if ($h -in 'unset','unreadable') { throw 'fix DATABASE_URL first' }
+   # a. Build production's state before 0010, the way production got it (drizzle, statement by statement). Dry run first.
+   npm run db:rehearsal:prepare -- --expect-host $h --non-production
+   npm run db:rehearsal:prepare -- --expect-host $h --non-production --confirm      # expect: 10 migrations applied and recorded
+   # b. The atomic runner: dry run (expect "Applied 10 of 11. Pending: 1"), then apply.
+   npm run db:migrate:atomic -- --expect-host $h
+   npm run db:migrate:atomic -- --expect-host $h --confirm --restore-point-taken      # expect: Committed: 0010_invoice_payments
+   # c. Again: a no-op ("Applied 11 of 11", nothing pending).
+   npm run db:migrate:atomic -- --expect-host $h
+   # d. Concurrent payments, duplicate submissions, racing edits; then the reconciliation and audit sweeps.
+   npx tsx scripts/rehearse-payments.mts --expect-host $h --non-production --rounds 20
+   Remove-Item Env:DATABASE_URL
+   ```
+
+   A password with special characters must be **percent-encoded** in the URL (`@` → `%40`, `#` → `%23`, `/` → `%2F`, `?` → `%3F`) — Neon's own connection strings are. A raw `#`, `/` or `?` ends the host part early;
+   `db:host` then prints `unreadable` rather than a piece of the password, and the tools refuse. `--through` (default `0009`) takes a four-digit number or a full migration name — nothing looser.
+   What protects against a wrong target: `DATABASE_URL` must be in that command's environment (no `.env` file is read); `--expect-host` must match its host and `--non-production` must be given, every time, before anything is
+   contacted (a host given as a bare argument, or a flag with no value, does not count); `prepare` refuses any database that already has a table or a recorded migration (production has both); the payments rehearsal refuses any
+   database in which **any application table** (users, sessions, customers, items, invoices, payments, QR codes, **short links, click events, reports, rate-limit counters**) has a row — only the seeded `plans` / `plan_features` may — and
+   needs migration 0010 applied. The table list comes from the system catalogs (`pg_class`), not `information_schema`, because the latter shows only tables the connecting role has privileges on and would make a populated database look empty;
+   a table the role cannot read, or one with row-level security, is treated as *not proved empty* and refused. Every non-system schema is checked, not only `public`; only the seeded `public.plans` / `public.plan_features` and drizzle's own journal may hold rows. A platform schema on a brand-new Neon project that holds rows
+   would be refused and named in the message — whether that happens is unverified until a rehearsal database exists. Errors print as one scrubbed line (see above).
+   `--non-production` is the operator's statement; the emptiness checks are the backstop for a mistake, not a substitute for creating the database fresh.
+   If a rehearsal run is killed part-way its synthetic user stays; the next run then refuses — delete it **on the rehearsal database only**:
+   `DELETE FROM auth_users WHERE email LIKE 'rehearsal-%@example.test';` (cascades to its invoices and payments).
+   This is the only step that exercises the Neon driver adapter and real concurrent connections; PGlite is serial. Until it has run, these are **unproven on Neon**: that `sql.transaction` rolls a failed
+   batch back, the shape of a Neon server error (that it carries a Postgres error code), the numeric journal parameter, lock durations, that drizzle's own migrator recognises the atomic runner's journal rows (proved on PGlite only), and real
+   concurrent behaviour — including whether `SET LOCAL`, the advisory lock and the journal check behave inside Neon's batch transaction, and whether the timeouts fire on a real contended lock. The harness repeats every scenario
+   (`--rounds`, default 10), releases each scenario's requests together at a start barrier, and reports how many requests it made and in how many rounds every request was in flight at the same moment — measured in the client process. That is
+   necessary for a race and is **not proof of one**: it cannot see inside the database, so no run is reported as "a race occurred". Any deadlock, serialization failure, timeout, payment refused for a reason other than "more than is owed",
+   or unrecognised error fails the run even when every total reconciles (proved locally with `--inject-fault`, which exists only for `--local` and is refused against a real database). It does not run any Worker; the legacy-Worker check is a separate local drill (pre-0010 code against the migrated rehearsal database).
 5. **Apply**: `npm run db:migrate:atomic -- --confirm --expect-host <production host> --restore-point-taken`, **immediately before step 6** (see the Mark paid note above).
 6. **Deploy** the Worker: `npm run cf:deploy`.
 7. **Validate** (read-only SQL):
@@ -284,8 +334,9 @@ SELECT count(*) FROM invoices WHERE status = 'paid' AND amount_paid = 0;    -- e
 ```
 
    Then in the app: record a payment on a test invoice, void it, open Payments & collections, download one report, check `/api/dashboard`.
-8. **If the command's connection dropped before an answer**, the outcome is unknown, not failed: run it again **without** `--confirm`. The journal is committed
-   together with the schema, so "Applied 11 of 11" means it committed and "Applied 10 of 11" means it rolled back.
+8. **If the command fails, read what it says.** An error the database itself reports (it has a Postgres error code) means the transaction was rolled back as a whole and nothing changed. Anything else — a dropped
+   connection, a gateway timeout, an unreadable answer — means the outcome is **unknown**: do **not** re-run with `--confirm`; run the dry run again. The journal is written in the same transaction as the schema,
+   so "Applied 11 of 11" means it committed and "Applied 10 of 11" means it did not.
 
 | Situation | Do | Consequence for data |
 |---|---|---|

@@ -20,9 +20,26 @@ infrastructure. Newest first. Detail lives in the linked docs.
   journal row comes last), so a mid-migration failure leaves a half-applied schema that a re-run can't get past. The atomic runner sends the statements and
   the journal row as one transaction, refuses a database whose journal differs from the checkout, and needs `--confirm --restore-point-taken`. It never picks a
   target: `DATABASE_URL` must be in that one command's environment (no `.env` file is read), `--expect-host` must match it every time (dry run included) or nothing is
-  contacted, and everything printed is scrubbed of the connection string and password. The rehearsal script additionally needs `--non-production` and refuses any
+  contacted, and every error it prints is one line scrubbed of the connection string and password (an escaping error is caught and printed the same way — never Node's dump of the error object, which for an invalid URL contains the whole string). The rehearsal script additionally needs `--non-production` and refuses any
   database that has a user in it; both CLIs are tested as real processes.
   Proved on PGlite (same schema and journal as drizzle's migrator; injected failures leave nothing behind); **not yet run against any Neon database.**
+- **Tooling hardened after a review of how the Neon driver really behaves** (uncommitted at the time of writing): `sql.transaction` is one HTTP request whose atomicity is the server's, so an error
+  the database reports means rolled back, while a dropped connection or a 5xx means the outcome is *unknown* — the runner now says exactly that and tells the operator not to re-run `--confirm`.
+  The journal-hash check tolerates LF/CRLF (migration files are CRLF in a Windows checkout and LF in git; drizzle ignores the hash) but still refuses any other difference.
+  The rehearsal's emptiness check now covers **every application table**, not just users — a copy of production from before accounts existed has links and clicks but no users. The concurrency harness
+  fails on any unexpected error (deadlock, serialization failure, timeout, a refusal other than "more than is owed") and checks the payment audit trail. `npm run db:rehearsal:prepare` builds production's
+  pre-0010 state with drizzle's own migrator on a brand-new database, so the rehearsal starts where production is.
+- **Review fixes to that tooling** (an independent read-only review found these; uncommitted at the time of writing): uncaught errors could print the connection string (confirmed for a malformed URL in the payments
+  harness) — all three tools now install a handler that prints one scrubbed line; the emptiness check read `information_schema`, which hides tables from a role without privileges, so it now uses `pg_class`, and treats an unreadable
+  or row-level-security table as unverifiable; the harness read `--expect-host` as the *first argument* when the flag was missing — all tools now share one parser that never falls back; the runbook's `npm run db:migrate` step
+  (no host gate, reads `.env` files) is removed and the §9 warning added; claims of certain atomicity and of "everything printed is scrubbed" were qualified; and a test parses every `.mts` file with `node --check`, because
+  `npm run typecheck` covers only `.ts`/`.tsx` and had let a syntax error in a CLI through.
+- **Remaining tooling findings addressed** (uncommitted at the time of writing; none of it validated on Neon): the migration transaction now begins with `SET LOCAL lock_timeout` (5 s) and `statement_timeout` (60 s),
+  configurable within bounds, then an advisory lock and a check that the journal is still what the plan saw — so a second operator's stale plan fails cleanly instead of applying twice (a data-only migration would have);
+  timeout errors are a confirmed rollback only when the database reported them (they carry a SQLSTATE), a client or gateway timeout stays "outcome unknown". The CLI logic moved into `db/atomic-cli.ts` / `db/prepare-cli.ts`
+  behind a driver interface and is tested against a fake driver (gates, dry run, the exact transaction, already-applied, journal mismatch, confirmed rollback, unknown outcome, read-back failure → exit 3). The refusal no longer
+  tells the operator the host; the emptiness check covers every non-system schema; `--through` must be exact; `npm run db:host` replaces hand-parsing the URL in PowerShell; the payments rehearsal repeats its scenarios behind
+  a start barrier and reports requests and in-flight overlap without ever claiming a race, and a locally-injectable fault proves it fails on an unexpected error even when every total reconciles.
 - **Docs corrected**: the old Worker does *not* simply ignore 0010 — its Pro "Mark paid" fails with a server error from the moment 0010 exists until the new
   Worker is live (and after a Worker-only rollback); a Worker rollback keeps all payments; a database rollback destroys them.
 - **Cloudflare plan is not assumed.** The repo doesn't record it; earlier wording that treated it as the free plan was reworded. Owner to confirm the plan,
