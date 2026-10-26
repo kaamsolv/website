@@ -25,6 +25,7 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
           ? [
               { href: '/app/invoices/overview', label: 'Overview', pro: true, sub: true },
               { href: '/app/invoices/collections', label: 'Payments & collections', pro: true, sub: true },
+              { href: '/app/invoices/reports', label: 'Reports & exports', sub: true, key: 'invoice_csv_export' as const },
               { href: '/app/invoices', label: 'All invoices', sub: true },
               { href: '/app/invoices/batch', label: 'From a CSV', sub: true, key: 'invoice_batch_csv' as const },
               { href: '/app/invoices/settings', label: 'Invoice settings', sub: true },

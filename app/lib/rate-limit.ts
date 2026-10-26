@@ -27,6 +27,11 @@ export const ANONYMOUS_LIMITS = {
     { limit: 10, windowSeconds: 60, window: '1m' },
     { limit: 100, windowSeconds: 24 * 60 * 60, window: '1d' },
   ],
+  /** Invoice report pages (Stage F), per signed-in user: an export reads 100 pages at most per 10,000 rows. */
+  invoiceReport: [
+    { limit: 120, windowSeconds: 60, window: '1m' },
+    { limit: 1_200, windowSeconds: 60 * 60, window: '1h' },
+  ],
   /** Reporting a link. */
   report: [{ limit: 5, windowSeconds: 60 * 60, window: '1h' }],
   /** Sign-in link emails, per caller (salted IP hash). */

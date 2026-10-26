@@ -5,7 +5,8 @@ tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
 invoice (2B) deployed 2026-10-22; Pro Stages 2C-1 and 2C-2 deployed 2026-10-25
 (hidden until payments). Payment ledger and partial payments (Stage C, every
 account) built 2026-10-26 — not yet deployed. Pro Payments & Collections (Stage D) and the invoice workspace
-(Stage E: list search and paging, customer pages, item fill rule) built 2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+(Stage E: list search and paging, customer pages, item fill rule) and Reports & exports
+(Stage F, Pro) built 2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -100,6 +101,7 @@ Field lengths (`app/lib/invoice/limits.ts`) keep a full invoice on one page.
 | `app/lib/invoice/list-query.ts`, `app/lib/paging.ts` | The list's request vocabulary and page maths; `db/invoice-filters.ts` builds the one set of conditions |
 | `db/customer-workspace.ts`, `app/_components/account/customer-detail.tsx` | Customer totals, by-name suggestions, connect / disconnect |
 | `app/lib/invoice/item-fill.ts` | The saved-item fill rule (pure) |
+| `app/lib/invoice/reports.ts`, `report-export.ts`, `db/invoice-reports.ts`, `app/api/invoices/reports/route.ts`, `app/_components/account/reports.tsx` | Stage F reports: the pure library (validation, columns, integrity), the page queries, the entitlement-checked API, the browser exporter and the page |
 | `app/lib/invoice/payments.ts` | Payment maths and checks: paise, `paymentSummary()` (state, balance, %, overdue), input cleaning, ledger error names |
 | `db/payments.ts` | Ledger data access: record (idempotent), void, edit note, history — scoped by user |
 | `app/app/invoices/[id]/` + `app/_components/account/invoice-payments.tsx` | The payments page; `status-badge.tsx`, `payment-progress.tsx` are shared with the list |
@@ -396,7 +398,7 @@ page (Stage D, below) uses the same definitions.
   plain message (409 `below_paid`).
 - **CSV export** (Pro): the Status column reads Paid · Partially paid · Unpaid · Marked
   paid, and "Paid on" is the last payment date. Received/balance columns and a payments
-  report come in Stage F.
+  report arrived in Stage F (Reports & exports); this export is unchanged.
 
 ### API
 
@@ -523,8 +525,8 @@ parallel). No index was added (decision D6); revisit only if real accounts show 
 
 ### Not in Stage D
 
-The payments report and CSV additions, reminders or any email, write-off. (Stage F.)
-Customer pages, list paging and search came in Stage E.
+Reminders or any email, write-off. The payments report and CSV additions came in Stage F, customer pages, list
+paging and search in Stage E.
 
 ## Invoice workspace (Stage E — every account; built, not yet deployed)
 
@@ -620,8 +622,126 @@ make search slow, the fix is an index decision for the owner, not a surprise.
 
 ### Not in Stage E
 
-Reports and exports of payments or customers, reminders or any email, automatic recurring invoices, write-off, a
-quotations or repeating-invoices page, merging customers. (Stage F and later.)
+Customer reports, reminders or any email, automatic recurring invoices, write-off, a quotations or
+repeating-invoices page, merging customers. (Payment and invoice reports came in Stage F.)
+
+## Reports & exports (Stage F — Pro; built, not yet deployed)
+
+`/app/invoices/reports` — four operational reports as spreadsheet-ready CSVs. Pro (`invoice_csv_export`, the key
+the older export uses; no new key). No migration and no new dependency. Tests: `test/reports-lib.test.mts`,
+`test/reports.test.mts`, `test/report-export.test.mts`, `tests/e2e/reports.spec.ts`; benchmark:
+`scripts/benchmark-reports.mts`.
+
+**These are operational reports of what has been recorded in KaamSolv — not GST returns, tax filings or audited
+statements** (the page says so in `OPERATIONAL_NOTE`; no column or file is named as a statutory register or
+return). The tax columns of the register are each invoice's own lines, as printed on it — check anything you file
+with your accountant.
+
+### The four reports
+
+| Report | One row per | Scope | Totals over every match |
+|---|---|---|---|
+| **Invoice register** | invoice issued in the period (never quotations) | period = issue date; payment position as of today | count, invoice total, received, balance |
+| **Payments received** | ledger payment dated in the period | period = date received; voided only if asked, then never counted | counted count and amount; voided count and amount (when included); legacy marked-paid count |
+| **Outstanding invoices** | invoice that still owes | a *position as of today* — the period doesn't apply and is refused | count, balance, overdue part |
+| **Ageing summary** | age group (always four) | the same four groups as Payments & collections | invoices and balance per group |
+
+Every file is **one currency** (a currency picker, never summed or converted), optionally one saved customer and a
+payment-status filter (register: any of the Stage D states; outstanding and ageing: unpaid, partial, overdue;
+outstanding also an age group; payments also a method). A filter that doesn't belong to the chosen report is a 400,
+not silently ignored. File names say what they are: `kaamsolv-invoice-register-INR-2026-04-01-to-2027-03-31.csv`,
+`…-outstanding-invoices-INR-as-of-2026-10-26.csv`, `-filtered` and `-with-voided` suffixes where they apply.
+
+Columns — register: Invoice no., Issue date, Due date, Document type, Client, Client GSTIN, Saved customer, Place of
+supply, Currency, Subtotal, Discount, Taxable value, CGST, SGST / UTGST, IGST, Total tax, Invoice total, Received,
+Balance, Payment status, Days overdue (as of today), Last payment date. Payments: Date received, Invoice no., Client,
+Saved customer, Currency, Amount, Method, Reference, Note, Status (Recorded / Voided), Counted in totals (Yes / No),
+Voided on (UTC), Void reason, Recorded at (UTC), Payment ID. Outstanding: Invoice no., Client, Saved customer, Issue
+date, Due date, Currency, Invoice total, Received, Balance, Days overdue, Age group, Payment status. Money is a plain
+number with two decimals (no symbol, no grouping); dates are `YYYY-MM-DD`; the currency has its own column.
+
+### Source of truth and the rules
+
+- **The payment ledger is the source of truth.** Received money is a non-voided `invoice_payments` row (by the date
+  received) or `invoices.amount_paid`, the ledger's trigger-kept total; owed is `total − amount_paid`. The queries are
+  the shared fragments of `db/invoice-filters.ts` — the same ones behind Payments & collections, the customer page and
+  the filtered list — so **the totals reconcile with all three**, and each has a test (and a browser test that reads
+  the downloaded file back).
+- **Voided payments are excluded from every total.** They appear only when "Include voided payments" is ticked, and
+  then every such row says `Voided` and `Counted in totals: No`; the counted total never changes (a test checks the
+  file and the totals both ways).
+- **Nothing is invented for legacy "marked paid" invoices.** They have no ledger rows, so they appear in no payment
+  report; the payments summary shows a plain note with their count ("no payment records … none were made up"). In the
+  register they are *Marked paid* with Received 0.
+- **Stored figures are authoritative.** The register's total, received and balance come from the stored columns. The
+  subtotal, discount, taxable value, tax and GST split are worked out from the invoice's own lines
+  (`computeTotals`, the same maths as the editor and PDF); if those lines no longer add up to the stored total the
+  derived columns are left **blank** (never guessed), the row still carries its stored figures, and the finished
+  download says how many were affected. A non-GST invoice leaves CGST / SGST / IGST blank; Total tax is shown for all.
+- One user's data never reaches another: every query filters `user_id`, joins re-check the owner, and a customer id
+  that isn't yours matches nothing.
+
+### How a file is made (F1 — browser-built CSV from small pages)
+
+`GET /api/invoices/reports` returns one **small page** (register 100 rows, payments 500, outstanding 500; ageing is
+one four-row answer) with the totals over every match; `report=meta` returns the account's currencies and the limits.
+The browser (`app/lib/invoice/report-export.ts`) reads the pages one at a time, then joins them with `toCsv` — so no
+request builds a large file or does more than a few hundred rows of work, which is what the Cloudflare Worker's
+per-request CPU limit calls for. (The older `/api/invoices/export` builds its file on the server, up to 5,000
+invoices; it is **unchanged**.)
+
+- **Entitlement:** `invoice_csv_export` is checked on **every** request (including `report=meta` and every page);
+  without it the answer is 403 with no figures at all. The page also redirects Free accounts to All invoices and the
+  nav link is Pro-only.
+- **Caps:** register 10,000 rows, payments 50,000, outstanding 10,000. A choice over its cap is refused with 413 on
+  every page — the preview shows the message before anything downloads ("Pick a shorter period … export in parts").
+- **Rate limit:** `invoiceReport` — 120 pages a minute and 1,200 an hour per account (a 10,000-row register is 100
+  pages). A 429 stops the export with a calm message.
+- **Progress and Cancel:** "Read 1,200 of 9,000 rows (page 12 of 90)" with a progress bar, and a Cancel button that
+  aborts the next request; nothing is downloaded after a cancel.
+- **Retries:** a dropped connection or a 5xx is retried twice; 403, 413, 429 and 400 stop at once with the server's own
+  words.
+- **Integrity** (not one atomic snapshot, so it's checked): every page repeats the totals, and the export stops if
+  they change between pages ("changed while exporting"); each page must be the page asked for with the right number of
+  rows; at the end the browser adds up the rows it holds **in whole paise** and compares row count, money, and (for
+  payments) the counted / voided split with the server's totals, and checks no payment appears twice. Any mismatch
+  means no file is offered.
+- **CSV safety:** `toCsv` is the same as ever — quotes, commas and newlines escaped; a cell starting `= + - @`, tab or
+  CR is stored as text with a leading `'` (formula-injection defence; a test round-trips hostile client names and
+  references through the real file); CRLF; UTF-8 with a byte-order mark so Excel reads ₹ and Devanagari correctly.
+
+### Performance (benchmark, a proxy — not a Worker measurement)
+
+`npx tsx scripts/benchmark-reports.mts` — 10,000 invoices (realistic GST documents, 1.5 kB of JSON, six lines each),
+50,000 payments (10% voided), three other accounts as background; in-memory PGlite, medians of 15. **This is a Node
+proxy: it shows how the queries scale and what a page costs in JavaScript, not the Worker's CPU time, which only a
+deployed test can confirm** (the Worker is believed to be on the free plan's ~10 ms limit; each page is built to stay
+far below it, and the documented fallback is to lower the page sizes).
+
+| Request | median | body |
+|---|---|---|
+| register page 1 / 50 / 100 (100 rows) | 28 / 28 / 23 ms | 25 kB |
+| register preview (1 row, count and totals) | 20 ms | 1 kB |
+| payments page 1 / 50 / 100 (500 rows) | 62 / 105 / 85 ms | 83 kB |
+| payments with voided, page 1 | 94 ms | 83 kB |
+| outstanding page 1 (500 rows) · ageing | 42 ms · 15 ms | 69 kB · 1 kB |
+| **JavaScript alone** for one register page (100 documents: totals, GST split, cells) | **0.7 ms** | |
+
+Whole exports, read page by page: **9,000-row register 2.5 s (90 pages, 2.2 MB, 1.7 MB file); 45,000 payments 9.3 s
+(90 pages, 7.6 MB, 6.2 MB file); 9,000 outstanding 0.8 s.** In the browser, the integrity check takes ≤ 16 ms and building
+the CSV ≤ 70 ms. Page queries pick the page's ids on narrow columns first and read the invoice documents only for
+those rows — before that change, deep register pages took 105–116 ms because every match's document was read per
+page. Neon adds a network round trip per query on top of these.
+
+### Limitations
+
+- The CSV is built in the browser from many requests, so it isn't a single snapshot of the database (the totals
+  check turns a change in between into "run it again", it doesn't prevent it).
+- Deep payment pages use offset paging (~100 ms in the proxy); fine to the 50,000 cap, but a keyset would be better
+  beyond it.
+- The customer filter lists the account's first 200 saved customers (like Payments & collections).
+- Nothing is emailed or scheduled; saved report definitions, Excel (.xlsx) and PDF reports, and anything tax-return
+  shaped are not part of this stage.
 
 ## Paid tier (Stages 2–3)
 

@@ -5,6 +5,32 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-26 — Reports & exports, Stage F (Pro): decisions applied (built, not deployed)
+
+**Decided by:** product owner (plan approved with F1–F8 as recommended, plus nine conditions). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Reports & exports".
+
+- **F1** The CSV is **built in the browser from small server-computed pages** (100 register / 500 payment rows), not on
+  the server: a Node benchmark of the existing export (5,000 GST invoices ≈ 90 ms of JavaScript, 7.6 MB of documents) is
+  a proxy only, but it is far above a free-plan Worker's per-request CPU limit, while a page costs under 1 ms of
+  JavaScript. Cap 10,000 / 50,000 / 10,000 rows. **F2** Reuses the existing `invoice_csv_export` entitlement, checked
+  server-side on every request; no new key. **F3** One currency per file, never converted. **F4** Voided payments are
+  excluded from totals, listed only on request and labelled "Voided" / "Not counted". **F5** Nothing is invented for
+  legacy marked-paid invoices (a note and a count, no rows). **F6** The existing `/api/invoices/export` and `csv.ts`
+  are untouched. **F7** Formula-injection defence, escaping, UTF-8 BOM, caps, progress, cancel and an integrity check
+  (whole-paise totals, drift detection between pages) are all kept — the check exists because a multi-request export
+  is not one snapshot. **F8** Labelled operational reports — not GST returns or tax filings — in the page copy and in
+  tests that forbid statutory wording in column names.
+- **No migration, no dependency.** Page queries pick ids on narrow columns and read documents only for the page
+  (deep register pages 116 ms → 23 ms in the proxy); no index was needed. A new rate-limit entry (`invoiceReport`,
+  120/min and 1,200/h per account) is configuration, not schema.
+- The register's total, received and balance are the stored, ledger-backed figures; tax columns are derived from the
+  invoice's own lines and left blank (with a count in the result) when they no longer match the stored total.
+- Unverified: actual Worker CPU for a report page. The proxy says one page is ~1 ms of JavaScript plus database time;
+  confirm on a deployed Worker before relying on it, and lower the page sizes if a page ever runs hot.
+
+---
+
 ## 2026-10-26 — Invoice workspace, Stage E: search and paging, customer pages, safer item fill (built, not deployed)
 
 **Decided by:** product owner (plan approved with E1–E8 as recommended). Detail:

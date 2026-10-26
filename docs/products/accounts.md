@@ -106,7 +106,8 @@ documents.
 | `POST /api/invoices/:id/duplicate` | copy with next number and new dates (a quotation copies as the next quotation) |
 | `POST /api/invoices/:id/convert` | quotation → new invoice, next invoice number (Pro) |
 | `PUT /api/invoices/:id/recurring` · `POST /api/invoices/:id/recur` · `GET /api/invoices/due` | repeat schedule · Create/Skip a due reminder · what's due (Pro) |
-| `GET /api/invoices/export` | CSV of invoices or line items (Pro) |
+| `GET /api/invoices/export` | CSV of invoices or line items (Pro) — server-built, up to 5,000 invoices; unchanged |
+| `GET /api/invoices/reports?report=register\|payments\|outstanding\|ageing&currency=&today=[&from=&to=&customer=&state=&bucket=&method=&includeVoided=1&page=&pageSize=]` · `?report=meta` | Pro (`invoice_csv_export`, checked on every request, 403 without and no data): one small page of a report with totals over every match; the browser assembles the CSV. One currency; 413 over the cap; rate-limited; `private, no-store` |
 | `POST /api/invoices/batch` | up to 50 invoices from a CSV (Pro) |
 | `GET /api/fx` | currency reference rates, from Frankfurter (Pro) |
 | `GET/POST /api/qr`, `GET/PUT/DELETE /api/qr/:id` | tracked QR codes: list · save (403 `limit` at 3 on free) · one with scans per day · rename / pause / resume · delete |
@@ -147,6 +148,7 @@ details shared by all business tools. Paths inside kaamsolv.com, not subdomains
 /app/invoices                Invoices → All invoices
 /app/invoices/overview       Invoices → Overview (Pro: billed, unpaid, overdue)
 /app/invoices/collections    Invoices → Payments & collections (Pro: received, outstanding, ageing, monthly chart)
+/app/invoices/reports        Invoices → Reports & exports (Pro: register, payments, outstanding, ageing as CSV)
 /app/invoices/settings       Invoices → Invoice settings (numbering, defaults)
 /app/business                Shared → Business profile (details, GSTIN, logo, bank/UPI)
 /app/business/customers      Shared → Customers (free: 3)

@@ -24,9 +24,16 @@ export default async function CollectionsPage() {
       title="Payments & collections"
       intro="What you’ve billed, what’s come in, and what’s still owed."
       actions={
-        <a href="/app/invoices" className={SECONDARY}>
-          All invoices
-        </a>
+        <>
+          {ent.can('invoice_csv_export') && (
+            <a href="/app/invoices/reports" className={SECONDARY}>
+              Reports &amp; exports
+            </a>
+          )}
+          <a href="/app/invoices" className={SECONDARY}>
+            All invoices
+          </a>
+        </>
       }
     >
       <Collections />
