@@ -40,6 +40,13 @@ infrastructure. Newest first. Detail lives in the linked docs.
   behind a driver interface and is tested against a fake driver (gates, dry run, the exact transaction, already-applied, journal mismatch, confirmed rollback, unknown outcome, read-back failure → exit 3). The refusal no longer
   tells the operator the host; the emptiness check covers every non-system schema; `--through` must be exact; `npm run db:host` replaces hand-parsing the URL in PowerShell; the payments rehearsal repeats its scenarios behind
   a start barrier and reports requests and in-flight overlap without ever claiming a race, and a locally-injectable fault proves it fails on an unexpected error even when every total reconciles.
+- **First real Neon rehearsal, 2026-10-27** (a brand-new throwaway project, PostgreSQL 18.6, run with the committed tools through a one-command program; nothing of production was touched). Passed: real statement and lock
+  timeouts (57014, 55P03) inside Neon's HTTP transaction; the runner accepting drizzle's journal rows; a planted conflict making 0010 fail at its second-to-last statement and **rolling back completely** (a `42710` error from the
+  database, correctly reported as rolled back); the real apply in one transaction; repeat runs and drizzle's own migrator as no-ops. It found **two real defects**, both fixed: (1) the tools called `process.exit()` while the Neon driver's sockets
+  were closing, which crashed Node on Windows with a garbage exit code right after a correct message (the repo's db/link-status.mts documents the hazard; the tools now set `process.exitCode`, and a test forbids `process.exit()` in them);
+  (2) **payments deadlocked under concurrency** — the foreign-key check on `invoice_payments.invoice_id` takes a KEY SHARE lock on the invoice row, then the ledger trigger asks for FOR UPDATE on it, and two or more simultaneous payments
+  each wait to upgrade (SQLSTATE 40P01; 31 failed requests in 2 of 20 rounds, totals still correct). Fixed without a migration by taking `FOR UPDATE` on the invoice row inside the insert statement itself (`insertPaymentStatement`);
+  the same 20 rounds then passed with no deadlock (720 requests released together). PGlite, with its single connection, cannot show a deadlock, so this class of defect is only found on a real server.
 - **Docs corrected**: the old Worker does *not* simply ignore 0010 — its Pro "Mark paid" fails with a server error from the moment 0010 exists until the new
   Worker is live (and after a Worker-only rollback); a Worker rollback keeps all payments; a database rollback destroys them.
 - **Cloudflare plan is not assumed.** The repo doesn't record it; earlier wording that treated it as the free plan was reworded. Owner to confirm the plan,

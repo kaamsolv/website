@@ -117,6 +117,30 @@ export type RecordResult =
  * Record a payment. Safe to repeat: the form sends one `clientKey` per payment, so a double click, a retry after a
  * dropped connection or a second tab returns the payment already recorded (`duplicate: true`) instead of a second one.
  */
+/**
+ * The statement that records a payment. It locks the invoice row FIRST (`for update of i`), inside the same statement.
+ *
+ * Why: inserting into `invoice_payments` runs the foreign-key check on `invoice_id` before the ledger trigger
+ * (internal constraint triggers sort ahead of `invoice_payments_ai`), and that check takes a KEY SHARE lock on the invoice
+ * row. The ledger trigger then asks for FOR UPDATE on the same row — an upgrade. With two or more payments in flight
+ * each holds KEY SHARE and waits for the other to let go: a deadlock, and Postgres aborts one with SQLSTATE 40P01. The
+ * first real Neon rehearsal showed it (17 and 14 of 20 simultaneous payments failed in two rounds, totals still correct;
+ * PGlite has one connection and can never show it). Taking FOR UPDATE up front makes concurrent payments queue at ONE
+ * lock instead — no upgrade, so no deadlock — and the database triggers still enforce every rule exactly as before.
+ * No migration: the trigger and the foreign key are unchanged.
+ */
+export function insertPaymentStatement(userId: string, invoiceId: string, input: PaymentInput) {
+  return sql`
+      insert into ${invoicePayments} (user_id, invoice_id, amount, currency, paid_on, method, reference, note, client_key)
+      select i.user_id, i.id, ${centsToDecimal(input.amountCents)}::numeric, i.currency, ${input.paidOn}::date,
+             ${input.method}, ${input.reference}, ${input.note}, ${input.clientKey}::uuid
+      from ${invoices} i
+      where i.id = ${invoiceId}::uuid and i.user_id = ${userId}::uuid and i.kind = 'invoice'
+      for update of i
+      on conflict (user_id, client_key) do nothing
+      returning id`;
+}
+
 export async function recordPayment(db: Db, userId: string, invoiceId: string, input: PaymentInput): Promise<RecordResult> {
   const [inv] = await db
     .select({ status: invoices.status, amountPaid: invoices.amountPaid, kind: invoices.kind })
@@ -127,14 +151,7 @@ export async function recordPayment(db: Db, userId: string, invoiceId: string, i
 
   let insertedId: string | undefined;
   try {
-    const result = await db.execute<{ id: string }>(sql`
-      insert into ${invoicePayments} (user_id, invoice_id, amount, currency, paid_on, method, reference, note, client_key)
-      select i.user_id, i.id, ${centsToDecimal(input.amountCents)}::numeric, i.currency, ${input.paidOn}::date,
-             ${input.method}, ${input.reference}, ${input.note}, ${input.clientKey}::uuid
-      from ${invoices} i
-      where i.id = ${invoiceId}::uuid and i.user_id = ${userId}::uuid and i.kind = 'invoice'
-      on conflict (user_id, client_key) do nothing
-      returning id`);
+    const result = await db.execute<{ id: string }>(insertPaymentStatement(userId, invoiceId, input));
     insertedId = (result as unknown as { rows: { id: string }[] }).rows[0]?.id;
   } catch (e) {
     switch (ledgerErrorOf(e)) {

@@ -40,7 +40,7 @@ import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { sql } from 'drizzle-orm';
 import { recordPayment, voidPayment } from '../db/payments.ts';
-import { argValue, installSafeErrorOutput, redact } from '../db/atomic-migration.ts';
+import { StopRun, argValue, installSafeErrorOutput, redact } from '../db/atomic-migration.ts';
 import { classifyRehearsalError, refusalIfNotEmpty } from '../db/rehearsal-guard.ts';
 import type { Db } from '../db/links.ts';
 
@@ -50,7 +50,7 @@ const args = process.argv.slice(2);
 const local = args.includes('--local');
 const stop = (m: string): never => {
   console.error(redact(m, process.env.DATABASE_URL));
-  process.exit(1);
+  throw new StopRun(1); // not process.exit(): it can be reached after the database was contacted (see installSafeErrorOutput)
 };
 
 const rawRounds = argValue(args, '--rounds');
@@ -340,4 +340,4 @@ console.log(`Attempts: ${attempts} requests released together across ${rounds} r
 
 const failed = [...tallies.values()].filter((t) => t.failed > 0);
 console.log(`\n${tallies.size - failed.length} of ${tallies.size} checks passed. Synthetic data removed.`);
-process.exit(failed.length ? 1 : 0);
+process.exitCode = failed.length ? 1 : 0; // not process.exit(): see installSafeErrorOutput

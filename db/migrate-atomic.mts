@@ -48,4 +48,4 @@ const code = await runAtomicCli({
   },
   io: { out: (line) => console.log(line), err: (line) => console.error(line) },
 });
-process.exit(code);
+process.exitCode = code; // not process.exit(): see installSafeErrorOutput (Windows + the Neon driver's open sockets)

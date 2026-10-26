@@ -315,10 +315,33 @@ export function describeError(e: unknown, connectionString: string | undefined):
  * and exit 1, instead of Node's default dump of the error object. Install once at the top of each tool.
  */
 export function installSafeErrorOutput(): void {
+  // No process.exit() here or anywhere in the tools: on Windows, exiting while the Neon HTTP driver's fetch keep-alive
+  // sockets are still closing trips a libuv assertion (db/link-status.mts has the same note) — it happened on the first
+  // real Neon run, right after a correct "rolled back" message, and replaced the exit code with garbage. Set the exit
+  // code and let the event loop drain. The unref'd timer is only a backstop for something that never lets go.
   const fail = (e: unknown) => {
+    if (e instanceof StopRun) {
+      process.exitCode = e.exitCode;
+      return;
+    }
     console.error(describeError(e, process.env.DATABASE_URL));
-    process.exit(1);
+    process.exitCode = 1;
+    setTimeout(() => process.exit(1), 5_000).unref();
   };
   process.on('uncaughtException', fail);
   process.on('unhandledRejection', fail);
+}
+
+/**
+ * Stop a tool from anywhere — even deep inside awaited code — without process.exit(): throw this. The handler above turns
+ * it into the exit code and the process then ends when its connections have closed.
+ */
+export class StopRun extends Error {
+  readonly exitCode: number;
+  // No `readonly` parameter property: Node's built-in type stripping cannot handle one, and these tools run on it.
+  constructor(exitCode: number) {
+    super(`stopped (exit code ${exitCode})`);
+    this.name = 'StopRun';
+    this.exitCode = exitCode;
+  }
 }

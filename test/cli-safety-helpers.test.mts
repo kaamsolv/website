@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { argValue, describeError } from '../db/atomic-migration.ts';
+import { StopRun, argValue, describeError } from '../db/atomic-migration.ts';
 
 test('argValue reads the word after the flag, and only that', () => {
   assert.equal(argValue(['--expect-host', 'db.example'], '--expect-host'), 'db.example');
@@ -40,4 +40,11 @@ test('describeError copes with anything thrown, and caps long messages', () => {
   assert.equal(describeError('a plain string', undefined), 'Error: a plain string');
   assert.equal(describeError(undefined, undefined), 'Error: undefined');
   assert.ok(describeError(new Error('x'.repeat(5000)), undefined).length < 340);
+});
+
+test('StopRun carries an exit code and is an Error, so it can be thrown from anywhere and caught by the shared handler', () => {
+  const stop = new StopRun(3);
+  assert.ok(stop instanceof Error);
+  assert.equal(stop.exitCode, 3);
+  assert.equal(stop.name, 'StopRun');
 });

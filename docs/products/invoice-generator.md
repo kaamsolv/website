@@ -318,6 +318,10 @@ change is one SQL statement and the triggers do the rest under `SELECT … FOR U
 on the invoice row. Two payments at the same instant are applied one after the other;
 the second sees the first and is refused if the invoice is covered.
 
+**Concurrent payments.** Recording a payment locks the invoice row **first**, inside the insert statement (`for update of i`, `insertPaymentStatement` in `db/payments.ts`). Without it, the foreign-key check takes a KEY SHARE lock on the invoice and the
+ledger trigger then asks for FOR UPDATE on the same row; two payments in flight each wait to upgrade and Postgres aborts one with a deadlock (SQLSTATE 40P01). Found by the first real Neon rehearsal (2026-10-27: 31 failed requests in 2 of 20 rounds
+with 20 simultaneous payments; totals stayed correct) and fixed without a migration; the same 20 rounds then passed with none. A failed payment is safe to repeat: the form's idempotency key means a retry can't record it twice.
+
 **Idempotency.** The form creates one `clientKey` (uuid) per payment and keeps it
 across retries. Recording is `INSERT … ON CONFLICT (user_id, client_key) DO NOTHING`
 (all rules are in AFTER triggers, so a repeat changes nothing): a double click, a

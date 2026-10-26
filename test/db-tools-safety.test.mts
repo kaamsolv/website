@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, test } from 'node:test';
@@ -261,4 +261,34 @@ test('db:host prints only the host — even for a password full of special chara
   temp.push(dir);
   writeFileSync(join(dir, '.env.local'), `DATABASE_URL=${URL_WITH_SECRET}\n`);
   assert.equal(run('db/print-host.mts', [], {}, dir).out.trim(), 'unset', 'no .env file is read');
+});
+
+// ─── Exiting: never process.exit() in a tool that may have used the network ─────────────────────────
+
+test('no tool that can talk to a database calls process.exit() — on Windows it can crash on the Neon driver’s closing sockets', () => {
+  // Found on the first real Neon run: a correct "rolled back" message was followed by a libuv assertion and a garbage
+  // exit code (3221226505) instead of 1, because the tool exited while fetch keep-alive sockets were still closing.
+  // db/link-status.mts documents the same hazard. Tools set process.exitCode, or throw StopRun, and let the loop drain.
+  for (const file of ['db/migrate-atomic.mts', 'db/prepare-rehearsal.mts', 'db/atomic-cli.ts', 'db/prepare-cli.ts', 'scripts/rehearse-payments.mts']) {
+    const source = readFileSync(resolve(ROOT, file), 'utf8');
+    const code = source.split(/\r?\n/).filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line)).map((line) => line.replace(/\/\/.*$/, '')).join('\n');
+    assert.ok(!/process\.exit\(/.test(code), `${file} does not call process.exit()`);
+  }
+  // The one backstop in the shared handler is an unref'd timer that only matters if something never lets go.
+  const shared = readFileSync(resolve(ROOT, 'db/atomic-migration.ts'), 'utf8');
+  assert.match(shared, /setTimeout\(\(\) => process\.exit\(1\), 5_000\)\.unref\(\)/);
+});
+
+test('a refusal still ends the process with exit code 1 and no extra output — the tools stop by StopRun/exitCode, not process.exit()', () => {
+  for (const [script, args, viaTsx] of [
+    ['db/migrate-atomic.mts', ['--expect-host', 'x'], false],
+    ['db/prepare-rehearsal.mts', ['--expect-host', 'x', '--non-production'], false],
+    ['scripts/rehearse-payments.mts', ['--expect-host', 'x', '--non-production'], true],
+    ['scripts/rehearse-payments.mts', ['--local', '--rounds', '0'], true],
+  ] as const) {
+    const r = run(script, [...args], {}, ROOT, viaTsx);
+    assert.equal(r.code, 1, `${script} ${args.join(' ')}`);
+    assert.ok(r.out.trim().split(/\r?\n/).length <= 2, `one short line, no stack trace: ${r.out.slice(0, 200)}`);
+    assert.ok(!/StopRun|at |node:internal/.test(r.out), `${script}: StopRun is never shown to the operator`);
+  }
 });
