@@ -157,11 +157,14 @@ version with the same code.
   `db/migrations/` (SQL + `meta/`), committed.
 - `npm run db:generate` — write a new migration from `db/schema.ts` (no DB needed).
 - `npm run db:migrate` — apply pending migrations: to Neon when `DATABASE_URL` is
-  set, else to local PGlite (`.pglite/`).
+  set, else to local PGlite (`.pglite/`). **On Neon this runs statement by statement and is not atomic** —
+  fine for a tiny migration on a throwaway branch, not for production (see "Applying a migration to production").
+- `npm run db:migrate:atomic` — Neon only: applies pending migrations and their journal rows as **one transaction**;
+  dry run unless `--confirm`. Use this for production.
 - **Production migrations are a manual, deliberate step**, never part of the
   build. For the first setup `db/setup-production.mjs` did migrations + secrets in
   one go (it asks for the connection string with hidden input). For later
-  migrations, run `npm run db:migrate` with `DATABASE_URL` set only for that
+  migrations, run `npm run db:migrate:atomic` with `DATABASE_URL` set only for that
   command — don't leave the production string in `.env.local`.
 
 | Migration | Creates | Neon production |
@@ -214,11 +217,14 @@ DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_
 
 Dropping the column ungroups every code; no code, link or scan is touched. Dropping the trigger removes the database-level QR limit, so the app's own check (which still runs) is the only guard until 0009 is re-applied.
 
-| `0010_invoice_payments.sql` | `invoice_payments` (the payment ledger), `invoice_payment_events` (its audit trail), `invoices.amount_paid` (+ check); the ledger triggers (`invoice_payments_sync`, `_after_insert`, `_guard`, `_after_update`, `invoices_ledger_guard`); seed `invoice_payments` on `free_account` and `invoice_pro` | **not applied** — apply before the deploy that uses it (the new code reads `invoices.amount_paid`) |
+| `0010_invoice_payments.sql` | `invoice_payments` (the payment ledger), `invoice_payment_events` (its audit trail), `invoices.amount_paid` (+ check); the ledger triggers (`invoice_payments_sync`, `_after_insert`, `_guard`, `_after_update`, `invoices_ledger_guard`); seed `invoice_payments` on `free_account` and `invoice_pro` | **not applied** — apply with `npm run db:migrate:atomic` (not `db:migrate`) a few minutes before the deploy that uses it (the new code reads `invoices.amount_paid`); see "Applying a migration to production" below |
 
-Applying 0010 changes no existing row: every invoice keeps its `status`; invoices already `paid` keep it with `amount_paid = 0` (shown as "Marked paid" — no payments on record; nothing is backfilled). The Worker that is live today ignores the new column and tables, so the migration can go first safely.
+Applying 0010 changes no existing row: every invoice keeps its `status`; invoices already `paid` keep it with `amount_paid = 0` (shown as "Marked paid" — no payments on record; nothing is backfilled). The schema is additive and the Worker that is live today does not read the new column or tables — **with one exception**: its Pro **Mark paid** button (`PUT /api/invoices/:id/status`) sets `status = 'paid'` directly, and once 0010 exists the ledger trigger `invoices_ledger_guard` refuses that for any invoice that has no payments (`invoice_unsettled`). The old code doesn't handle that error, so **Mark paid fails with a server error between applying 0010 and deploying the new Worker** — and again after a Worker-only rollback. Nothing is written when it fails. The new Worker replaces the button with recording a payment. Only Pro (`invoice_dashboard`) accounts see the button, and Pro is granted by hand today, so the exposure is small, but keep the gap between migrating and deploying to minutes. The old Worker's save also fails with a server error (rather than a friendly message) if an edit would take an invoice's total below what was received.
 
-**Rolling back 0010.** Prefer rolling back the **Worker version only**: the schema is additive, and the old Worker ignores it (an old "Mark paid" on an invoice with payments is overridden by the ledger rules, so status can't go wrong). Run the SQL below only if the tables must go, and **only after exporting `invoice_payments`** (`COPY invoice_payments TO …` or the Neon console) — unlike 0007–0009 this removes money the user recorded, and the received amounts with it:
+**Rolling back 0010.** Two different things:
+
+1. **Roll back the Worker version only** (`npx wrangler rollback`). The schema stays, **every recorded payment and its history is kept**, and the old Worker simply doesn't show them. Side effects while the old Worker is live: the Pro Mark paid button fails (above); invoices show the `status` the ledger last gave them, so a partly paid invoice reads "unpaid" and the old dashboard counts its full total as owed (it doesn't know about `amount_paid`); new payments can't be recorded. This is the normal rollback.
+2. **Roll back the database** (the SQL below). This **permanently destroys the payment ledger and its audit history — every payment, void and note recorded since 0010 was applied — and `invoices.amount_paid`.** Invoices keep the `status` the ledger last gave them, but the amounts received are gone, and there is no undo except a Neon restore point, which also discards everything else every user saved since that point. Run it only if the tables must go, only after exporting `invoice_payments` and `invoice_payment_events` (`COPY … TO …` or the Neon console), and only with the owner's explicit approval. If no payment has been recorded yet it loses nothing.
 
 ```sql
 DROP TRIGGER invoices_ledger_guard ON invoices;
@@ -235,7 +241,58 @@ DELETE FROM plan_features WHERE feature_key = 'invoice_payments';
 DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
 ```
 
-Invoices keep the `status` the ledger last gave them (a fully paid one stays `paid`; a partly paid one reads `unpaid`), but the amounts received are gone with the table.
+After the SQL above, invoices keep the `status` the ledger last gave them (a fully paid one stays `paid`; a partly paid one reads `unpaid`), but the amounts received are gone with the tables.
+
+### Applying a migration to production (atomic runner)
+
+**Why not `npm run db:migrate`.** Production uses Neon's HTTP driver, which has no multi-statement transactions, and drizzle's `neon-http`
+migrator sends **every statement as its own request and writes the journal row only after all of them have run**. Migration 0010 is 23
+statements (tables, five plpgsql functions, four triggers, a seed). If one fails, or the connection drops, the earlier statements stay
+committed, there is no journal row, and a re-run stops at the first `CREATE TABLE … already exists` — leaving a half-applied ledger to clean up
+by hand. (`test/atomic-migration.test.mts` reproduces exactly this.)
+
+**`npm run db:migrate:atomic`** (`db/migrate-atomic.mts`; logic and tests in `db/atomic-migration.ts` / `test/atomic-migration.test.mts`) sends the
+pending migrations' statements **and their journal rows as one Neon HTTP transaction**: all of it commits or none of it does. It reads the same
+files, splits them the same way, writes the same journal row (`hash`, `created_at`) as drizzle, so `db:migrate` afterwards sees an up-to-date database
+(proved on PGlite for 0010 and for a from-scratch build). It refuses to run on a database whose journal doesn't match the checkout. Without `--confirm`
+it is a **read-only dry run**; applying also needs `--confirm --restore-point-taken`. **It never chooses a target for you:** `DATABASE_URL` must be set in the environment of
+that one command (no `.env` file is read, so a production string left in `.env.local` is never picked up), and `--expect-host <host>` — typed by you, every time, dry run included —
+must equal that URL's host or nothing is contacted. It prints the host only; anything it prints is scrubbed of the connection string and password.
+
+**Procedure — none of this has been run against production; each step waits for the owner's go-ahead.**
+
+1. **Branch**: deploy only from a branch that contains the latest `main` and `.env.production` (earlier deploys from older branches removed analytics).
+   `npm run typecheck && npm test && npm run cf:build`; `npx playwright test`.
+2. **Restore point**: create a Neon restore point (or branch) of `production` and note the time. Confirm the restore window your Neon plan allows.
+3. **Read-only check**: `DATABASE_URL=<production> npm run db:migrate:atomic -- --expect-host <production host>` (dry run). Expect "Applied 10 of 11. Pending: 1 (0010_invoice_payments)". Anything else — stop.
+4. **Rehearse on a dedicated non-production Neon branch** that has **no users and no customer data** (an empty or schema-only branch; never a data copy of
+   production). Apply with the same command (`--expect-host <that host> --confirm --restore-point-taken`), then `DATABASE_URL=<that branch> npx tsx scripts/rehearse-payments.mts --expect-host <that host> --non-production` (concurrent payments, one
+   idempotency key sent ten times at once, a void or a total-lowering edit racing a payment, then a ledger reconciliation sweep). The script refuses without `--non-production`, and refuses any
+   database that has a user in it. This is the only step that exercises the Neon driver adapter and real concurrent connections; PGlite is serial.
+5. **Apply**: `npm run db:migrate:atomic -- --confirm --expect-host <production host> --restore-point-taken`, **immediately before step 6** (see the Mark paid note above).
+6. **Deploy** the Worker: `npm run cf:deploy`.
+7. **Validate** (read-only SQL):
+
+```sql
+SELECT count(*) FROM drizzle.__drizzle_migrations;                       -- 11
+SELECT to_regclass('public.invoice_payments'), to_regclass('public.invoice_payment_events');   -- both non-null
+SELECT count(*) FROM invoice_payments;                                   -- 0 straight after migrating
+SELECT count(*) FROM invoices WHERE amount_paid <> 0;                    -- 0
+SELECT count(*) FROM pg_trigger WHERE tgname IN ('invoice_payments_guard','invoice_payments_ai','invoice_payments_au','invoices_ledger_guard');  -- 4
+SELECT count(*) FROM plan_features WHERE feature_key = 'invoice_payments';  -- 2
+SELECT count(*) FROM invoices WHERE status = 'paid' AND amount_paid = 0;    -- every invoice that was already paid: "Marked paid"
+```
+
+   Then in the app: record a payment on a test invoice, void it, open Payments & collections, download one report, check `/api/dashboard`.
+8. **If the command's connection dropped before an answer**, the outcome is unknown, not failed: run it again **without** `--confirm`. The journal is committed
+   together with the schema, so "Applied 11 of 11" means it committed and "Applied 10 of 11" means it rolled back.
+
+| Situation | Do | Consequence for data |
+|---|---|---|
+| The new Worker misbehaves | `npx wrangler rollback` (instant) | None — schema and payments stay. Old "Mark paid" fails until the new Worker is back. |
+| It misbehaves after users have recorded payments | Worker rollback only; leave the schema | Payments and history are **kept**, invisible to the old Worker; partly paid invoices read "unpaid". |
+| The tables must go | The SQL block under "Rolling back 0010", after exporting both tables, with the owner's approval | **Every payment and its history recorded since is destroyed.** |
+| Restore from the Neon restore point | Last resort | Discards **all** users' writes since the restore point, not just payments. |
 
 Operator tools (need `DATABASE_URL` for production): `npm run link:status -- <code>`
 (status, clicks, reports; `disable --confirm` takes a link down) and

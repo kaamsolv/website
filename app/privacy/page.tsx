@@ -75,8 +75,22 @@ export default function PrivacyPage() {
           address, state, GSTIN, email, phone, logo, bank account and UPI details, invoice numbering and defaults);
           your saved customers (name, contact, email, phone, address, state, GSTIN); and your saved items
           (name, HSN/SAC code, unit, rates). Invoices and customers include your clients&apos; details that you
-          type in — please only save client information you&apos;re allowed to keep for your business. If you use
-          paid / unpaid tracking, we also store whether and when each invoice was paid.
+          type in — please only save client information you&apos;re allowed to keep for your business.
+        </li>
+        <li>
+          <strong>Payments you record on an invoice</strong>: for each one, the amount, the date you received it,
+          how it was paid (UPI, bank transfer, cash, card, cheque or other), a reference (such as a transaction
+          number) and a note if you add them, and — if you void a mistaken payment — when you voided it and the
+          reason you gave. An invoice&apos;s received total and its status (unpaid, partly paid, paid) follow from
+          these. An invoice you marked paid before payments could be recorded keeps that mark, with no payment
+          details. These are your own records of money you were paid; we don&apos;t see or move any money.
+        </li>
+        <li>
+          <strong>A history of each payment</strong>: every time a payment is recorded, voided, or has its
+          reference or note changed, we keep a dated entry — including the reference and note as they were before
+          an edit. We keep this history for as long as the invoice exists. It isn&apos;t shown anywhere in your
+          account, and changing a note doesn&apos;t remove the earlier wording from it; deleting the invoice, or
+          your account, deletes the payments and their history with it.
         </li>
         <li>
           <strong>Tracked QR codes you save</strong>: its name, type, the link it leads to, the look of the code
@@ -91,8 +105,9 @@ export default function PrivacyPage() {
         </li>
       </ul>
       <p>
-        We use this only to run your account. Nobody else can see your saved invoices, and we don&apos;t look
-        at them unless you ask us to help with a problem.
+        We use this only to run your account. Nobody else can see your saved invoices or payments, and we don&apos;t look
+        at them unless you ask us to help with a problem. We don&apos;t keep a copy of the reports and CSV files you
+        download.
       </p>
 
       <h2>The URL Shortener</h2>
@@ -224,9 +239,9 @@ export default function PrivacyPage() {
         <li>Reports: as long as we need them to deal with the link.</li>
         <li>Abuse-protection counters: they reset within minutes to a day.</li>
         <li>
-          Your account, saved invoices, customers, items, tracked QR codes (with their scans) and settings: until you
-          delete them or your account. Deleting an invoice, a QR code or your account removes it from our database
-          straight away; our database provider&apos;s
+          Your account, saved invoices (with their recorded payments and payment history), customers, items, tracked
+          QR codes (with their scans) and settings: until you delete them or your account. Deleting an invoice, a QR
+          code or your account removes it from our database straight away; our database provider&apos;s
           short-term backups are overwritten within days.
         </li>
         <li>Sign-in sessions: 30 days after you last used KaamSolv, or when you sign out.</li>
@@ -236,7 +251,7 @@ export default function PrivacyPage() {
       <h2>Your choices and rights</h2>
       <p>
         If you have an account, you can delete any saved invoice yourself, and delete your whole account at{' '}
-        <a href="/app/account">Account → Delete my account</a>. That removes your account, invoices, customers, items and business
+        <a href="/app/account">Account → Delete my account</a>. That removes your account, invoices, recorded payments and their history, customers, items and business
         details.
       </p>
       <p>
@@ -255,7 +270,7 @@ export default function PrivacyPage() {
 
       <h2>Changes</h2>
       <p>
-        If we add something that changes what we collect (for example payments or ads), we&apos;ll
+        If we add something that changes what we collect (for example paid plans or ads), we&apos;ll
         update this page first and change the date at the top.
       </p>
     </TextPage>

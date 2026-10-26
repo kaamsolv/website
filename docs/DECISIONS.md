@@ -5,6 +5,38 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-26 — Release-readiness audit: remediation before the invoice release (built, not deployed)
+
+**Decided by:** product owner, after a read-only audit of Stages C–F. Detail: [`infra/deployment.md`](./infra/deployment.md) §9
+"Applying a migration to production".
+
+- **`main` merged into the feature branch** (local only, no conflicts): the branch had lacked the analytics fix that keeps Google Analytics off `/app`
+  pages and strips page addresses — which matters more now that invoice-list and customer URLs carry filters and ids — and the QR "Save tracked QR" fix.
+  Deploy only from a branch that contains the latest `main`.
+- **Privacy page now describes payment records**: amount, date received, method, reference, note, void reason and date, and the payment audit history
+  (which also keeps a note's or reference's earlier wording). **Retention is unchanged and disclosed:** the history is kept while the invoice exists and
+  deleted with the invoice or account. A shorter retention would be a separate decision.
+- **Migration 0010 is applied with `npm run db:migrate:atomic`**, not `db:migrate`: the Neon HTTP migrator is not atomic (each statement is its own request, the
+  journal row comes last), so a mid-migration failure leaves a half-applied schema that a re-run can't get past. The atomic runner sends the statements and
+  the journal row as one transaction, refuses a database whose journal differs from the checkout, and needs `--confirm --restore-point-taken`. It never picks a
+  target: `DATABASE_URL` must be in that one command's environment (no `.env` file is read), `--expect-host` must match it every time (dry run included) or nothing is
+  contacted, and everything printed is scrubbed of the connection string and password. The rehearsal script additionally needs `--non-production` and refuses any
+  database that has a user in it; both CLIs are tested as real processes.
+  Proved on PGlite (same schema and journal as drizzle's migrator; injected failures leave nothing behind); **not yet run against any Neon database.**
+- **Docs corrected**: the old Worker does *not* simply ignore 0010 — its Pro "Mark paid" fails with a server error from the moment 0010 exists until the new
+  Worker is live (and after a Worker-only rollback); a Worker rollback keeps all payments; a database rollback destroys them.
+- **Cloudflare plan is not assumed.** The repo doesn't record it; earlier wording that treated it as the free plan was reworded. Owner to confirm the plan,
+  which sets the Worker's CPU and bundle limits.
+- **Stage E pager race fixed** (`directory-manager.tsx`, found while re-running the suite): the customers/items search timer also fired once after
+  the list opened and reset it to page 1 even though the search text hadn't changed, so a quick click on another page was undone; and a late answer
+  for an older page could replace a newer one. Now the list returns to page 1 only when the search text changes, and only the latest request's answer is
+  used. Two browser tests (a controlled clock that fires the timer after a page is chosen; a deliberately late page-2 answer) fail on the old code and
+  pass on the new.
+- **Neon rehearsal harness** (`scripts/rehearse-payments.mts`) prepared; it refuses any database that contains a user, so it can't run on a copy of real
+  data. Real concurrency on Neon remains unverified until it is run on a dedicated empty branch.
+
+---
+
 ## 2026-10-26 — Reports & exports, Stage F (Pro): decisions applied (built, not deployed)
 
 **Decided by:** product owner (plan approved with F1–F8 as recommended, plus nine conditions). Detail:
@@ -12,8 +44,8 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 - **F1** The CSV is **built in the browser from small server-computed pages** (100 register / 500 payment rows), not on
   the server: a Node benchmark of the existing export (5,000 GST invoices ≈ 90 ms of JavaScript, 7.6 MB of documents) is
-  a proxy only, but it is far above a free-plan Worker's per-request CPU limit, while a page costs under 1 ms of
-  JavaScript. Cap 10,000 / 50,000 / 10,000 rows. **F2** Reuses the existing `invoice_csv_export` entitlement, checked
+  a proxy only, but it is a lot of work for one request on any plan whose CPU limit is small (the actual Cloudflare plan is not
+  recorded and is unconfirmed), while a page costs under 1 ms of JavaScript. Cap 10,000 / 50,000 / 10,000 rows. **F2** Reuses the existing `invoice_csv_export` entitlement, checked
   server-side on every request; no new key. **F3** One currency per file, never converted. **F4** Voided payments are
   excluded from totals, listed only on request and labelled "Voided" / "Not counted". **F5** Nothing is invented for
   legacy marked-paid invoices (a note and a count, no rows). **F6** The existing `/api/invoices/export` and `csv.ts`
@@ -26,7 +58,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
   120/min and 1,200/h per account) is configuration, not schema.
 - The register's total, received and balance are the stored, ledger-backed figures; tax columns are derived from the
   invoice's own lines and left blank (with a count in the result) when they no longer match the stored total.
-- Unverified: actual Worker CPU for a report page. The proxy says one page is ~1 ms of JavaScript plus database time;
+- Unverified: actual Worker CPU for a report page, and which Cloudflare plan (and so which limits) applies. The proxy says one page is ~1 ms of JavaScript plus database time;
   confirm on a deployed Worker before relying on it, and lower the page sizes if a page ever runs hot.
 
 ---

@@ -11,6 +11,7 @@
     "test": "tsx --test \"test/**/*.test.mts\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node db/migrate.mts",
+    "db:migrate:atomic": "node db/migrate-atomic.mts",
     "link:status": "node db/link-status.mts",
     "account:grant": "node db/account-grant.mts",
     "link:reports": "node db/link-reports.mts",

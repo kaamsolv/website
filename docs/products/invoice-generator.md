@@ -715,8 +715,8 @@ invoices; it is **unchanged**.)
 `npx tsx scripts/benchmark-reports.mts` — 10,000 invoices (realistic GST documents, 1.5 kB of JSON, six lines each),
 50,000 payments (10% voided), three other accounts as background; in-memory PGlite, medians of 15. **This is a Node
 proxy: it shows how the queries scale and what a page costs in JavaScript, not the Worker's CPU time, which only a
-deployed test can confirm** (the Worker is believed to be on the free plan's ~10 ms limit; each page is built to stay
-far below it, and the documented fallback is to lower the page sizes).
+deployed test can confirm**. Which Cloudflare plan the Worker is on — and so its CPU-time and bundle limits — is not recorded in the
+repo and has not been confirmed (owner to confirm); each page is built to stay small, and the documented fallback is to lower the page sizes.
 
 | Request | median | body |
 |---|---|---|

@@ -309,3 +309,61 @@ test('phone and dark mode: the customer page and the customers list do not scrol
     expect(await noSideways(page)).toBe(true);
   }
 });
+
+/**
+ * The pager race (found by the release audit): the search box's "a moment after you stop typing" timer also fires once
+ * after the list opens, and used to put the list back on page 1 even when the search text had not changed — pulling
+ * someone off the page they had just chosen. And an answer for an older page could arrive after a newer one and win.
+ */
+test('the list stays on the page you chose when the search timer fires', async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page, email('pro-pager'));
+  for (let n = 1; n <= 30; n++) await customer(page, `Customer ${String(n).padStart(2, '0')}`);
+  const list = page.getByRole('list', { name: 'Saved customers' }).getByRole('listitem');
+  const range = page.getByTestId('pager-range');
+  const pages = page.getByRole('navigation', { name: 'Customer pages' });
+
+  // 1. The page's timers are under our control: open the list, choose page 2, and only then let the 250 ms search timer fire.
+  await page.clock.install();
+  await page.goto('/app/business/customers');
+  await expect(list).toHaveCount(25);
+  await pages.getByRole('link', { name: 'Page 2' }).click();
+  await expect(range).toHaveText('Showing 26–30 of 30');
+  await expect(list).toHaveCount(5);
+  await page.clock.runFor(2000); // the search timer fires here — with no change to the search text
+  await page.waitForTimeout(500); // real time for any request it should not have made
+  await expect(range, 'still on page 2').toHaveText('Showing 26–30 of 30');
+  await expect(list.last()).toContainText('Customer 30');
+  await expect(list).toHaveCount(5);
+
+  // Typing a different search still starts from the first page, as before.
+  await page.getByRole('searchbox', { name: 'Search customers' }).fill('Customer 2');
+  await page.clock.runFor(2000);
+  await expect(range).toHaveText('Showing 1–10 of 10');
+});
+
+test('an answer for an older page that arrives late does not replace the page you moved to', async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page, email('pro-stale'));
+  for (let n = 1; n <= 30; n++) await customer(page, `Customer ${String(n).padStart(2, '0')}`);
+  const list = page.getByRole('list', { name: 'Saved customers' }).getByRole('listitem');
+  const range = page.getByTestId('pager-range');
+  const pages = page.getByRole('navigation', { name: 'Customer pages' });
+
+  await page.goto('/app/business/customers');
+  await expect(list).toHaveCount(25);
+  // Every list request ends (an ignored answer is still read to the end), so the page does go quiet.
+  await page.waitForLoadState('networkidle', { timeout: 10_000 });
+  // The answer for page 2 is held back for 2 seconds; page 1 comes straight away.
+  await page.route('**/api/customers?*', async (route) => {
+    if (/[?&]page=2(&|$)/.test(route.request().url())) await new Promise((r) => setTimeout(r, 2000));
+    await route.continue().catch(() => undefined);
+  });
+  await pages.getByRole('link', { name: 'Page 2' }).click(); // asks for page 2 (slow)
+  await pages.getByRole('link', { name: 'Page 1' }).click(); // changes their mind: page 1 (fast)
+  await expect(range).toHaveText('Showing 1–25 of 30');
+  await page.waitForTimeout(3000); // the slow page-2 answer arrives now
+  await expect(range, 'the late answer was ignored').toHaveText('Showing 1–25 of 30');
+  await expect(list).toHaveCount(25);
+  await expect(list.first()).toContainText('Customer 01');
+});

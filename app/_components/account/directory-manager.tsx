@@ -72,16 +72,23 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const opened = useRef(false);
+  /** The search text the list currently reflects, and which request is the latest — so a late answer can't overwrite a newer one. */
+  const appliedQ = useRef('');
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
+    const mine = ++latest.current;
     const url = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), ...(q ? { q } : {}) });
     if (kind === 'customers') {
       url.set('stats', '1');
       url.set('today', isoDate(new Date()));
     }
     const res = await fetch(`${cfg.api}?${url}`, { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
-    if (!res?.ok) return setNotice('Couldn’t load the list. Refresh to try again.');
-    const body = (await res.json()) as { rows: Row[]; limit: number | null; total: number; pages: number; page: number; stats?: Record<string, Stat> };
+    // Always read the answer to the end — even one we are about to ignore — so the request is finished, not left hanging.
+    type Answer = { rows: Row[]; limit: number | null; total: number; pages: number; page: number; stats?: Record<string, Stat> };
+    const body = res?.ok ? ((await res.json().catch(() => null)) as Answer | null) : (await res?.text().catch(() => null), null);
+    if (mine !== latest.current) return; // a newer request has been made since: this answer is out of date
+    if (!body) return setNotice('Couldn’t load the list. Refresh to try again.');
     setRows(body.rows);
     setStats(body.stats ?? {});
     setTotal(body.total);
@@ -91,10 +98,14 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
   }, [cfg.api, kind, page, q]);
   useEffect(() => void load(), [load]);
 
-  // Search as you type, a moment after you stop, from the first page.
+  // Search as you type, a moment after you stop, from the first page — but only when the text actually changed,
+  // so this timer (which also runs once after the page opens) can't pull someone back from the page they chose.
   useEffect(() => {
     const t = setTimeout(() => {
-      setQ((cur) => (cur === qInput.trim() ? cur : qInput.trim()));
+      const next = qInput.trim();
+      if (next === appliedQ.current) return;
+      appliedQ.current = next;
+      setQ(next);
       setPage(1);
     }, 250);
     return () => clearTimeout(t);
