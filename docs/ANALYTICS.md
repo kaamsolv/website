@@ -25,14 +25,18 @@ changes what is collected must update `app/privacy/page.tsx` in the same change.
 
 All parameters are fixed labels. `tool_name` = catalogue slug, `tool_category` = category slug.
 
+**Every event** also carries a cleaned `page_location` (origin + path — no query string, no fragment; anything under `/app` is cut to `/app` because those paths hold ids) and, when there is a referrer, a cleaned `page_referrer`. Both are set explicitly in `send()` in `app/lib/analytics.ts`, because Google otherwise fills them with the full current URL. Call sites can't override them, so a future event can't send a full URL by accident. For anything Google's script measures **on its own** (Enhanced-measurement events, engagement), `syncCleanLocation()` also sets the same cleaned values as gtag defaults (`gtag('set', …)`) after setup and on every route change; whether Google's script honours them for every automatic event is **not verified** (see "Property settings").
+
+**Account area (`/app`, `/app/…`):** analytics is off entirely. `gtag.js` isn't added there, `active()` is false so no helper sends anything, and if the script is already on the page (client-side navigation from a public page) `ga-disable-<ID>` is set while in the account and cleared when back on a public page. Tests: `test/analytics-urls.test.mts` (every event type, dirty URL, account paths, bad input) and `tests/e2e/analytics.spec.ts`.
+
 | Event | When | Parameters |
 |---|---|---|
-| `page_view` | Each page / route change. Not on `/app/*` (signed-in area). Path only — no query or hash. | `page_location`, `page_path`, `page_title` |
+| `page_view` | Each page / route change. Not on `/app` or `/app/*` (signed-in area). Path only — no query or hash. | `page_location`, `page_path`, `page_title` |
 | `tool_open` | Once per tool page load | `tool_name`, `tool_category`, `tool_type`\* |
 | `tool_success` | The tool did its job (see below) | `tool_name`, `tool_category`, `tool_type` |
 | `tool_error` | A failure the visitor sees | the same, plus `error_type` (a short fixed code such as `convert_failed`, `network`, `rate_limited`, or a PDF error code) |
 | `file_download` | A download from a tool page | `tool_name`, `tool_category`, `file_ext` (allow-list: png jpg jpeg webp avif svg pdf zip, else `other`) |
-| `outbound_click` | Click on a link to another site | `link_domain` |
+| `outbound_click` | Click on a link to another site, on a public page. Not on `/app` or `/app/*`. | `link_domain` |
 
 \* `tool_type` is `calculator`, `converter`, `generator` or `utility`. On `tool_open` it is sent only for pages that pass it (image converters, QR, shortener); the shared shell doesn't.
 
@@ -50,7 +54,7 @@ All parameters are fixed labels. `tool_name` = catalogue slug, `tool_category` =
 | URL Shortener | Each short link created |
 | Invoice Generator | Each PDF made (download or preview) |
 
-**Never sent:** file names or contents, anything typed or calculated, the links people shorten, invoice or account data, raw error messages, query strings, `/app/*` pages.
+**Never sent by our code:** file names or contents, anything typed or calculated, the links people shorten, invoice or account data, raw error messages, query strings or fragments, anything from `/app/*`. What Google's own automatic features do depends on the GA4 property settings below.
 
 Not instrumented: `tool_use` (redundant with success + error), the `/pdf-tools` hub page (not a catalogue tool), `/tools`, the account area.
 
@@ -87,3 +91,10 @@ Cloudflare auto-injects `static.cloudflareinsights.com/beacon.min.js` (checked o
 - India's DPDP Act: consent is asked before Google Analytics runs and can be withdrawn. This is not legal advice; have the Privacy page reviewed.
 - Short-link redirects aren't page views and aren't sent to GA; the shortener keeps its own first-party click counts.
 - Private browsing or cleared storage loses the saved choice, and the banner shows again.
+
+## Property settings (not visible from the code)
+
+These live in the GA4 property and can only be checked in GA Admin, or by reading the tag configuration Google publishes for the ID (`https://www.googletagmanager.com/gtag/js?id=<ID>`, a plain script download that sends no events). In that file, `__ogt_auto_events` lists the Enhanced-measurement toggles (`vtp_enableOutboundClick`, `…Scroll`, `…Download`, `…HistoryEvents`, `…Form`, `…Video`, `…PageView`) and `__ogt_1p_data_v2` the automatic user-provided-data collection (`vtp_isEnabled`, `vtp_isAutoEnabled`).
+
+- **2026-10-26:** the published configuration showed all of those **on**. The owner then reported switching Enhanced measurement and User-provided data collection **off** in GA Admin; a re-read of the published file straight afterwards still showed the old values (Google caches it). Not yet confirmed: a re-read about five hours later (2026-10-26 03:37 GMT, with GA Admin showing Enhanced measurement off on stream `KaamSolv Web`) was still byte-identical, so either Google's published file lags by more than that or it does not reflect the toggle. Don't rely on this file as proof; check Reports → Engagement → Events for `scroll`, `click`, `form_start`, `file_download` instead — their counts should stop growing after the toggle was switched off.
+- A local run of the real script with the real configuration (every Google request answered locally) produced only our own events; none of the automatic ones fired. That is not proof they can't: the setup may have stopped the script from fully starting.

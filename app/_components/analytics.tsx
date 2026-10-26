@@ -7,10 +7,12 @@ import {
   ANALYTICS_ENABLED,
   GA_ID,
   installGtag,
+  isAccountPath,
   readConsent,
   resetPageView,
   setConsent,
   stopTracking,
+  syncCleanLocation,
   trackOutboundClick,
   trackPageView,
 } from '@/app/lib/analytics';
@@ -29,14 +31,18 @@ function AnalyticsInner() {
   const consent = useConsent();
   const pathname = usePathname();
   const started = useRef(false);
+  // The signed-in area is never measured: no script is added there, and if one is already on the
+  // page (client-side navigation from a public page) it is switched off while we are in the account.
+  const inAccount = isAccountPath(pathname);
 
   // Consent Mode v2: ads signals stay off for good. gtag.js is only added to
-  // the page below, once consent is 'granted'.
+  // the page below, once consent is 'granted' (and never on account pages).
   useEffect(() => {
     if (consent !== 'granted') return;
-    // Withdrawing switches GA off with ga-disable-<ID>; saying yes again on the same page must undo that.
-    (window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = false;
-    if (started.current) return;
+    // ga-disable-<ID> switches GA off: on withdrawal, and while in the account area. Saying yes again, or
+    // coming back to a public page, must undo it.
+    (window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = inAccount;
+    if (inAccount || started.current) return;
     started.current = true;
     installGtag();
     const gtag = (window as unknown as { gtag: (...a: unknown[]) => void }).gtag;
@@ -53,7 +59,12 @@ function AnalyticsInner() {
       allow_google_signals: false,
       allow_ad_personalization_signals: false,
     });
-  }, [consent]);
+  }, [consent, inAccount]);
+
+  // Google reads the full URL itself for anything it measures on its own; give it the cleaned one, now and on every route change.
+  useEffect(() => {
+    if (consent === 'granted' && !inAccount) syncCleanLocation();
+  }, [consent, pathname, inAccount]);
 
   // Declined or withdrawn (including in another tab): make sure GA is off here too and no _ga cookie lingers.
   useEffect(() => {
@@ -83,7 +94,7 @@ function AnalyticsInner() {
 
   return (
     <>
-      {consent === 'granted' && (
+      {consent === 'granted' && !inAccount && (
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`}
           strategy="afterInteractive"
