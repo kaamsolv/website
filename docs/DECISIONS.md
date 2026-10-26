@@ -5,6 +5,31 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-26 — Invoice workspace, Stage E: search and paging, customer pages, safer item fill (built, not deployed)
+
+**Decided by:** product owner (plan approved with E1–E8 as recommended). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Invoice workspace".
+
+- **E1** The customer page's money totals and invoice history are **free for every account** (own-data bookkeeping);
+  period analytics stay Pro. **E2** An **explicit connect / disconnect** flow for invoices typed in by a customer's
+  exact name — a list to review with nothing ticked, confirmed before it acts, changing only `customer_id`.
+  **E3** Offset pages (25 by default, ≤ 100), URL-driven; ZIP ticks persist across pages; the batch-result link uses
+  `ids=`. **E4** Items have no currency: neutral "Default rate" wording, rate filled as typed on any invoice.
+  **E5** Item fill never overwrites typed values, clears stale auto-filled ones when switching items, and does
+  nothing for duplicate names. **E6** Server-side suggestions in the editor past 200 saved. **E7** One stage,
+  one review. **E8** No migration and no index (benchmarked: every new query ≤ 26 ms median).
+- **Customers are never matched or merged by name.** The table allows duplicate names, so a name can't say which
+  customer was meant. Reads change nothing; a connection is made only for invoices the owner ticks and confirms.
+  Saving a name you already have warns, then allows it.
+- **The unfiltered `GET /api/invoices` answer is unchanged** (batch import depends on it), as is the Stage D filtered
+  answer; the paged answer is new and opt-in by parameter. `/api/dashboard`, invoice create and edit, GST maths,
+  PDFs, quotation workflows and recurring reminders are untouched; the invoice document gains no field.
+- Every list, page and customer total reconciles with the Stage D numbers (same SQL fragments), tested.
+- Directory lists page on the server: the old plain list stopped at 200 although Pro can save 1,000; it still does,
+  for compatibility, and the manager and editor no longer depend on it.
+
+---
+
 ## 2026-10-26 — Payments & Collections, Stage D (Pro): decisions applied (built, not deployed)
 
 **Decided by:** product owner (plan approved with D1–D6 as recommended, plus two clarifications). Detail:

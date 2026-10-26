@@ -49,6 +49,24 @@ export async function listCustomers(db: Db, userId: string, q = ''): Promise<Cus
   return db.select(CUSTOMER_COLUMNS).from(customers).where(and(...where)).orderBy(asc(customers.name)).limit(200);
 }
 
+/** One page of saved customers by name (server-side search), plus how many there are in all. Scoped to the user. */
+export async function listCustomersPage(db: Db, userId: string, q: string, page: number, pageSize: number): Promise<{ rows: CustomerRow[]; total: number }> {
+  const where: SQL[] = [eq(customers.userId, userId)];
+  const term = q.trim().slice(0, 80);
+  if (term) where.push(or(ilike(customers.name, like(term)), ilike(customers.contactName, like(term)), ilike(customers.gstin, like(term)))!);
+  const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(customers).where(and(...where));
+  const pages = Math.max(1, Math.ceil((count?.n ?? 0) / pageSize));
+  const at = Math.min(Math.max(1, page), pages);
+  const rows = await db
+    .select(CUSTOMER_COLUMNS)
+    .from(customers)
+    .where(and(...where))
+    .orderBy(asc(customers.name), asc(customers.id))
+    .limit(pageSize)
+    .offset((at - 1) * pageSize);
+  return { rows, total: count?.n ?? 0 };
+}
+
 export async function getCustomer(db: Db, userId: string, id: string): Promise<CustomerRow | null> {
   const [row] = await db.select(CUSTOMER_COLUMNS).from(customers).where(and(eq(customers.id, id), eq(customers.userId, userId)));
   return row ?? null;
@@ -86,6 +104,24 @@ export async function listItems(db: Db, userId: string, q = ''): Promise<ItemRow
   const term = q.trim().slice(0, 80);
   if (term) where.push(or(ilike(items.name, like(term)), ilike(items.hsnSac, like(term)))!);
   return db.select(ITEM_COLUMNS).from(items).where(and(...where)).orderBy(asc(items.name)).limit(200);
+}
+
+/** One page of saved items by name (server-side search), plus how many there are in all. Scoped to the user. */
+export async function listItemsPage(db: Db, userId: string, q: string, page: number, pageSize: number): Promise<{ rows: ItemRow[]; total: number }> {
+  const where: SQL[] = [eq(items.userId, userId)];
+  const term = q.trim().slice(0, 80);
+  if (term) where.push(or(ilike(items.name, like(term)), ilike(items.hsnSac, like(term)))!);
+  const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(items).where(and(...where));
+  const pages = Math.max(1, Math.ceil((count?.n ?? 0) / pageSize));
+  const at = Math.min(Math.max(1, page), pages);
+  const rows = await db
+    .select(ITEM_COLUMNS)
+    .from(items)
+    .where(and(...where))
+    .orderBy(asc(items.name), asc(items.id))
+    .limit(pageSize)
+    .offset((at - 1) * pageSize);
+  return { rows, total: count?.n ?? 0 };
 }
 
 export async function getItem(db: Db, userId: string, id: string): Promise<ItemRow | null> {

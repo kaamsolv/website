@@ -65,6 +65,8 @@ export function WorkspaceNav() {
     // A single code (/app/qr/<id>) sits under "All QR codes"; a campaign page under "Campaigns".
     if (l.href === '/app/qr/codes') return pathname === l.href || /^\/app\/qr\/[0-9a-f-]{36}$/i.test(pathname);
     if (l.href === '/app/qr/campaigns') return pathname.startsWith('/app/qr/campaigns');
+    // One customer's page sits under "Customers".
+    if (l.href === '/app/business/customers') return pathname === l.href || /^\/app\/business\/customers\/[0-9a-f-]{36}$/i.test(pathname);
     return pathname === l.href;
   };
 

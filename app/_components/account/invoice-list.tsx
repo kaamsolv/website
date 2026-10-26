@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PRIMARY, SECONDARY } from './account-shell';
+import { INPUT, PRIMARY, SECONDARY } from './account-shell';
 import { InvoiceFilterBar, type FilterTotal } from './invoice-filter-bar';
+import { Pager } from './pager';
 import { PaymentProgress } from './payment-progress';
 import { StatusBadge } from './status-badge';
 import { RecurCard } from './recur-card';
@@ -13,6 +14,7 @@ import { downloadBlob } from '@/app/lib/image/export';
 import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
 import { formatMoney } from '@/app/lib/invoice/money';
 import { FILTER_KEYS, hasFilterParams } from '@/app/lib/invoice/filters';
+import { LIST_SORTS, SORT_LABELS, type ListKind, type ListSort } from '@/app/lib/invoice/list-query';
 import { paymentSummary } from '@/app/lib/invoice/payments';
 import { RECUR_SHORT, isRecurEvery } from '@/app/lib/invoice/recurring';
 import { computeTotals } from '@/app/lib/invoice/totals';
@@ -29,19 +31,30 @@ type Summary = {
   dueDate: string | null;
   status: 'unpaid' | 'paid';
   amountPaid: number;
-  /** Filtered lists only: what is still owed, and money received in the payment-date period asked for. */
+  /** What is still owed, and money received in the payment-date period asked for (when it was). */
   balance?: number;
   receivedInPeriod?: number;
+  /** The saved customer this was billed to, when it was picked from the saved list. */
+  customerId?: string | null;
   kind: 'invoice' | 'quote';
   recurEvery: string | null;
   recurNext: string | null;
 };
 
-type Filter = 'all' | 'invoice' | 'quote';
+type Page = { invoices: Summary[]; matched: number; page: number; pages: number; pageSize: number; totals: FilterTotal[] };
 
 const ROW_BTN =
   'inline-flex h-10 items-center justify-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60';
 
+/** The params the page keeps in its own URL (everything else, like the one-off `select`, is left behind when you move around). */
+const URL_KEYS = [...FILTER_KEYS, 'q', 'kind', 'sort', 'page', 'pageSize'] as const;
+
+/**
+ * All invoices. The address bar is the state: search, type, sort, page and every Stage D filter live in the URL
+ * (`/app/invoices?state=overdue&q=acme&page=2`), so a link, a reload or Back lands in the same place. The
+ * server does the searching, filtering, sorting and paging — and the sums — so a page of 25 never has to
+ * hold the whole history, and what you see always adds up to the card you clicked.
+ */
 export function InvoiceList() {
   const me = useMe();
   const { can, limit } = useEntitlements();
@@ -50,7 +63,6 @@ export function InvoiceList() {
   // Pro (Stage 2C-1). Hidden from free accounts.
   const quotes = can('invoice_quote_mode');
   const designOk = can('invoice_templates') || can('invoice_brand_color');
-  const [filter, setFilter] = useState<Filter>('all');
   // Pro (Stage 2C-2): repeat reminders, CSV export, ZIP of PDFs. Hidden from free accounts.
   const recurring = can('invoice_recurring');
   const csvOk = can('invoice_csv_export');
@@ -62,53 +74,115 @@ export function InvoiceList() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const today = isoDate(new Date());
-  const [list, setList] = useState<Summary[] | null>(null);
+  const [data, setData] = useState<Page | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  // Set when the page was opened with filters in the URL (links from Payments & collections).
-  const [filterInfo, setFilterInfo] = useState<{ totals: FilterTotal[]; capped: boolean; params: URLSearchParams } | null>(null);
+  const [loading, setLoading] = useState(false);
+  /** The page's own query string; changing it (from a link, a form, Back) loads that page. Null until mounted. */
+  const [search, setSearch] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
   const [customerName, setCustomerName] = useState<string | null>(null);
+  const focusTop = useRef(false);
+  const listTop = useRef<HTMLHeadingElement>(null);
+
+  const params = new URLSearchParams(search ?? '');
+  const drilled = hasFilterParams(params); // a payment / ageing / customer / date filter from a dashboard link
+  const narrowed = drilled || params.has('q') || params.has('kind');
+  const kind = (params.get('kind') as ListKind | null) ?? 'all';
+  const sort = (params.get('sort') as ListSort | null) ?? 'updated';
+
+  /** Move to another URL (same page, new query) without a reload; remembers it for Back. */
+  const go = useCallback((href: string, replace = false) => {
+    const qs = href.includes('?') ? href.slice(href.indexOf('?') + 1) : '';
+    const url = `/app/invoices${qs ? `?${qs}` : ''}`;
+    if (replace) window.history.replaceState(null, '', url);
+    else window.history.pushState(null, '', url);
+    setSearch(qs);
+  }, []);
+
+  /** A plain click on a list link changes the URL in place; modified clicks (new tab, etc.) keep their normal behaviour. */
+  const intercept = useCallback(
+    (href: string, e: React.MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      focusTop.current = true;
+      go(href);
+    },
+    [go],
+  );
+
+  /** This page's URL with some params changed; changing anything but the page goes back to page 1. */
+  const hrefWith = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams();
+    for (const k of URL_KEYS) if (params.has(k)) next.set(k, params.get(k)!);
+    if (!('page' in patch)) next.delete('page');
+    for (const [k, v] of Object.entries(patch)) (v === null || v === '' ? next.delete(k) : next.set(k, v));
+    const s = next.toString();
+    return s ? `/app/invoices?${s}` : '/app/invoices';
+  };
 
   const load = useCallback(async () => {
     const here = new URLSearchParams(window.location.search);
-    const filtering = hasFilterParams(here);
-    let url = '/api/invoices';
-    if (filtering) {
-      // The server does the filtering and the sums; "today" is this visitor's calendar date (for overdue and ageing).
-      const q = new URLSearchParams();
-      for (const k of FILTER_KEYS) {
-        const v = here.get(k);
-        if (v !== null) q.set(k, v);
-      }
-      q.set('today', isoDate(new Date()));
-      url += `?${q}`;
+    const q = new URLSearchParams({ page: here.get('page') ?? '1' });
+    for (const k of [...FILTER_KEYS, 'q', 'kind', 'sort', 'pageSize'] as const) {
+      const v = here.get(k);
+      if (v !== null) q.set(k, v);
     }
-    const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' }).catch(() => null);
+    // Coming back from a batch (…?select=id,id): show exactly those invoices, ticked, ready for the ZIP.
+    const picked = (here.get('select') ?? '').split(',').filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50);
+    if (picked.length) {
+      q.set('ids', picked.join(','));
+      q.set('pageSize', '50');
+    }
+    q.set('today', isoDate(new Date()));
+    setLoading(true);
+    const res = await fetch(`/api/invoices?${q}`, { cache: 'no-store', credentials: 'same-origin' }).catch(() => null);
+    setLoading(false);
     if (!res?.ok) {
-      setError(filtering && res?.status === 400 ? 'Those filters aren’t valid.' : 'Couldn’t load your invoices. Refresh to try again.');
+      setError(res?.status === 400 ? 'Those filters aren’t valid.' : 'Couldn’t load your invoices. Refresh to try again.');
       return;
     }
-    const body = (await res.json()) as { invoices: Summary[]; filtered?: boolean; totals?: FilterTotal[]; capped?: boolean };
-    setList(body.invoices);
-    setFilterInfo(body.filtered ? { totals: body.totals ?? [], capped: !!body.capped, params: here } : null);
+    const body = (await res.json()) as Page;
+    setData(body);
     setError(null);
+    // A page past the end (e.g. after deleting the last row of the last page) is shown as the last page.
+    if (body.page !== Number(q.get('page'))) {
+      const fix = new URLSearchParams(window.location.search);
+      if (body.page === 1) fix.delete('page');
+      else fix.set('page', String(body.page));
+      window.history.replaceState(null, '', `/app/invoices${fix.toString() ? `?${fix}` : ''}`);
+    }
+    if (focusTop.current) {
+      focusTop.current = false;
+      requestAnimationFrame(() => listTop.current?.focus());
+    }
   }, []);
 
   useEffect(() => {
-    const id = filterInfo?.params.get('customer');
-    if (!id) return setCustomerName(null);
-    fetch('/api/customers', { credentials: 'same-origin', cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b: { rows?: { id: string; name: string }[] } | null) => setCustomerName(b?.rows?.find((c) => c.id === id)?.name ?? null))
-      .catch(() => undefined);
-  }, [filterInfo]);
+    setSearch(window.location.search.replace(/^\?/, ''));
+    const onPop = () => setSearch(window.location.search.replace(/^\?/, ''));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
+    if (search === null) return;
+    setSearchText(new URLSearchParams(search).get('q') ?? '');
     void load();
-  }, [load]);
+  }, [search, load]);
 
-  // Coming back from a batch (…?select=id,id): those invoices start ticked, ready for the ZIP.
+  // The saved customer a drill-down is limited to, by name.
+  const customerId = params.get('customer');
+  useEffect(() => {
+    if (!customerId) return setCustomerName(null);
+    fetch(`/api/customers/${encodeURIComponent(customerId)}`, { credentials: 'same-origin', cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { row?: { name: string } } | null) => setCustomerName(b?.row?.name ?? null))
+      .catch(() => undefined);
+  }, [customerId]);
+
+  // Coming back from a batch: those invoices start ticked.
   useEffect(() => {
     const raw = new URLSearchParams(window.location.search).get('select');
     if (!raw) return;
@@ -116,7 +190,8 @@ export function InvoiceList() {
   }, []);
 
   async function downloadZip() {
-    const ids = (list ?? []).filter((x) => selected.has(x.id)).map((x) => x.id);
+    // Ticks survive moving between pages, so these are the ticked invoices from any page.
+    const ids = [...selected];
     if (!ids.length) return;
     setNotice(null);
     const ctl = new AbortController();
@@ -154,17 +229,17 @@ export function InvoiceList() {
     setNotice('Done — your CSV is downloading.');
   }
 
-  async function act(id: string, kind: 'duplicate' | 'delete' | 'download' | 'convert', number: string) {
+  async function act(id: string, kindOfAction: 'duplicate' | 'delete' | 'download' | 'convert', number: string) {
     setNotice(null);
-    if (kind === 'delete') {
-      const received = list?.find((x) => x.id === id)?.amountPaid ?? 0;
-      const cur = list?.find((x) => x.id === id)?.currency;
-      const withPayments = received > 0 && cur ? ` It also removes the ${formatMoney(received, cur)} of payments recorded against it.` : '';
+    if (kindOfAction === 'delete') {
+      const row = data?.invoices.find((x) => x.id === id);
+      const received = row?.amountPaid ?? 0;
+      const withPayments = received > 0 && row ? ` It also removes the ${formatMoney(received, row.currency)} of payments recorded against it.` : '';
       if (!window.confirm(`Delete ${number}?${withPayments} This can’t be undone.`)) return;
     }
-    setBusy(`${kind}:${id}`);
+    setBusy(`${kindOfAction}:${id}`);
     try {
-      if (kind === 'download') {
+      if (kindOfAction === 'download') {
         const [inv, prof] = await Promise.all([
           fetch(`/api/invoices/${id}`, { credentials: 'same-origin' }).then((r) => r.json() as Promise<{ invoice?: Invoice }>),
           fetch('/api/business-profile', { credentials: 'same-origin' }).then((r) => r.json() as Promise<{ profile?: { logo: string | null; signature?: string | null } }>),
@@ -181,21 +256,27 @@ export function InvoiceList() {
         setNotice(overflow ? 'Downloading — it runs onto a second page.' : 'Done — your PDF is downloading.');
         return;
       }
-      const res = await fetch(kind === 'delete' ? `/api/invoices/${id}` : `/api/invoices/${id}/${kind}`, {
-        method: kind === 'delete' ? 'DELETE' : 'POST',
+      const res = await fetch(kindOfAction === 'delete' ? `/api/invoices/${id}` : `/api/invoices/${id}/${kindOfAction}`, {
+        method: kindOfAction === 'delete' ? 'DELETE' : 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: kind === 'delete' ? undefined : JSON.stringify({ issueDate: isoDate(new Date()) }),
+        body: kindOfAction === 'delete' ? undefined : JSON.stringify({ issueDate: isoDate(new Date()) }),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string; id?: string };
       if (!res.ok) {
         setNotice(body.message ?? 'That didn’t work. Try again.');
         return;
       }
+      setSelected((cur) => {
+        if (kindOfAction !== 'delete' || !cur.has(id)) return cur;
+        const next = new Set(cur);
+        next.delete(id);
+        return next;
+      });
       setNotice(
-        kind === 'delete'
+        kindOfAction === 'delete'
           ? `Deleted ${number}.`
-          : kind === 'convert'
+          : kindOfAction === 'convert'
             ? `Made an invoice from ${number}. It’s at the top — the quotation stays as it was.`
             : `Copied ${number}. The copy is at the top.`,
       );
@@ -208,14 +289,13 @@ export function InvoiceList() {
   }
 
   const saveLimit = limit('invoice_save');
-  const count = me.status === 'signed-in' ? me.usage.invoiceSave : (list?.length ?? 0);
-  const shown = list && quotes && filter !== 'all' ? list.filter((x) => x.kind === filter) : list;
+  const count = me.status === 'signed-in' ? me.usage.invoiceSave : (data?.matched ?? 0);
 
-  if (error) {
+  if (error && !data) {
     return (
       <p className="text-strong" role="alert">
         {error}{' '}
-        {hasFilterParams(new URLSearchParams(window.location.search)) && (
+        {URL_KEYS.some((k) => new URLSearchParams(window.location.search).has(k)) && (
           <a href="/app/invoices" className="font-semibold underline underline-offset-2">
             Clear the filters
           </a>
@@ -223,9 +303,9 @@ export function InvoiceList() {
       </p>
     );
   }
-  if (!list) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!data) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
 
-  if (list.length === 0 && !filterInfo) {
+  if (data.matched === 0 && !narrowed) {
     return (
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
         <p className="font-display text-xl font-bold text-ink">No saved invoices yet</p>
@@ -237,17 +317,19 @@ export function InvoiceList() {
     );
   }
 
-  const shownIds = (shown ?? []).map((x) => x.id);
+  const list = data.invoices;
+  const shownIds = list.map((x) => x.id);
   const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selected.has(id));
+  const baseHref = (page: number) => hrefWith({ page: page > 1 ? String(page) : null });
 
   return (
-    <div>
-      {filterInfo ? (
-        <InvoiceFilterBar params={filterInfo.params} totals={filterInfo.totals} capped={filterInfo.capped} shown={list.length} customerName={customerName} />
+    <div aria-busy={loading}>
+      {narrowed ? (
+        <InvoiceFilterBar params={params} totals={data.totals} matched={data.matched} customerName={customerName} onNavigate={intercept} />
       ) : (
         <RecurCard onChanged={load} />
       )}
-      {!filterInfo && (csvOk || batchOk) && (
+      {!drilled && (csvOk || batchOk) && (
         <div className="mb-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {csvOk && (
@@ -314,9 +396,9 @@ export function InvoiceList() {
           )}
         </div>
       )}
-      {quotes && !filterInfo && (
+      {quotes && !drilled && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <Segmented<Filter>
+          <Segmented<ListKind>
             legend="Show"
             hideLegend
             options={[
@@ -324,29 +406,86 @@ export function InvoiceList() {
               { value: 'invoice', label: 'Invoices' },
               { value: 'quote', label: 'Quotations' },
             ]}
-            value={filter}
-            onChange={setFilter}
+            value={kind}
+            onChange={(k) => {
+              focusTop.current = false;
+              go(hrefWith({ kind: k === 'all' ? null : k }));
+            }}
           />
           <a href="/invoice-generator?type=quote" className={SECONDARY}>
             + New quotation
           </a>
         </div>
       )}
+
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <form
+          role="search"
+          className="flex min-w-0 flex-1 items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            go(hrefWith({ q: searchText.trim() || null }));
+          }}
+        >
+          <div className="min-w-0 flex-1">
+            <label htmlFor="invoice-search" className="block text-sm font-semibold text-ink">
+              Search
+            </label>
+            <input
+              id="invoice-search"
+              type="search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              maxLength={80}
+              placeholder="Invoice number or client"
+              autoComplete="off"
+              className={`${INPUT} mt-1`}
+            />
+          </div>
+          <button type="submit" className={`${SECONDARY} shrink-0`}>
+            Search
+          </button>
+        </form>
+        <div>
+          <label htmlFor="invoice-sort" className="block text-sm font-semibold text-ink">
+            Sort by
+          </label>
+          <select
+            id="invoice-sort"
+            value={sort}
+            onChange={(e) => go(hrefWith({ sort: e.target.value === 'updated' ? null : e.target.value }))}
+            className={`${INPUT} mt-1 w-auto min-w-[11rem] text-sm`}
+          >
+            {LIST_SORTS.map((s) => (
+              <option key={s} value={s}>
+                {SORT_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <h2 ref={listTop} tabIndex={-1} className="sr-only">
+        Your invoices, page {data.page} of {data.pages}
+      </h2>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-        <span>{filterInfo ? '' : saveLimit === null ? `${count} saved` : `${count} of ${saveLimit} saved`}</span>
+        <span>{narrowed ? '' : saveLimit === null ? `${count} saved` : `${count} of ${saveLimit} saved`}</span>
         {notice && (
           <span className="font-semibold text-ink" role="status">
             {notice}
           </span>
         )}
       </div>
-      {shown && shown.length === 0 && !filterInfo && (
-        <p className="rounded-xl2 border border-dashed border-hair bg-surface p-6 text-center text-muted">
-          {filter === 'quote' ? 'No quotations yet.' : 'No invoices yet.'}
+      {error && (
+        <p role="alert" className="mb-3 font-semibold text-danger-600">
+          {error}
         </p>
       )}
+      {list.length === 0 && !narrowed && (
+        <p className="rounded-xl2 border border-dashed border-hair bg-surface p-6 text-center text-muted">No invoices yet.</p>
+      )}
       <ul aria-label="Saved invoices" className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface empty:hidden">
-        {(shown ?? []).map((inv) => (
+        {list.map((inv) => (
           <li key={inv.id} className="flex items-start gap-3 p-4">
             {batchOk && (
               <input
@@ -393,7 +532,7 @@ export function InvoiceList() {
                   </span>
                 ) : null;
               })()}
-              {filterInfo && inv.kind !== 'quote' && (
+              {narrowed && inv.kind !== 'quote' && (
                 <span className="mt-1 block text-sm text-muted">
                   {inv.balance !== undefined && inv.balance > 0 && inv.amountPaid === 0 && (
                     <span className="mr-3 font-semibold text-ink">{formatMoney(inv.balance, inv.currency)} outstanding</span>
@@ -415,6 +554,11 @@ export function InvoiceList() {
                   aria-label={`${inv.status === 'paid' && inv.amountPaid > 0 ? 'Payments for' : 'Record a payment for'} ${inv.number}`}
                 >
                   {inv.status === 'paid' && inv.amountPaid > 0 ? 'Payments' : 'Record payment'}
+                </a>
+              )}
+              {inv.customerId && (
+                <a href={`/app/business/customers/${inv.customerId}`} className={ROW_BTN} aria-label={`Open the saved customer for ${inv.number} (${inv.clientName})`}>
+                  Customer
                 </a>
               )}
               <a href={`/invoice-generator?id=${inv.id}`} className={ROW_BTN} aria-label={`Open ${inv.number}`}>
@@ -440,6 +584,7 @@ export function InvoiceList() {
           </li>
         ))}
       </ul>
+      {data.matched > 0 && <Pager page={data.page} pages={data.pages} pageSize={data.pageSize} matched={data.matched} hrefFor={baseHref} onGo={intercept} label="Invoice pages" />}
       <p className="mt-6">
         <a href="/invoice-generator" className={SECONDARY}>
           + New invoice

@@ -20,7 +20,7 @@ import {
   type PaymentMethod,
 } from '../app/lib/invoice/payments.ts';
 import type { Db } from './links.ts';
-import { invoicePayments, invoices } from './schema.ts';
+import { customers, invoicePayments, invoices } from './schema.ts';
 
 export type PaymentEntry = {
   id: string;
@@ -61,6 +61,9 @@ export type InvoicePaymentFacts = {
   dueDate: string | null;
   status: 'unpaid' | 'paid';
   amountPaid: number;
+  /** The saved customer this was billed to, when it was picked from the saved list (never matched by name). */
+  customerId: string | null;
+  customerName: string | null;
 };
 
 export type InvoicePayments = { invoice: InvoicePaymentFacts; payments: PaymentEntry[] };
@@ -78,8 +81,11 @@ export async function getInvoicePayments(db: Db, userId: string, invoiceId: stri
       dueDate: invoices.dueDate,
       status: invoices.status,
       amountPaid: invoices.amountPaid,
+      customerId: invoices.customerId,
+      customerName: customers.name,
     })
     .from(invoices)
+    .leftJoin(customers, and(eq(customers.id, invoices.customerId), eq(customers.userId, userId)))
     .where(and(eq(invoices.id, invoiceId), eq(invoices.userId, userId), eq(invoices.kind, 'invoice')));
   if (!invoice) return null;
   const payments = await db

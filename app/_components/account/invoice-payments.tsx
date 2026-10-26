@@ -29,6 +29,8 @@ type Facts = {
   dueDate: string | null;
   status: 'unpaid' | 'paid';
   amountPaid: number;
+  customerId: string | null;
+  customerName: string | null;
 };
 type Entry = {
   id: string;
@@ -246,6 +248,13 @@ export function InvoicePayments({ id }: { id: string }) {
               {inv.number || 'Untitled invoice'}
             </h2>
             <p className="mt-0.5 text-strong">{inv.clientName || 'No client yet'}</p>
+            {inv.customerId && inv.customerName && (
+              <p className="mt-0.5 text-sm">
+                <a href={`/app/business/customers/${inv.customerId}`} className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+                  Saved customer: {inv.customerName}
+                </a>
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={inv.status} amountPaid={inv.amountPaid} total={inv.total} dueDate={inv.dueDate} today={today} />

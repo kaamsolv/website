@@ -3,7 +3,8 @@
  */
 
 import { cleanCustomer, cleanItem } from './invoice/settings';
-import { createCustomer, createItem, deleteCustomer, deleteItem, getCustomer, getItem, listCustomers, listItems, updateCustomer, updateItem } from '@/db/directory';
+import { listCustomerStats } from '@/db/customer-workspace';
+import { createCustomer, createItem, deleteCustomer, deleteItem, getCustomer, getItem, listCustomers, listCustomersPage, listItems, listItemsPage, updateCustomer, updateItem } from '@/db/directory';
 
 export const CUSTOMERS = {
   key: 'invoice_client_directory' as const,
@@ -14,6 +15,8 @@ export const CUSTOMERS = {
       : `You’ve saved ${limit} customers — the free limit. Saving more than ${limit} customers is part of Pro — coming soon. You can still type any customer straight onto an invoice.`,
   clean: cleanCustomer,
   list: listCustomers,
+  listPage: listCustomersPage,
+  stats: listCustomerStats,
   get: getCustomer,
   create: createCustomer,
   update: updateCustomer,
@@ -26,6 +29,7 @@ export const ITEMS = {
   limitMessage: () => 'You’ve reached the maximum number of saved items.',
   clean: cleanItem,
   list: listItems,
+  listPage: listItemsPage,
   get: getItem,
   create: createItem,
   update: updateItem,

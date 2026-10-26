@@ -4,8 +4,8 @@
 tier (2026-10-21); accounts and saving (Stage 1), workspace (2A) and GST tax
 invoice (2B) deployed 2026-10-22; Pro Stages 2C-1 and 2C-2 deployed 2026-10-25
 (hidden until payments). Payment ledger and partial payments (Stage C, every
-account) built 2026-10-26 — not yet deployed. Pro Payments & Collections (Stage D) built
-2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
+account) built 2026-10-26 — not yet deployed. Pro Payments & Collections (Stage D) and the invoice workspace
+(Stage E: list search and paging, customer pages, item fill rule) built 2026-10-26 — not yet deployed. Decisions: [`DECISIONS.md`](../DECISIONS.md) (2026-10-21 entries).
 Accounts: [`accounts.md`](./accounts.md).
 
 ## What it is
@@ -97,6 +97,9 @@ Field lengths (`app/lib/invoice/limits.ts`) keep a full invoice on one page.
 | `app/_components/invoice/react-pdf-server-stub.ts` | Server stand-in for `@react-pdf/renderer` (via `turbopack.resolveAlias` in `next.config.mjs`) so the PDF engine stays out of the Worker bundle (−587 KiB gzip) |
 | `public/fonts/` | Inter Regular/Bold TTF + `OFL.txt` (PDF font; has ₹) |
 | `tests/e2e/invoice.spec.ts` | Playwright: desktop/phone × light/dark, PDF text, 10-item one-page, currency, a11y |
+| `app/lib/invoice/list-query.ts`, `app/lib/paging.ts` | The list's request vocabulary and page maths; `db/invoice-filters.ts` builds the one set of conditions |
+| `db/customer-workspace.ts`, `app/_components/account/customer-detail.tsx` | Customer totals, by-name suggestions, connect / disconnect |
+| `app/lib/invoice/item-fill.ts` | The saved-item fill rule (pure) |
 | `app/lib/invoice/payments.ts` | Payment maths and checks: paise, `paymentSummary()` (state, balance, %, overdue), input cleaning, ledger error names |
 | `db/payments.ts` | Ledger data access: record (idempotent), void, edit note, history — scoped by user |
 | `app/app/invoices/[id]/` + `app/_components/account/invoice-payments.tsx` | The payments page; `status-badge.tsx`, `payment-progress.tsx` are shared with the list |
@@ -520,8 +523,105 @@ parallel). No index was added (decision D6); revisit only if real accounts show 
 
 ### Not in Stage D
 
-Customer history and per-customer totals pages, list paging and search, the payments
-report and CSV additions, reminders or any email, write-off. (Stages E and F.)
+The payments report and CSV additions, reminders or any email, write-off. (Stage F.)
+Customer pages, list paging and search came in Stage E.
+
+## Invoice workspace (Stage E — every account; built, not yet deployed)
+
+Search, sort and page the invoice list, a page for each saved customer, and a fill rule for saved items that
+never overwrites what you typed. No migration and no new dependency. Tests: `test/invoice-list.test.mts`,
+`test/customers-workspace.test.mts`, `test/item-fill.test.mts`, `tests/e2e/invoice-list.spec.ts`,
+`customers.spec.ts`, `items.spec.ts`; benchmark: `scripts/benchmark-workspace.mts`.
+
+### The invoice list (`/app/invoices`)
+
+The address bar is the state: `/app/invoices?state=overdue&currency=INR&q=acme&sort=due&page=2`. A link, a
+reload or Back lands in the same place; links and the pager change the URL in place without a reload (and keep
+the ZIP ticks, so Pro can tick invoices on several pages). Search (invoice number or client name, any case; `%`
+and `_` are ordinary characters), type (All / Invoices / Quotations — quotations are Pro), sort (recently
+changed, newest issued, due soonest, largest amount, number) and the Stage D filters combine; chips remove one
+at a time.
+
+`GET /api/invoices` answers in three ways — **the first two are unchanged**:
+
+| Request | Answer |
+|---|---|
+| none of the params below | every invoice and quotation, summary columns only (the batch-import duplicate check relies on it) |
+| Stage D filters (`state`, `currency`, `bucket`, `issuedFrom/To`, `paidFrom/To`, `customer`), no `page` | invoices only, ≤ 200, with totals over every match |
+| any of `page`, `pageSize` (1–100, default 25), `q` (≤ 80), `kind` (`all`·`invoice`·`quote`), `sort`, `ids` (≤ 50) | **one page**: `{ paged, invoices, matched, page, pages, pageSize, totals }`; each row adds `balance` and `customerId`. A page past the end is the last page. A payment filter means invoices only unless `kind` is given; `kind=quote` with a payment filter is a 400 |
+
+`totals` are per currency over **every** match (invoices only — a quotation owes nothing), not just the page.
+Search, type, sort and paging use the same condition builder as the Stage D filters (`db/invoice-filters.ts`), so
+**pages add up to the totals, and the totals equal the Payments & Collections card** — each has a test. `ids`
+makes the batch-result link ("See them in All invoices") show exactly the invoices it just made, ticked.
+
+### Customers: connected, never matched by name
+
+An invoice belongs to a saved customer only when it was **picked from the saved list** (or the full saved name
+was typed): that stores `invoices.customer_id`. Invoices typed in by hand have no connection, and saving a
+customer later does not connect old invoices. Stage E keeps it that way:
+
+- **Nothing is matched or merged by name.** The customers table has no unique name, so two customers can share
+  one; a name can't say which was meant.
+- A customer's page counts **only connected invoices**, and says so.
+- It also *lists* — and connects nothing — invoices and quotations whose client name is **exactly** the
+  customer's (any case, spaces at the ends; "Acme Traders Ltd" and "Acme" don't match), not connected to anyone,
+  yours only, up to 50, with a "GSTIN differs" warning where the typed one disagrees. **Nothing is ticked.** You
+  tick the ones that are this customer and press **Connect selected**, then confirm.
+- Connecting changes **only `invoices.customer_id`** (not the printed client, totals, status or `updated_at`), only
+  for your own invoices that aren't connected yet, to your own customer, in one statement; anything else is
+  skipped and counted. Each connected invoice has **Disconnect**. It's also what happens when you delete a
+  customer: the invoices keep their own copy of the details.
+- Saving a customer with a name you already have asks first ("You already have a customer called …") and is then
+  allowed — the two stay separate customers; the same suggestions appear on both.
+
+**`/app/business/customers/[id]`** (any account with saved customers; Free has 3): details, **per-currency totals —
+invoiced, received, outstanding, overdue (all time)** — computed with the Stage D SQL fragments, so they equal the
+invoice list filtered by `customer=<id>` and the Collections page's customer filter; a marked-paid note; a paged
+invoice history linking to each payments page; and the review list above. The customers list shows each customer's
+invoice count and what they owe (one grouped query for the page). Rows link through; the invoice list shows a
+**Customer** link on connected rows and the payments page names the saved customer. The money totals are free for
+every account (own-data bookkeeping, like Stage D's filtered totals); period analytics stay Pro.
+
+APIs (signed in, `invoice_client_directory`, same-origin for writes, every query scoped to the user):
+`GET /api/customers/:id/summary?today=` · `GET /api/customers/:id/unlinked` ·
+`POST /api/customers/:id/links { action: "connect"|"disconnect", invoiceIds: [≤ 50] }`.
+`GET /api/customers` and `/api/items` gain `?q=&page=&pageSize=` (a paged answer with `total`/`pages`; without them
+the answer is exactly as before, cut at 200 — which is why the lists page now: Pro can save 1,000) and
+`stats=1&today=` on customers (per-customer figures).
+
+### Saved items and the invoice line
+
+`app/lib/invoice/item-fill.ts` (pure, tested): when a line's description matches **one** saved item exactly (any
+case, spaces at the ends), its rate, unit, HSN/SAC and GST rate are filled — **never over something you typed.** A
+field is written only if it is empty or still holds what the previous fill put there, so switching from one item
+to another replaces the first's values (clearing ones the new item lacks — no stale HSN/SAC), typing the name
+again later restores untouched fields and leaves edited ones, and the line says "Kept the rate you typed …" when
+the item has a different one. Two items with the same name fill nothing and say why. The memory of what was filled
+lives in the editor only; **the invoice document is unchanged.** Items carry no currency, so the manager says
+"Default rate" (no ₹) and the rate goes onto any invoice as typed. If an account has more than 200 customers or
+items, the editor's suggestions come from a server search while you type (an exact match still fills and, for a
+customer, connects).
+
+### Navigation
+
+Customers rows and names link to the customer page; the nav highlights Customers there; connected invoices link
+back. Quotations and repeating invoices stay filters on All invoices rather than separate pages (no dead ends); a
+test opens every nav link for a Free and a Pro account.
+
+### Performance (benchmark, not a promise about Neon)
+
+`npx tsx scripts/benchmark-workspace.mts` — 5,000 invoices (3,000 connected), 19,500 payments, 1,000 customers
+(plus three other accounts), in-memory PGlite, medians of 25: list page 16 ms; search by client 26 ms, by number
+26 ms; sort by amount 14 ms; deep page (100) 16 ms; one customer's invoice history 8 ms; customers page 2 ms,
+search 6 ms; figures for 25 customers at once 6 ms; one customer's totals 7 ms; exact-name suggestions 4 ms. No
+index was added (E8). On this small table the search is a sequential scan filtered to the user; if real accounts
+make search slow, the fix is an index decision for the owner, not a surprise.
+
+### Not in Stage E
+
+Reports and exports of payments or customers, reminders or any email, automatic recurring invoices, write-off, a
+quotations or repeating-invoices page, merging customers. (Stage F and later.)
 
 ## Paid tier (Stages 2–3)
 

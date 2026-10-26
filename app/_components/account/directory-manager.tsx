@@ -1,16 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from './account-shell';
+import { Pager } from './pager';
+import { isoDate } from '@/app/lib/invoice/defaults';
 import { GST_RATES } from '@/app/lib/invoice/gst';
 import { GST_STATES, stateName } from '@/app/lib/invoice/india';
+import { formatMoney } from '@/app/lib/invoice/money';
 import { cleanCustomer, cleanItem } from '@/app/lib/invoice/settings';
+import type { CurrencyCode } from '@/app/lib/invoice/types';
 import { refreshMe } from '@/app/lib/me-client';
 
 type Row = Record<string, string> & { id: string };
 type FieldDef = { key: string; label: string; kind?: 'text' | 'area' | 'state' | 'gst' | 'unit'; max: number; inputMode?: 'decimal' | 'email' | 'tel' | 'numeric'; upper?: boolean; placeholder?: string };
+type Stat = { invoiceCount: number; money: { currency: CurrencyCode; invoiced: number; outstanding: number; overdue: number }[] };
 
 const UNITS = ['pcs', 'nos', 'hrs', 'days', 'months', 'kg', 'g', 'litre', 'm', 'sq ft', 'box', 'set'];
+const PAGE_SIZE = 25;
 
 const CONFIG = {
   customers: {
@@ -38,51 +44,102 @@ const CONFIG = {
       { key: 'name', label: 'Name (as printed on the invoice)', max: 120 },
       { key: 'hsnSac', label: 'HSN / SAC code', max: 8, inputMode: 'numeric', placeholder: 'Optional — 4, 6 or 8 digits' },
       { key: 'unit', label: 'Unit', kind: 'unit', max: 12, placeholder: 'pcs, hrs, days…' },
-      { key: 'rate', label: 'Rate (₹)', max: 24, inputMode: 'decimal' },
+      { key: 'rate', label: 'Default rate', max: 24, inputMode: 'decimal', placeholder: 'e.g. 1500 — filled in as typed' },
       { key: 'gstRate', label: 'GST rate', kind: 'gst', max: 6 },
     ] as FieldDef[],
-    summary: (r: Row) => [r.hsnSac && `HSN/SAC ${r.hsnSac}`, r.rate && `₹${r.rate}${r.unit ? ` / ${r.unit}` : ''}`, r.gstRate && `GST ${r.gstRate}%`].filter(Boolean).join(' · '),
+    summary: (r: Row) => [r.hsnSac && `HSN/SAC ${r.hsnSac}`, r.rate && `Rate ${r.rate}${r.unit ? ` / ${r.unit}` : ''}`, r.gstRate && `GST ${r.gstRate}%`].filter(Boolean).join(' · '),
   },
 } as const;
 
-/** Saved customers or items: search, add, edit, delete. */
+/**
+ * Saved customers or items: search, add, edit, delete — 25 to a page, searched on the server, so a long list is
+ * never cut off. Customers also show how many invoices are connected to them and what they owe, and link to
+ * their own page. Saving a name you already have asks first (it is allowed — it is never merged).
+ */
 export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
   const cfg = CONFIG[kind];
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [stats, setStats] = useState<Record<string, Stat>>({});
+  const [total, setTotal] = useState(0);
   const [limit, setLimit] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [qInput, setQInput] = useState('');
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Row | 'new' | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({ ...cfg.empty });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const opened = useRef(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(cfg.api, { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+    const url = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), ...(q ? { q } : {}) });
+    if (kind === 'customers') {
+      url.set('stats', '1');
+      url.set('today', isoDate(new Date()));
+    }
+    const res = await fetch(`${cfg.api}?${url}`, { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
     if (!res?.ok) return setNotice('Couldn’t load the list. Refresh to try again.');
-    const body = (await res.json()) as { rows: Row[]; limit: number | null };
+    const body = (await res.json()) as { rows: Row[]; limit: number | null; total: number; pages: number; page: number; stats?: Record<string, Stat> };
     setRows(body.rows);
+    setStats(body.stats ?? {});
+    setTotal(body.total);
     setLimit(body.limit);
-  }, [cfg.api]);
+    setPages(body.pages);
+    if (body.page !== page) setPage(body.page);
+  }, [cfg.api, kind, page, q]);
   useEffect(() => void load(), [load]);
 
-  const atLimit = rows !== null && limit !== null && rows.length >= limit;
-  const shown = (rows ?? []).filter((r) => !q.trim() || Object.values(r).some((v) => v.toLowerCase().includes(q.trim().toLowerCase())));
+  // Search as you type, a moment after you stop, from the first page.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQ((cur) => (cur === qInput.trim() ? cur : qInput.trim()));
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [qInput]);
 
-  function open(row: Row | 'new') {
-    setEditing(row);
-    setDraft(row === 'new' ? { ...cfg.empty } : { ...cfg.empty, ...row });
-    setErrors({});
-    setNotice(null);
-    requestAnimationFrame(() => document.getElementById(`d-${kind}-name`)?.focus());
+  const atLimit = rows !== null && limit !== null && total >= limit;
+
+  const open = useCallback(
+    (row: Row | 'new') => {
+      setEditing(row);
+      setDraft(row === 'new' ? { ...cfg.empty } : { ...cfg.empty, ...row });
+      setErrors({});
+      setNotice(null);
+      requestAnimationFrame(() => document.getElementById(`d-${kind}-name`)?.focus());
+    },
+    [cfg.empty, kind],
+  );
+
+  // "Edit customer" on a customer's own page arrives as …/customers?edit=<id>.
+  useEffect(() => {
+    if (opened.current || !rows) return;
+    const id = new URLSearchParams(window.location.search).get('edit');
+    if (!id) return;
+    opened.current = true;
+    fetch(`${cfg.api}/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { row?: Row } | null) => b?.row && open(b.row))
+      .catch(() => undefined);
+  }, [rows, cfg.api, open]);
+
+  /** Is there already one with this name (any case)? Asked of the server, so it covers the whole list, not just this page. */
+  async function nameTaken(name: string): Promise<boolean> {
+    const res = await fetch(`${cfg.api}?page=1&pageSize=5&q=${encodeURIComponent(name)}`, { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+    if (!res?.ok) return false;
+    const body = (await res.json().catch(() => ({}))) as { rows?: Row[] };
+    return (body.rows ?? []).some((r) => r.name.trim().toLowerCase() === name.trim().toLowerCase());
   }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const checked = cfg.clean(draft);
     if (!checked.ok) return setErrors(checked.errors);
-    setBusy(true);
     const isNew = editing === 'new';
+    if (isNew && (await nameTaken(checked.value.name)) && !window.confirm(`You already have a ${cfg.noun} called “${checked.value.name}”. Save another one with the same name?`)) return;
+    setBusy(true);
     const res = await fetch(isNew ? cfg.api : `${cfg.api}/${(editing as Row).id}`, {
       method: isNew ? 'POST' : 'PUT',
       credentials: 'same-origin',
@@ -102,7 +159,14 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
   }
 
   async function remove(row: Row) {
-    if (!window.confirm(`Delete ${row.name}?${kind === 'customers' ? ' Past invoices keep their own copy of the details.' : ''}`)) return;
+    const n = stats[row.id]?.invoiceCount ?? 0;
+    const note =
+      kind === 'customers'
+        ? n > 0
+          ? ` The ${n} invoice${n === 1 ? '' : 's'} connected to them will stay, with their own copy of the details, but won’t be connected to a saved customer any more.`
+          : ' Past invoices keep their own copy of the details.'
+        : '';
+    if (!window.confirm(`Delete ${row.name}?${note}`)) return;
     const res = await fetch(`${cfg.api}/${row.id}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => null);
     setNotice(res?.ok ? `Deleted ${row.name}.` : 'That didn’t delete. Try again.');
     await Promise.all([load(), refreshMe()]);
@@ -155,7 +219,7 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
       <div className="flex flex-wrap items-center gap-3">
         <label className="min-w-0 flex-1">
           <span className="sr-only">Search {kind}</span>
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${kind}`} className={INPUT} />
+          <input type="search" value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={`Search ${kind}`} className={INPUT} maxLength={80} />
         </label>
         <button type="button" onClick={() => open('new')} disabled={atLimit || editing !== null} className={PRIMARY}>
           + Add {cfg.noun}
@@ -164,7 +228,7 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
 
       {limit !== null && (
         <p className="text-sm text-muted">
-          {rows.length} of {limit} saved
+          {total} of {limit} saved
           {atLimit && ` — the free limit. Saving more than ${limit} ${kind} is part of Pro — coming soon. You can still type any ${cfg.noun} straight onto an invoice.`}
         </p>
       )}
@@ -184,6 +248,9 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
                   {f.label}
                 </label>
                 <div className="mt-1">{input(f)}</div>
+                {kind === 'items' && f.key === 'rate' && (
+                  <p className="mt-1 text-xs text-muted">Items don’t carry a currency — the rate goes onto an invoice as typed, and you can change it there.</p>
+                )}
                 {errors[f.key] && (
                   <p id={`d-${kind}-${f.key}-error`} className="mt-1 text-sm font-medium text-danger-600">
                     {errors[f.key]}
@@ -203,7 +270,7 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
         </form>
       )}
 
-      {rows.length === 0 && editing === null ? (
+      {total === 0 && editing === null && !q ? (
         <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
           <p className="font-display text-xl font-bold text-ink">No saved {kind} yet</p>
           <p className="mt-2 text-muted">
@@ -211,25 +278,64 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
           </p>
         </div>
       ) : (
-        <ul aria-label={`Saved ${kind}`} className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface">
-          {shown.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-              <div className="min-w-0">
-                <p className="font-semibold text-ink">{r.name}</p>
-                {cfg.summary(r) && <p className="text-sm text-muted">{cfg.summary(r)}</p>}
-              </div>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => open(r)} disabled={editing !== null} aria-label={`Edit ${r.name}`} className="inline-flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash disabled:opacity-60">
-                  Edit
-                </button>
-                <button type="button" onClick={() => void remove(r)} aria-label={`Delete ${r.name}`} className="inline-flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash hover:text-danger-600">
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-          {shown.length === 0 && <li className="p-4 text-muted">Nothing matches “{q}”.</li>}
-        </ul>
+        <>
+          <ul aria-label={`Saved ${kind}`} className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface">
+            {rows.map((r) => {
+              const st = stats[r.id];
+              return (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
+                  <div className="min-w-0">
+                    {kind === 'customers' ? (
+                      <a href={`/app/business/customers/${r.id}`} className="font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
+                        {r.name}
+                      </a>
+                    ) : (
+                      <p className="font-semibold text-ink">{r.name}</p>
+                    )}
+                    {cfg.summary(r) && <p className="text-sm text-muted">{cfg.summary(r)}</p>}
+                    {kind === 'customers' && st && (
+                      <p className="text-sm text-strong" data-testid={`cust-stat-${r.id}`}>
+                        {st.invoiceCount} invoice{st.invoiceCount === 1 ? '' : 's'}
+                        {st.money
+                          .filter((m) => m.outstanding > 0)
+                          .map((m) => ` · ${formatMoney(m.outstanding, m.currency)} outstanding${m.overdue > 0 ? ` (${formatMoney(m.overdue, m.currency)} overdue)` : ''}`)
+                          .join('')}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    {kind === 'customers' && (
+                      <a href={`/app/business/customers/${r.id}`} aria-label={`Open ${r.name}`} className="inline-flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
+                        Open
+                      </a>
+                    )}
+                    <button type="button" onClick={() => open(r)} disabled={editing !== null} aria-label={`Edit ${r.name}`} className="inline-flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash disabled:opacity-60">
+                      Edit
+                    </button>
+                    <button type="button" onClick={() => void remove(r)} aria-label={`Delete ${r.name}`} className="inline-flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-strong hover:bg-wash hover:text-danger-600">
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+            {rows.length === 0 && <li className="p-4 text-muted">Nothing matches “{q}”.</li>}
+          </ul>
+          {total > 0 && (
+            <Pager
+              page={page}
+              pages={pages}
+              pageSize={PAGE_SIZE}
+              matched={total}
+              hrefFor={(p) => `#page-${p}`}
+              onGo={(href, e) => {
+                e.preventDefault();
+                setPage(Number(href.slice('#page-'.length)));
+              }}
+              label={`${kind === 'customers' ? 'Customer' : 'Item'} pages`}
+            />
+          )}
+        </>
       )}
 
       <datalist id="unit-options">

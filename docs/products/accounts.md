@@ -101,7 +101,7 @@ documents.
 |---|---|
 | `/api/auth/*` | better-auth (sign-in, callbacks, sign-out, session) |
 | `GET /api/me` · `DELETE /api/me` | who/entitlements/usage · delete account (`{confirm:"DELETE"}`) |
-| `GET/POST /api/invoices` | list summaries · save new (403 `limit`) |
+| `GET/POST /api/invoices` | list summaries · save new (403 `limit`). `GET` also takes search, type, sort, `page` and the Stage D filters → one page with `matched` and totals over every match; no params = everything, as before |
 | `GET/PUT/DELETE /api/invoices/:id` | one invoice |
 | `POST /api/invoices/:id/duplicate` | copy with next number and new dates (a quotation copies as the next quotation) |
 | `POST /api/invoices/:id/convert` | quotation → new invoice, next invoice number (Pro) |
@@ -116,8 +116,9 @@ documents.
 | `GET /api/qr/export` | CSV of codes or scans (`qr_export`) |
 | `GET/PUT /api/business-profile` | seller details + logo (the editor's save) |
 | `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
-| `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |
-| `GET/POST /api/items`, `GET/PUT/DELETE /api/items/:id` | saved items |
+| `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free). `GET` also takes `?q=&page=&pageSize=` (paged, `total`/`pages`) and, paged, `stats=1&today=` (per-customer invoice count and what's owed); without them the answer is unchanged (≤ 200) |
+| `GET /api/customers/:id/summary?today=`, `GET …/unlinked`, `POST …/links` | the customer page: per-currency totals of connected invoices · invoices typed in by the exact name (a list to review, connects nothing) · explicit connect / disconnect of ticked invoices (any account with saved customers) |
+| `GET/POST /api/items`, `GET/PUT/DELETE /api/items/:id` | saved items; `GET` also takes `?q=&page=&pageSize=` (paged) |
 | `GET/POST /api/invoices/:id/payments`, `PATCH …/:paymentId`, `POST …/:paymentId/void` | the payment ledger: view · record (idempotent, 409 `exceeds`) · edit reference/note · void (any account, `invoice_payments`) |
 | `PUT /api/invoices/:id/status` | only undoes a legacy “marked paid” (`unpaid`); `paid` is refused — record the payment |
 | `GET /api/dashboard?today=` | Pro dashboard totals + recent invoices (unchanged) |
@@ -149,6 +150,7 @@ details shared by all business tools. Paths inside kaamsolv.com, not subdomains
 /app/invoices/settings       Invoices → Invoice settings (numbering, defaults)
 /app/business                Shared → Business profile (details, GSTIN, logo, bank/UPI)
 /app/business/customers      Shared → Customers (free: 3)
+/app/business/customers/<id> One customer: totals, invoices, typed-in invoices to review
 /app/business/items          Shared → Items
 /app/account                 Account (sign out, delete)
 ```

@@ -7,6 +7,8 @@ import type { NextResponse } from 'next/server';
 import { entitlementsFrom, type EntitlementKey } from './entitlements';
 import { fail, isUuid, json, readJson, requireUser, sameOrigin } from './api-response';
 import type { Cleaned } from './invoice/settings';
+import { clientTodayOk } from './invoice/recurring';
+import { pageCount, clampPage, parsePaging } from './paging';
 import type { CurrentUser } from './session';
 import { getDb } from '@/db/client';
 import type { InsertResult } from '@/db/directory';
@@ -20,6 +22,10 @@ type Directory<T, R> = {
   limitMessage: (limit: number) => string;
   clean: (input: unknown) => Cleaned<T>;
   list: (db: Db, userId: string, q: string) => Promise<R[]>;
+  /** One page, server-side search: used when the request carries `page` / `pageSize`. */
+  listPage?: (db: Db, userId: string, q: string, page: number, pageSize: number) => Promise<{ rows: R[]; total: number }>;
+  /** Optional per-row figures (customers: invoices and what's owed), asked for with `stats=1` on a paged request. */
+  stats?: (db: Db, userId: string, ids: string[], today: string) => Promise<Record<string, unknown>>;
   get: (db: Db, userId: string, id: string) => Promise<R | null>;
   create: (db: Db, userId: string, value: T, limit: number | null) => Promise<InsertResult>;
   update: (db: Db, userId: string, id: string, value: T) => Promise<boolean>;
@@ -50,7 +56,24 @@ export function collectionHandlers<T, R>(d: Directory<T, R>) {
     async GET(req: Request) {
       const a = await access(req, d.key);
       if (a instanceof Response) return a;
-      const q = new URL(req.url).searchParams.get('q') ?? '';
+      const sp = new URL(req.url).searchParams;
+      const q = sp.get('q') ?? '';
+      // Paged answer (`page` / `pageSize`): one page, `total`, `pages` — so nothing is cut off at 200. Without them the
+      // answer is exactly what it always was.
+      if (d.listPage && (sp.has('page') || sp.has('pageSize'))) {
+        const paging = parsePaging(sp);
+        if (!paging.ok) return fail(400, 'invalid', paging.message);
+        let today = '';
+        if (sp.get('stats') === '1' && d.stats) {
+          const t = sp.get('today');
+          if (!clientTodayOk(t)) return fail(400, 'invalid', 'Your device’s date looks off. Check your clock and try again.');
+          today = t;
+        }
+        const { rows, total } = await d.listPage(a.db, a.user.id, q, paging.page, paging.pageSize);
+        const pages = pageCount(total, paging.pageSize);
+        const stats = today && d.stats ? await d.stats(a.db, a.user.id, rows.map((r) => (r as { id: string }).id), today) : undefined;
+        return json({ ok: true, rows, limit: a.limit, total, page: clampPage(paging.page, pages), pageSize: paging.pageSize, pages, ...(stats ? { stats } : {}) });
+      }
       return json({ ok: true, rows: await d.list(a.db, a.user.id, q), limit: a.limit });
     },
     async POST(req: Request) {
