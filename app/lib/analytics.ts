@@ -220,7 +220,7 @@ export function trackToolError(code: string, type?: ToolType): void {
   send('tool_error', { ...toolParams(tool, type), error_type: code.replace(/[^a-z0-9_-]/gi, '').slice(0, 40) });
 }
 
-const FILE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'avif', 'svg', 'pdf', 'zip']);
+const FILE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'avif', 'svg', 'pdf', 'zip', 'docx']);
 
 /** A file was downloaded. Only the extension (from a fixed allow-list) is sent — never the name. */
 export function trackFileDownload(filename: string): void {

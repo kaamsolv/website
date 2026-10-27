@@ -193,3 +193,13 @@ test('without consent syncCleanLocation sets nothing', () => {
     g.localStorage.setItem('kaamsolv-analytics', 'granted');
   }
 });
+
+test('a Word download is reported as "docx" (not "other"), without its file name', () => {
+  visit('/pdf-to-word');
+  a.trackFileDownload('Priya salary offer.docx');
+  const ev = events()[0];
+  assert.equal(ev.name, 'file_download');
+  assert.equal(ev.params.file_ext, 'docx');
+  assert.equal(ev.params.tool_name, 'pdf-to-word');
+  assert.ok(!wire().includes('Priya'));
+});

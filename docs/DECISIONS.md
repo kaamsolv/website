@@ -5,6 +5,19 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-27 — PDF to Word: text first, in the browser, free
+
+**Decided by:** product owner (chose both options when asked; plan approved 2026-10-27). Built, not deployed.
+
+- **Approach:** in the browser (pdf.js + a hand-written `.docx` via fflate), not a server. Private (the file never leaves the device),
+  no new service, cost or dependency. A server converter would give closer layouts but needs a paid conversion service, uploads,
+  retention and abuse controls (CLAUDE.md §17): a much bigger decision, left for later if demand justifies it.
+- **Free for everyone, 10 MB**, like the other PDF tools. `pdf_convert_office` stays reserved.
+- **Honest limits, said on the page before the download:** text, paragraphs and headings only: no images, tables, columns, fonts
+  or exact layout; scanned PDFs are refused (no OCR); 300 pages max.
+- **Not verified here:** how Word, Google Docs and Pages display the file (structure and text are tested; the owner opens real files).
+- Details: [`products/pdf-tools.md`](products/pdf-tools.md) → "PDF → Word".
+
 ## 2026-10-27 — Indian Number to Words (first of the Number to Words → Rent Receipt → Gratuity shortlist)
 
 **Decided by:** product owner (picked from the shortlist; kickoff and plan approved 2026-10-27). Built, not deployed.

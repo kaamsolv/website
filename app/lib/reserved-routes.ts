@@ -36,6 +36,7 @@ const ROUTE_SEGMENTS = [
   'emi-calculator',
   'salary-calculator',
   'indian-number-to-words',
+  'pdf-to-word',
   'invoice-generator',
   'pdf-tools',
   'compress-pdf',

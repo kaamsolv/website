@@ -7,6 +7,7 @@ export type PdfErrorCode =
   | 'encrypted'
   | 'corrupted'
   | 'too-many-pages'
+  | 'no-text'
   | 'unsupported-image'
   | 'image-failed'
   | 'memory-limit'
@@ -19,6 +20,7 @@ const MESSAGES: Record<PdfErrorCode, string> = {
   encrypted: 'This PDF has a password. Remove it in your PDF app first, then try again.',
   corrupted: "Couldn't read that PDF. It may be damaged or incomplete — try saving it again from the app that made it.",
   'too-many-pages': 'That PDF has too many pages to show here.',
+  'no-text': "We couldn't find any text in this PDF. It's probably a scan or a photo of a page, which this tool can't read yet. A PDF saved from an app like Word or a browser works best.",
   'unsupported-image': "That image type isn't supported. Use JPG, PNG, WebP or HEIC.",
   'image-failed': "Couldn't open that image. Try exporting it again as JPG.",
   'memory-limit': 'Your device ran out of memory for this file. Close other tabs, or try a smaller file.',

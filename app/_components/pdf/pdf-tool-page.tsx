@@ -167,6 +167,39 @@ const PAGES: Record<PdfTask, PageDef> = {
     ],
     related: ['jpg-to-pdf', 'split-pdf', 'image-compressor'],
   },
+  'pdf-to-word': {
+    slug: 'pdf-to-word',
+    path: '/pdf-to-word',
+    title: 'PDF to Word — get the text of a PDF into an editable file',
+    description: `Turn a PDF's text into an editable Word (.docx) file. Best for letters, reports and other text documents. Free, in your browser — nothing is uploaded. Files up to ${LIMIT}.`,
+    h1: 'PDF to Word',
+    intro: 'Get the text of a PDF into a Word file you can edit — right in your browser.',
+    steps: [
+      { t: 'Add your PDF', d: `Drop it or browse. Up to ${LIMIT}. It stays on your device.` },
+      { t: 'Convert', d: 'We read the text and set it out as paragraphs and headings.' },
+      { t: 'Download', d: 'A .docx file you can open in Word, Google Docs or Pages.' },
+    ],
+    faq: [
+      {
+        q: 'Will it look exactly like my PDF?',
+        a: 'No. It copies the text into Word paragraphs and headings so you can edit it. Page layout, tables, columns, images and exact fonts do not come across. If the layout matters, work from the original file.',
+      },
+      {
+        q: 'Can it read a scanned PDF?',
+        a: 'Not yet. A scan is a picture of text, so there is no text to copy. If you can select the words in your PDF viewer, this will work.',
+      },
+      {
+        q: 'What happens to tables and columns?',
+        a: 'A table row comes out as one line with tab gaps. On a page with two columns the text is read top to bottom, so the columns can mix. Check the result in Word.',
+      },
+      {
+        q: 'Do other languages work?',
+        a: 'Text that the PDF stores as ordinary text comes across. Some PDFs, especially in Indian languages, store letters in a way that can come out wrong. Check the result before you rely on it.',
+      },
+      ...COMMON_FAQ,
+    ],
+    related: ['pdf-to-jpg', 'compress-pdf', 'merge-pdf'],
+  },
   'jpg-to-pdf': {
     slug: 'jpg-to-pdf',
     path: '/jpg-to-pdf',

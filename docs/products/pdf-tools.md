@@ -27,6 +27,7 @@ to JPG → PDF) and several PDFs (they switch it to Merge).
 | Split | Tick pages → one new PDF | `pdf_advanced_split` → ranges, every N pages, ZIP |
 | PDF → JPG | All pages, 150 or 300 DPI, ZIP | `pdf_batch_convert` → several PDFs |
 | JPG → PDF | Up to 5 images (JPG, PNG, WebP, HEIC) | `pdf_batch_convert` → more images |
+| PDF → Word | One file, text first (see below) | `pdf_convert_office` is reserved for a later high-fidelity / batch version |
 | — | — | `pdf_convert_office`, `pdf_ocr`: reserved, separate decisions |
 
 Limits live in `app/lib/pdf/limits.ts`; each asks `can(key)` for its own key.
@@ -60,6 +61,34 @@ Safety caps for every plan (not paywalls): 300 pages for thumbnails / PDF → JP
   "Download all" zips with fflate (stored, level 0).
 - **Refused:** password-protected PDFs (an `/Encrypt` scan before parsing), non-PDFs
   (`%PDF-` within the first 1024 bytes), files over the limit.
+
+## PDF → Word (`/pdf-to-word`) — text first, in the browser
+
+Decision (2026-10-27): free for everyone, 10 MB, no server, no new dependency. pdf.js reads the text, `paragraphs.ts` makes
+paragraphs and headings, `docx.ts` writes a plain `.docx` with fflate. The page says what it does **not** do, before the download.
+
+**Comes across:** the text, in reading order (top to bottom, left to right); paragraphs (a blank line, a short last line, a
+first-line indent, a bullet or a size change starts one); headings (short lines set clearly larger than the body: three levels);
+wide gaps as tabs; one page break per PDF page; the first page's size (A4, Letter, landscape or custom).
+
+**Does not:** images, tables (a row comes out as one line with tabs), columns (read top to bottom, so two columns mix), fonts,
+bold/italic, exact spacing, links, headers/footers as such. **Scanned PDFs** (no text) are refused with a plain message
+(`no-text`); a PDF with very little text is converted but flagged ("may be a scan"). 300-page cap (`MAX_TEXT_PAGES`).
+Devanagari and other scripts stored with custom glyph maps can extract wrongly; untested without a real sample, so not promised.
+
+| Piece | File |
+|---|---|
+| Text positions → paragraphs, headings (pure) | `app/lib/pdf/to-word/paragraphs.ts` (not `layout.ts`: Next.js treats that name as a route layout) |
+| Paragraphs → `.docx` bytes, XML escaping, page size (pure) | `app/lib/pdf/to-word/docx.ts` |
+| Pages → result, scan refusal, "sparse" flag (pure) | `app/lib/pdf/to-word/convert.ts` |
+| pdf.js → text runs (the only pdf.js part) | `app/lib/pdf/to-word/extract.ts` |
+| Entry point, file name | `app/lib/pdf/to-word/index.ts` |
+| UI | `app/_components/pdf/pdf-workspace.tsx` (convert mode `to-word`, `DocxResult`) |
+
+Tests: `test/pdf-to-word.test.mts` (layout, the `.docx` parts and XML well-formedness, escaping, real PDFs through the real
+pdf.js in Node) and `tests/e2e/pdf-to-word.spec.ts` (real files in the browser, the downloaded `.docx` unzipped and read,
+scan / password / not-a-PDF / too-big refusals, nothing uploaded, screenshots).
+**Not verified by any test: how Microsoft Word, Google Docs or Pages display the file** — open real converted files there.
 
 ## Libraries and the Worker
 

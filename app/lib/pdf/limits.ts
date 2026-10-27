@@ -22,6 +22,8 @@ export const FREE_IMAGES_TO_PDF = 5;
 export const BATCH_HARD_CAP = 100;
 /** Pages we'll draw (thumbnails, PDF → JPG) in one document. */
 export const MAX_RENDER_PAGES = 300;
+/** Pages we'll read text from (PDF → Word) in one document. */
+export const MAX_TEXT_PAGES = 300;
 
 type Can = Pick<Entitlements, 'can'>;
 

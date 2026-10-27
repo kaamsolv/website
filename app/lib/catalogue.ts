@@ -160,7 +160,7 @@ export const TOOLS: Tool[] = [
   { name: 'Profit Margin Calculator', slug: 'profit-margin-calculator', url: '/calculators/profit-margin-calculator', category: 'Business', blurb: 'Margin and markup from cost and price.', keywords: ['margin', 'markup', 'profit', 'cost price'], status: 'planned' },
 
   // Documents
-  { name: 'PDF to Word', slug: 'pdf-to-word', url: '/documents/pdf-to-word', category: 'Documents', blurb: 'Turn a PDF into an editable Word document.', keywords: ['pdf', 'word', 'docx', 'convert', 'edit pdf'], status: 'planned', popularRank: 4 },
+  { name: 'PDF to Word', slug: 'pdf-to-word', url: '/pdf-to-word', category: 'Documents', blurb: 'The text of a PDF, in a Word file you can edit.', keywords: ['pdf', 'word', 'docx', 'pdf to docx', 'convert', 'edit pdf'], status: 'live', popularRank: 4 },
   { name: 'Compress PDF', slug: 'compress-pdf', url: '/compress-pdf', category: 'Documents', blurb: 'Make a PDF smaller for email and upload forms.', keywords: ['compress pdf', 'reduce pdf size', 'shrink pdf', 'pdf size', 'smaller pdf', 'kb'], status: 'live' },
   { name: 'Merge PDF', slug: 'merge-pdf', url: '/merge-pdf', category: 'Documents', blurb: 'Join several PDFs into a single file.', keywords: ['merge', 'combine pdf', 'join'], status: 'live' },
   { name: 'Split PDF', slug: 'split-pdf', url: '/split-pdf', category: 'Documents', blurb: 'Pull out the pages you need.', keywords: ['split', 'extract pages', 'separate'], status: 'live' },

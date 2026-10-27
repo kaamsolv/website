@@ -13,40 +13,43 @@ import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { formatBytes, sizeDeltaLabel } from '@/app/lib/image/validate';
 import { compressVerdict, compressedPdfName, extractedPdfName } from '@/app/lib/pdf/outcome';
 import { toPdfToolError } from '@/app/lib/pdf/errors';
-import { MAX_RENDER_PAGES, maxFileBytes, maxImagesToPdf, maxMergeFiles, sizeLimitLabel } from '@/app/lib/pdf/limits';
+import { MAX_RENDER_PAGES, MAX_TEXT_PAGES, maxFileBytes, maxImagesToPdf, maxMergeFiles, sizeLimitLabel } from '@/app/lib/pdf/limits';
 import type { MarginMode, PageSizeMode } from '@/app/lib/pdf/image-layout';
 import { moveItem, pagesLabel } from '@/app/lib/pdf/order';
 import type { PDFDocumentProxy } from '@/app/lib/pdf/pdfjs';
 import { IMAGE_ACCEPT, IMAGE_INPUT_LABELS } from '@/app/lib/pdf/prepare-image';
 import { assertImageSize, looksLikePdf, pdfBaseName, readPdfFile } from '@/app/lib/pdf/validate';
 
-export type PdfTask = 'hub' | 'compress' | 'merge' | 'split' | 'pdf-to-jpg' | 'jpg-to-pdf';
+export type PdfTask = 'hub' | 'compress' | 'merge' | 'split' | 'pdf-to-jpg' | 'pdf-to-word' | 'jpg-to-pdf';
 type Action = 'compress' | 'merge' | 'split' | 'convert';
-type ConvertMode = 'to-jpg' | 'from-images';
+type ConvertMode = 'to-jpg' | 'to-word' | 'from-images';
 
 const TASK_PATH: Record<Exclude<PdfTask, 'hub'>, string> = {
   compress: '/compress-pdf',
   merge: '/merge-pdf',
   split: '/split-pdf',
   'pdf-to-jpg': '/pdf-to-jpg',
+  'pdf-to-word': '/pdf-to-word',
   'jpg-to-pdf': '/jpg-to-pdf',
 };
 
 function initialAction(task: PdfTask): { action: Action; mode: ConvertMode } {
   if (task === 'pdf-to-jpg') return { action: 'convert', mode: 'to-jpg' };
+  if (task === 'pdf-to-word') return { action: 'convert', mode: 'to-word' };
   if (task === 'jpg-to-pdf') return { action: 'convert', mode: 'from-images' };
   return { action: task === 'hub' ? 'compress' : task, mode: 'to-jpg' };
 }
 
 function taskOf(action: Action, mode: ConvertMode): Exclude<PdfTask, 'hub'> {
-  return action === 'convert' ? (mode === 'to-jpg' ? 'pdf-to-jpg' : 'jpg-to-pdf') : action;
+  if (action !== 'convert') return action;
+  return mode === 'to-jpg' ? 'pdf-to-jpg' : mode === 'to-word' ? 'pdf-to-word' : 'jpg-to-pdf';
 }
 
 const ACTIONS: { value: Action; label: string; hint: string }[] = [
   { value: 'compress', label: 'Compress', hint: 'Make it smaller' },
   { value: 'merge', label: 'Merge', hint: 'Join PDFs' },
   { value: 'split', label: 'Split', hint: 'Pick pages' },
-  { value: 'convert', label: 'Convert', hint: 'PDF ↔ JPG' },
+  { value: 'convert', label: 'Convert', hint: 'JPG or Word' },
 ];
 
 type PdfItem = { id: string; file: File; bytes: Uint8Array; pages: number; doc: Promise<PDFDocumentProxy> };
@@ -56,6 +59,7 @@ type JpgFile = { blob: Blob; url: string; filename: string; width: number; heigh
 type Done =
   | { kind: 'pdf'; blob: Blob; filename: string; bytes: number; inputBytes: number | null; pages: number | null; note?: string; again: string }
   | { kind: 'jpgs'; files: JpgFile[]; zipName: string }
+  | { kind: 'docx'; blob: Blob; filename: string; bytes: number; pages: number; sparse: boolean }
   | { kind: 'not-smaller'; inputBytes: number; outputBytes: number };
 
 type Busy = { label: string; done?: number; total?: number };
@@ -316,6 +320,21 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
     if (files) setDone({ kind: 'jpgs', files, zipName: `${base}-jpg.zip` });
   }
 
+  async function doToWord() {
+    if (!first) return;
+    const { pdfToDocx, wordFileName, DOCX_MIME } = await import('@/app/lib/pdf/to-word');
+    const res = await run('Reading the text', async (progress) => pdfToDocx(await first.doc, progress));
+    if (!res) return;
+    setDone({
+      kind: 'docx',
+      blob: new Blob([res.bytes as BlobPart], { type: DOCX_MIME }),
+      filename: wordFileName(pdfBaseName(first.file.name)),
+      bytes: res.bytes.length,
+      pages: res.pages,
+      sparse: res.sparse,
+    });
+  }
+
   async function doFromImages() {
     if (images.length === 0) return;
     const [{ imagesToPdf, pdfBlob }, { prepareImageForPdf }] = await Promise.all([
@@ -349,7 +368,9 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
   const wantsImages = action === 'convert' && mode === 'from-images';
   const hasAnything = pdfs.length > 0 || images.length > 0;
   const working = busy !== null || reading;
-  const tooManyPages = (action === 'split' || (action === 'convert' && mode === 'to-jpg')) && first && first.pages > MAX_RENDER_PAGES;
+  const toWord = action === 'convert' && mode === 'to-word';
+  const pageCap = toWord ? MAX_TEXT_PAGES : MAX_RENDER_PAGES;
+  const tooManyPages = (action === 'split' || (action === 'convert' && (mode === 'to-jpg' || toWord))) && first && first.pages > pageCap;
   const limitLabel = sizeLimitLabel(maxBytes);
 
   const pdfDrop = (
@@ -472,7 +493,7 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
         )}
         {tooManyPages ? (
           <p className="rounded-xl border border-yellow-300 bg-yellowx-100 px-4 py-3 text-sm text-strong" role="status">
-            This PDF has {first!.pages} pages. Pages can be shown here for PDFs up to {MAX_RENDER_PAGES} pages — try splitting it in your PDF app first.
+            This PDF has {first!.pages} pages. {toWord ? 'Text can be read here' : 'Pages can be shown here'} for PDFs up to {pageCap} pages — try splitting it in your PDF app first.
           </p>
         ) : action === 'compress' ? (
           <>
@@ -491,6 +512,18 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
             onExtract={doSplit}
             disabled={working}
           />
+        ) : toWord ? (
+          <>
+            <p className="text-sm text-muted">Gets the text out of your PDF into a Word file you can edit. Best for letters, reports and other text documents.</p>
+            <p className="rounded-xl border border-hair bg-surface px-4 py-3 text-sm text-strong">
+              Text, paragraphs and headings come across. Page layout, tables, columns and images don&apos;t, and scanned pages can&apos;t be read.
+            </p>
+            {!done && (
+              <button type="button" className={PRIMARY} onClick={doToWord} disabled={working}>
+                Convert {pagesLabel(first!.pages)} to Word
+              </button>
+            )}
+          </>
         ) : (
           <>
             <div>
@@ -529,6 +562,7 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
           hideLegend
           options={[
             { value: 'to-jpg' as const, label: 'PDF → JPG' },
+            { value: 'to-word' as const, label: 'PDF → Word' },
             { value: 'from-images' as const, label: 'JPG → PDF' },
           ]}
           value={mode}
@@ -567,6 +601,7 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
         </div>
       )}
       {done?.kind === 'pdf' && <PdfResult done={done} onAgain={startAgain} />}
+      {done?.kind === 'docx' && <DocxResult done={done} onAgain={startAgain} />}
       {done?.kind === 'jpgs' && <JpgResult done={done} onZip={() => downloadZip(done.files, done.zipName)} onAgain={startAgain} />}
 
       {hasAnything && !done && (
@@ -810,6 +845,45 @@ function PdfResult({ done, onAgain }: { done: Extract<Done, { kind: 'pdf' }>; on
         </button>
         <button type="button" onClick={onAgain} className={SECONDARY}>
           {done.again}
+        </button>
+      </div>
+    </ResultShell>
+  );
+}
+
+function DocxResult({ done, onAgain }: { done: Extract<Done, { kind: 'docx' }>; onAgain: () => void }) {
+  return (
+    <ResultShell title="Done. Your Word file is ready.">
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="col-span-2">
+          <dt className="text-xs text-faint">Filename</dt>
+          <dd className="truncate font-medium text-ink">{done.filename}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-faint">Size</dt>
+          <dd className="font-medium text-strong">{formatBytes(done.bytes)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-faint">Pages read</dt>
+          <dd className="font-medium text-strong">{done.pages}</dd>
+        </div>
+      </dl>
+      {done.sparse && (
+        <p className="mt-3 rounded-lg border border-yellow-300 bg-yellowx-100 px-3 py-2 text-sm text-strong">
+          Very little text was found. This PDF may be a scan, so check the Word file before you rely on it.
+        </p>
+      )}
+      <p className="mt-3 text-sm text-strong">Text and paragraphs came across. Page layout, tables and images didn&apos;t, so look it over in Word.</p>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => downloadBlob(done.blob, done.filename)}
+          className="h-11 flex-1 rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+        >
+          Download Word file
+        </button>
+        <button type="button" onClick={onAgain} className={SECONDARY}>
+          Convert another
         </button>
       </div>
     </ResultShell>
