@@ -33,12 +33,12 @@ after(async () => close());
 
 test('a freshly migrated database is empty: the seeded plans and the migration journal exist, and do not count', async () => {
   const names = (await listTables(query)).map(qualified);
-  for (const t of ['public.auth_users', 'public.links', 'public.click_events', 'public.invoices', 'public.invoice_payments', 'public.qr_codes', 'public.plans', 'public.plan_features', JOURNAL_TABLE_NAME]) assert.ok(names.includes(t), t);
+  for (const t of ['public.auth_users', 'public.links', 'public.click_events', 'public.invoices', 'public.invoice_payments', 'public.qr_codes', 'public.plans', 'public.plan_features', 'public.plan_prices', JOURNAL_TABLE_NAME]) assert.ok(names.includes(t), t);
   assert.ok(((await query(`select count(*)::int as n from plan_features`))[0].n as number) > 0, 'the migrations did seed plan rows');
   assert.ok(((await query(`select count(*)::int as n from drizzle.__drizzle_migrations`))[0].n as number) > 0, 'and the journal has rows');
   assert.deepEqual(await tablesWithData(query), []);
   assert.equal(await refusalIfNotEmpty(query), null);
-  assert.deepEqual([...SEED_TABLES].sort(), ['public.plan_features', 'public.plans']);
+  assert.deepEqual([...SEED_TABLES].sort(), ['public.plan_features', 'public.plan_prices', 'public.plans']);
 });
 
 test('data a "no users" check would miss is caught: an anonymous short link alone makes the database not empty', async () => {

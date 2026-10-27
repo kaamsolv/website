@@ -5,11 +5,20 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-27 — Billing M1: selling KaamSolv plans through Razorpay (built locally, not deployed)
+Approved plan (read-only audit first): a verified Razorpay webhook, never the browser, switches a plan on; one-time **Orders first**
+(Subscriptions auto-renew later); idempotent by Razorpay's event id; payment claim and plan grant in one SQL statement
+(Neon HTTP has no transactions); full refund ends access at once; disputes suspend. Launch prices (generous, raise later, launch
+subscribers keep theirs): Invoice Pro ₹149/₹1,490, QR Pro ₹99/₹990, bundle ₹199/₹1,990 (month/year), in `plan_prices`.
+Sales records survive account deletion, unlinked. Open: GST treatment of prices and seller details (Beam Me Up), Razorpay
+activation/keys/webhook. Later milestones (invoice email, links, WhatsApp share, summaries, accountant packs) are separate.
+Details: [`products/billing.md`](products/billing.md).
+
 ## 2026-10-27 — Gratuity Calculator (new catalogue tool, India)
 `/gratuity-calculator`. Narrow on purpose, because the law changed on 21 Nov 2025 and the sources disagree: only the Act formula
 (wages × 15 × years ÷ 26, more than six months rounds up, ₹20 lakh maximum, 5 years or 1 for fixed-term, none on death/disability).
 The person enters "wages"; no tax calculation, no employers outside the Act, no CTC estimator; the page lists the rules it uses with
-the date checked. Built locally, not committed; the rules box and FAQ wait for owner/CA review. Details:
+the date checked. Live 2026-10-27, after the owner reviewed the rules box and FAQ. Details:
 [`products/gratuity-calculator.md`](products/gratuity-calculator.md).
 
 ## 2026-10-27 — Rent Receipt Generator (new catalogue tool, India)

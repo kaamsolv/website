@@ -4,8 +4,8 @@
  *
  * Why not just "no users": the old check counted `auth_users` only. A copy of production taken before accounts
  * existed has no users but does hold anonymous short links and click data. The rule is about the WHOLE database:
- * every table in every non-system schema must be empty. Only what a migration seeds may hold rows — the two plan
- * tables, and drizzle's own journal of applied migrations. (The operator's `--non-production` flag remains an
+ * every table in every non-system schema must be empty. Only what a migration seeds may hold rows — the plan
+ * tables (plans, features, prices), and drizzle's own journal of applied migrations. (The operator's `--non-production` flag remains an
  * attestation; this is the technical backstop for a mistake.)
  *
  * Strict scope: "every non-system schema" means everything except `pg_catalog`, `information_schema`, `pg_toast` and
@@ -14,7 +14,7 @@
  */
 
 /** Seeded by migrations, not customer data: plans and what each plan includes. Schema-qualified. */
-export const SEED_TABLES: readonly string[] = ['public.plans', 'public.plan_features'];
+export const SEED_TABLES: readonly string[] = ['public.plans', 'public.plan_features', 'public.plan_prices'];
 /** drizzle's record of applied migrations: expected to hold rows once anything is migrated. */
 export const JOURNAL_TABLE_NAME = 'drizzle.__drizzle_migrations';
 

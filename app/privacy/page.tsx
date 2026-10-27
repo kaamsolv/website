@@ -86,6 +86,13 @@ export default function PrivacyPage() {
           details. These are your own records of money you were paid; we don&apos;t see or move any money.
         </li>
         <li>
+          <strong>Plans you buy from KaamSolv</strong>: the plan, the amount, the date, Razorpay&apos;s order and
+          payment references, and whether the payment went through, was refunded or was disputed. Payment is taken
+          by Razorpay, so your card, UPI or bank details go to Razorpay and never to us. If you delete your account,
+          your plan access goes with it; we keep the sale itself (amount, date, references) without any link to
+          you, so we can account for what we sold.
+        </li>
+        <li>
           <strong>A history of each payment</strong>: every time a payment is recorded, voided, or has its
           reference or note changed, we keep a dated entry — including the reference and note as they were before
           an edit. We keep this history for as long as the invoice exists. It isn&apos;t shown anywhere in your

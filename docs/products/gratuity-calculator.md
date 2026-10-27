@@ -23,8 +23,8 @@ to month end; no time zones (plain year-month-day).
 Employers outside the Act (15/30 or average of 10 months); tax or exemption (a note only, no section numbers); the "4 years 240 days"
 idea (a note when service is 4y 8m or more); a CTC-to-wages estimator; leave encashment; saving or history.
 
-## Needs the owner's review before launch
-The "Rules this uses" box and the FAQ wording, ideally with a CA or HR contact. Rules can change; update `RULES_AS_OF` when rechecked.
+## Review
+Live since 2026-10-27; the owner reviewed the rules box and FAQ wording. Rules can change; update `RULES_AS_OF` when rechecked.
 
 ## Code
 | Piece | File |

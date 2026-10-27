@@ -319,6 +319,84 @@ export const subscriptions = pgTable(
   (table) => [index('subscriptions_user_id_idx').on(table.userId)],
 );
 
+/**
+ * What a plan costs, per billing period, in paise (billing, M1). Prices live here, never in the browser:
+ * the checkout reads the amount from this table. `active` lets a price be retired without deleting history.
+ */
+export const planPrices = pgTable(
+  'plan_prices',
+  {
+    planKey: text('plan_key')
+      .notNull()
+      .references(() => plans.planKey),
+    period: text('period').notNull(),
+    amountPaise: integer('amount_paise').notNull(),
+    currency: text('currency').notNull().default('INR'),
+    active: boolean('active').notNull().default(true),
+  },
+  (table) => [
+    primaryKey({ columns: [table.planKey, table.period] }),
+    check('plan_prices_period', sql`${table.period} in ('month', 'year')`),
+    check('plan_prices_amount', sql`${table.amountPaise} > 0`),
+  ],
+);
+
+/**
+ * One row per Razorpay webhook delivery, keyed by Razorpay's own event id so a repeated delivery is a no-op.
+ * Holds no customer details: only ids and a short status/reason.
+ */
+export const billingEvents = pgTable(
+  'billing_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    providerEventId: text('provider_event_id').notNull().unique(),
+    eventType: text('event_type').notNull(),
+    /** received → processed | ignored | failed. `failed` is retried by Razorpay's own redelivery. */
+    status: text('status').notNull().default('received'),
+    /** Short reason for ignored/failed ("partial_refund", "payment_not_known_yet"). Never personal data. */
+    detail: text('detail').notNull().default(''),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+  },
+  (table) => [check('billing_events_status', sql`${table.status} in ('received', 'processed', 'ignored', 'failed')`)],
+);
+
+/**
+ * KaamSolv's own sales: one row per checkout. The Razorpay webhook, never the browser, moves it to `paid`.
+ * `userId` is set null (not cascaded) when an account is deleted so the sales record survives; it holds no
+ * name, email or card detail.
+ */
+export const billingPayments = pgTable(
+  'billing_payments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => authUsers.id, { onDelete: 'set null' }),
+    planKey: text('plan_key')
+      .notNull()
+      .references(() => plans.planKey),
+    period: text('period').notNull(),
+    amountPaise: integer('amount_paise').notNull(),
+    currency: text('currency').notNull().default('INR'),
+    razorpayOrderId: text('razorpay_order_id').unique(),
+    razorpayPaymentId: text('razorpay_payment_id').unique(),
+    /** created → paid | failed; paid → refunded | disputed. */
+    status: text('status').notNull().default('created'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    /** Set in the same statement that marks it paid and switches the plan(s) on, so the two can't disagree. */
+    grantedAt: timestamp('granted_at', { withTimezone: true }),
+    refundedAt: timestamp('refunded_at', { withTimezone: true }),
+    disputedAt: timestamp('disputed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('billing_payments_user_id_idx').on(table.userId),
+    check('billing_payments_status', sql`${table.status} in ('created', 'paid', 'failed', 'refunded', 'disputed')`),
+    check('billing_payments_period', sql`${table.period} in ('month', 'year')`),
+    check('billing_payments_amount', sql`${table.amountPaise} > 0`),
+  ],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 
