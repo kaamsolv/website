@@ -8,7 +8,7 @@
  */
 
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
-import { deriveToken, hashToken, isTokenShape } from '../app/lib/links/token.ts';
+import { deriveToken, hashToken, isTokenShape, LINK_TTL_DAYS } from '../app/lib/links/token.ts';
 import type { Invoice } from '../app/lib/invoice/types.ts';
 import type { Db } from './links.ts';
 import { invoiceLinks, invoices } from './schema.ts';
@@ -27,7 +27,8 @@ export async function createLink(db: Db, secret: string, input: { invoiceId: str
     userId: input.userId,
     tokenHash: await hashToken(token),
     purpose: input.purpose,
-    expiresAt: input.expiresAt ?? null,
+    // Every link expires (LINK_TTL_DAYS) unless the caller says otherwise; `null` here means the default, not "never".
+    expiresAt: input.expiresAt ?? new Date(Date.now() + LINK_TTL_DAYS * 86_400_000),
   });
   return { id, token };
 }
@@ -49,7 +50,7 @@ export async function ensureLink(db: Db, secret: string, input: { invoiceId: str
 /** The invoice's live links, newest first (for the Share panel). */
 export async function liveLinks(db: Db, secret: string, userId: string, invoiceId: string) {
   const rows = await db
-    .select({ id: invoiceLinks.id, purpose: invoiceLinks.purpose, createdAt: invoiceLinks.createdAt, viewCount: invoiceLinks.viewCount, lastViewedAt: invoiceLinks.lastViewedAt })
+    .select({ id: invoiceLinks.id, purpose: invoiceLinks.purpose, createdAt: invoiceLinks.createdAt, expiresAt: invoiceLinks.expiresAt, viewCount: invoiceLinks.viewCount, lastViewedAt: invoiceLinks.lastViewedAt })
     .from(invoiceLinks)
     .where(and(eq(invoiceLinks.invoiceId, invoiceId), eq(invoiceLinks.userId, userId), live))
     .orderBy(desc(invoiceLinks.createdAt));

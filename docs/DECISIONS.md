@@ -25,6 +25,9 @@ WhatsApp (click-to-chat, a wa.me link: nothing is sent for the user). Server PDF
 the Worker). Worker 2,966 KiB gzip (2,730 at M1). Cloudflare's size limit became 64 MiB uncompressed on every plan in September 2026, so
 size is not a blocker; Workers Paid is still recommended before live payments (subrequests, CPU, daily cap): `products/billing.md`. Details: [`products/billing.md`](products/billing.md).
 
+## 2026-10-27 — Invoice links expire after 90 days (owner: "as per industry standards"; built locally after M3, uncommitted)
+Every invoice link (emailed and shared) now stops opening 90 days after it is made (`LINK_TTL_DAYS`). A new link replaces it; the invoice is never remade.
+
 ## 2026-10-27 — Billing M3: receivables snapshot, summary, opt-in email (built locally, not deployed)
 **Ageing is now five groups** (not yet due, 1–30, 31–60, 61–90, over 90; it was four with "over 60"), one definition shared by Payments &
 collections, the invoice list filter and the Ageing report. "Where things stand" on Payments & collections adds, from the same ledger:

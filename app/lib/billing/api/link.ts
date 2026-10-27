@@ -42,7 +42,7 @@ async function load(userId: string, id: string) {
   return { db, row: row ? { ...row, phone } : row };
 }
 
-function reply(row: NonNullable<Awaited<ReturnType<typeof load>>['row']>, links: { token: string; createdAt: Date; viewCount: number; lastViewedAt: Date | null }[]) {
+function reply(row: NonNullable<Awaited<ReturnType<typeof load>>['row']>, links: { token: string; createdAt: Date; expiresAt: Date | null; viewCount: number; lastViewedAt: Date | null }[]) {
   const doc = row.data as Invoice;
   const newest = links[0];
   const url = newest ? invoiceUrl(newest.token) : null;
@@ -52,6 +52,7 @@ function reply(row: NonNullable<Awaited<ReturnType<typeof load>>['row']>, links:
   return json({
     ok: true,
     url,
+    expiresAt: newest?.expiresAt ? newest.expiresAt.toISOString() : null,
     views: newest?.viewCount ?? 0,
     lastViewedAt: newest?.lastViewedAt ? newest.lastViewedAt.toISOString() : null,
     whatsapp: message ? { message, href: whatsappHref(row.phone, message), hasClientNumber: whatsappNumber(row.phone) !== null } : null,

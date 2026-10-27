@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PRIMARY, SECONDARY } from './account-shell';
 
-type Share = { url: string | null; views: number; lastViewedAt: string | null; whatsapp: { message: string; href: string; hasClientNumber: boolean } | null };
+type Share = { url: string | null; expiresAt?: string | null; views: number; lastViewedAt: string | null; whatsapp: { message: string; href: string; hasClientNumber: boolean } | null };
 
 /**
  * Share one invoice: a private link, Share on WhatsApp (opens WhatsApp with the message filled in; you choose who
@@ -69,11 +69,16 @@ export function InvoiceShare({ id }: { id: string }) {
       <h2 id="share-h" className="font-display text-lg font-bold text-ink">
         Share this invoice
       </h2>
-      <p className="mt-1 text-sm text-muted">A private link your client can open on their phone, with a PDF to download. Anyone who has the link can open this invoice until you turn it off.</p>
+      <p className="mt-1 text-sm text-muted">A private link your client can open on their phone, with a PDF to download. Anyone who has the link can open this invoice until you turn it off or it runs out (90 days).</p>
 
       {share.url && (
         <p className="mt-3 break-all rounded-xl border border-hair bg-wash px-3 py-2 text-sm font-semibold text-ink" data-testid="share-url">
           {share.url}
+        </p>
+      )}
+      {share.url && share.expiresAt && (
+        <p className="mt-1 text-xs text-muted" data-testid="share-expires">
+          Opens until {new Date(share.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}. After that, copy a new link.
         </p>
       )}
       {share.url && share.views > 0 && (

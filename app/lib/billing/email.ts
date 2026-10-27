@@ -17,7 +17,7 @@ export function invoiceEmail(input: { to: string; buyerName: string; number: str
     '',
     input.url,
     '',
-    'Open it to view or download the PDF. Anyone with this link can open the invoice, so keep it to yourself.',
+    'Open it to view or download the PDF. The link works for 90 days, and anyone who has it can open the invoice, so keep it to yourself. If it has run out, reply and we will send a fresh one.',
     '',
     'Questions? Just reply to this email.',
   ].join('\n');
@@ -27,7 +27,7 @@ export function invoiceEmail(input: { to: string; buyerName: string; number: str
 <p>Hi ${esc(first)},</p>
 <p>Thanks for choosing ${esc(input.planName)}. Your invoice <strong>${esc(input.number)}</strong> for <strong>${esc(amount)}</strong> is ready.</p>
 <p><a href="${esc(input.url)}" style="display:inline-block;background:#FE6336;color:#0C2248;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:999px">View invoice</a></p>
-<p style="color:#5B6478;font-size:13px">Open it to view or download the PDF. Anyone with this link can open the invoice, so keep it to yourself. Questions? Just reply to this email.</p>
+<p style="color:#5B6478;font-size:13px">Open it to view or download the PDF. The link works for 90 days, and anyone who has it can open the invoice, so keep it to yourself. If it has run out, reply and we will send a fresh one. Questions? Just reply to this email.</p>
 </div>`;
   return { to: input.to, subject: `Your KaamSolv invoice ${input.number}`, text, html };
 }

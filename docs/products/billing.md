@@ -112,7 +112,7 @@ Refunded, failed, or buyer-deleted payments are skipped; an invoice the seller l
 ### Private links
 `/i/<token>`: 22 URL-safe characters (132 bits) derived from the link's id and `BETTER_AUTH_SECRET` (HMAC), only the SHA-256 stored,
 so the same URL can be rebuilt for a resend. A **bearer link**: anyone holding it can read that one invoice and its PDF until it is
-turned off (`DELETE /api/invoices/<id>/link`) or expires (no automatic expiry yet; `expires_at` exists). Wrong, revoked, expired and
+turned off (`DELETE /api/invoices/<id>/link`) or **expires after 90 days** (`LINK_TTL_DAYS`, `app/lib/links/token.ts`; owner's choice 2026-10-27, "as per industry standards"). A lapsed link is the same plain 404; making a new one (Share → Copy link, or "Email it to me again") never makes a second invoice, and the old link stays dead. The email and the share panel say "90 days". Wrong, revoked, expired and
 short tokens are the same plain 404. The page is `noindex`, `Referrer-Policy: no-referrer`, `no-store`, shows no account, customer
 or link id, and `robots.txt` disallows `/i/`. **Rotating `BETTER_AUTH_SECRET` breaks every invoice link.** Views are counted (chat-app
 link previews can count too).
@@ -205,7 +205,7 @@ DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_
   Not on the site.
 
 ### Not in M2
-Automated WhatsApp, receivables summaries, accountant packs, automatic link expiry, an unsubscribe/consent store, a support screen
+Automated WhatsApp, receivables summaries, accountant packs, an unsubscribe/consent store, a support screen
 for stuck jobs (`listStuck` is the query), refund-credit-notes for the sales invoice (a refunded payment keeps its invoice).
 
 ### M2 code

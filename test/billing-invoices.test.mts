@@ -349,6 +349,27 @@ test('the same link can be rebuilt later, and one live link per purpose is reuse
   assert.notEqual(share.token, one.token);
 });
 
+test('every link expires after 90 days; a lapsed one is replaced, never revived, and the invoice is still one', async () => {
+  const sellerId = await seller('seller-expiry@example.test');
+  const env = { ...ENV, BILLING_SELLER_EMAIL: 'seller-expiry@example.test' };
+  const made = await issueInvoice(db, await paidPayment(await user('expiry@example.test')), env);
+  assert.ok(made.ok);
+  const first = await ensureLink(db, SECRET, { invoiceId: made.invoiceId, userId: sellerId, purpose: 'billing' });
+  const [row] = await db.select().from(invoiceLinks).where(eq(invoiceLinks.id, first.id));
+  const days = (row.expiresAt!.getTime() - Date.now()) / 86_400_000;
+  assert.ok(days > 89.9 && days <= 90, `about 90 days, got ${days.toFixed(2)}`);
+  assert.ok(await resolveLink(db, first.token));
+
+  await db.update(invoiceLinks).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(invoiceLinks.id, first.id));
+  assert.equal(await resolveLink(db, first.token), null, 'lapsed');
+  assert.equal(await billingLinkToken(db, SECRET, made.invoiceId), null, 'a lapsed link is not offered again');
+  const second = await ensureLink(db, SECRET, { invoiceId: made.invoiceId, userId: sellerId, purpose: 'billing' });
+  assert.notEqual(second.token, first.token, 'a fresh link');
+  assert.ok(await resolveLink(db, second.token));
+  assert.equal(await resolveLink(db, first.token), null, 'the old one stays dead');
+  assert.equal((await db.select().from(invoices).where(eq(invoices.userId, sellerId))).length, 1, 'still one invoice');
+});
+
 // ---- the outbox ----------------------------------------------------------------------------------------------
 
 test('the outbox: a job is added once, taken once, retried with a back-off, and given up on loudly', async () => {

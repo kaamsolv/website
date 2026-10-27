@@ -133,7 +133,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ token:
             Download PDF
           </a>
         </article>
-        <p className="mt-4 text-center text-xs text-muted">Anyone with this link can open this invoice.</p>
+        <p className="mt-4 text-center text-xs text-muted">Anyone with this link can open this invoice until it runs out.</p>
       </div>
     </main>
   );

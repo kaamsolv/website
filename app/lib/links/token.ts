@@ -17,6 +17,12 @@ function base64url(bytes: Uint8Array): string {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/**
+ * How long an invoice link opens, in days. 90 covers a normal payment cycle plus a late reminder; a link that has run out is
+ * replaced by making a new one (Share → Copy link, or "Email it to me again"), which never makes a second invoice.
+ */
+export const LINK_TTL_DAYS = 90;
+
 /** The server secret for deriving tokens. Dev and tests get a fixed one; production must have the real secret. */
 export function linkSecret(env: Record<string, string | undefined> = process.env): string {
   const secret = env.BETTER_AUTH_SECRET?.trim();

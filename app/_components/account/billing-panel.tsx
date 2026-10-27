@@ -246,7 +246,7 @@ export function BillingPanel() {
                         Invoice {p.invoiceNumber}
                       </a>
                     ) : (
-                      <span className="text-muted">Your invoice is being prepared.</span>
+                      <span className="text-muted">{p.invoiceNumber ? 'The invoice link has run out. Email it to me again for a fresh one.' : 'Your invoice is being prepared.'}</span>
                     )}
                     <button type="button" className="font-semibold text-coral-600 underline underline-offset-2" onClick={() => resend(p.id)}>
                       Email it to me again
