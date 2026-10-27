@@ -933,3 +933,33 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+
+
+# 45. Tool UX Standard: Instant Feedback
+
+Where a tool produces output (invoice, converted image, formatted JSON,
+calculated result), the output must update in real time as the user types
+or uploads — no "Generate" button required unless processing is expensive.
+
+Rules:
+- No tool may require registration or login to produce its core output.
+- The primary action must be reachable within one screen on mobile.
+- The result must be downloadable/copyable without leaving the page.
+- "Generate" is only allowed when server-side processing is genuinely required.
+
+
+
+# 46. New Tool Kickoff Checklist
+
+Before implementing any new tool from the catalogue:
+
+1. State 2–3 benchmark tools in the same category (real products).
+2. List which 2–3 features make the benchmark tool good.
+3. Explicitly state what KaamSolv will NOT do (to preserve simplicity).
+4. State the PDF/export/preview approach where output is a file.
+5. Then enter Plan Mode and wait for approval.
+
+Do not start coding a new tool without this kickoff summary.
+
+

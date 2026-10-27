@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kaamsolv-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "kaamsolv-worker",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["opennextjs-cloudflare", "preview"],
+      "port": 8787
+    }
+  ]
+}

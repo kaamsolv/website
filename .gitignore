@@ -28,3 +28,7 @@ playwright-report/
 
 # E2E throwaway database
 .pglite-e2e/
+
+# Claude Code local worktrees and settings
+/.claude/worktrees/
+/.claude/settings.local.json
