@@ -16,6 +16,8 @@ process.env.KK_E2E_SECRET ??= randomBytes(32).toString('hex');
 process.env.KK_E2E_PORT ??= '3000';
 // A per-run webhook secret for billing.spec.ts. The Razorpay API keys are deliberately NOT set: tests never reach Razorpay.
 process.env.RAZORPAY_WEBHOOK_SECRET ??= randomBytes(16).toString('hex');
+// The account that issues KaamSolv's sales invoices can't be deleted (tests/e2e/billing.spec.ts).
+process.env.BILLING_SELLER_EMAIL ??= 'billing-seller-e2e@example.test';
 const BASE_URL = `http://localhost:${process.env.KK_E2E_PORT}`;
 process.env.KK_E2E_BASE = BASE_URL;
 
@@ -42,6 +44,7 @@ export default defineConfig({
       KK_E2E_SECRET: process.env.KK_E2E_SECRET,
       KK_E2E_PORT: process.env.KK_E2E_PORT,
       RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+      BILLING_SELLER_EMAIL: process.env.BILLING_SELLER_EMAIL,
       // Dummy values so the Google button renders; tests stop the request before it leaves.
       GOOGLE_CLIENT_ID: 'e2e-dummy.apps.googleusercontent.com',
       GOOGLE_CLIENT_SECRET: 'e2e-dummy-not-a-secret',

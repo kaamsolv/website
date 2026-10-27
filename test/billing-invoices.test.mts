@@ -13,7 +13,9 @@ import { attachOrder, createPendingPayment, priceFor, processBillingEvent } from
 import { issueInvoice } from '../db/billing-invoice.ts';
 import { billingLinkToken, createLink, ensureLink, liveLinks, resolveLink, revokeLinks } from '../db/invoice-links.ts';
 import { claimDue, enqueue, runDue, settle, BACKOFF_MINUTES, MAX_ATTEMPTS } from '../db/outbox.ts';
-import { saveProfile } from '../db/invoices.ts';
+import { deleteInvoice, SalesInvoiceError, saveProfile } from '../db/invoices.ts';
+import { holdsSalesInvoices } from '../db/accounts.ts';
+import { billingReport, billingSettingsPresent } from '../db/billing-report.ts';
 import { billingInvoiceJob, queueInvoiceFor, queueResend } from '../app/lib/billing/jobs.ts';
 import { billingConfig, buildSubscriptionInvoice } from '../app/lib/billing/invoice.ts';
 import { invoiceEmail } from '../app/lib/billing/email.ts';
@@ -474,4 +476,33 @@ test('the seller sees these sales in the ordinary invoice list and the dashboard
     { number: 'INV-0001', total: 149, status: 'paid' },
     { number: 'INV-0002', total: 990, status: 'paid' },
   ]);
+});
+
+test('the seller account and its sales invoices can not be deleted; an ordinary account and invoice still can', async () => {
+  const sellerId = await seller('seller-guard@example.test');
+  const env = { ...ENV, BILLING_SELLER_EMAIL: 'seller-guard@example.test' };
+  const made = await issueInvoice(db, await paidPayment(await user('guard-buyer@example.test')), env);
+  assert.ok(made.ok);
+  assert.equal(await holdsSalesInvoices(db, sellerId), true);
+  await assert.rejects(deleteInvoice(db, sellerId, made.invoiceId), SalesInvoiceError);
+  assert.equal((await db.select().from(invoices).where(eq(invoices.id, made.invoiceId))).length, 1, 'still there');
+
+  // Someone else's id is simply "not found", not "protected".
+  assert.equal(await deleteInvoice(db, await user('guard-other@example.test'), made.invoiceId), false);
+  // The seller's own ordinary invoices are deletable as before.
+  const ordinary = await db.insert(invoices).values({ userId: sellerId, number: 'MINE-1', currency: 'INR', total: 5, data: {} }).returning({ id: invoices.id });
+  assert.equal(await deleteInvoice(db, sellerId, ordinary[0].id), true);
+  assert.equal(await holdsSalesInvoices(db, await user('guard-plain@example.test')), false);
+});
+
+test('the status report shows counts and ids only, and which settings are set by name', async () => {
+  const report = await billingReport(db);
+  assert.ok(report.payments.some((p) => p.status === 'paid'));
+  assert.ok(Array.isArray(report.stuckJobs) && Array.isArray(report.problemEvents) && Array.isArray(report.paidNotInvoiced));
+  const everything = JSON.stringify(report);
+  assert.ok(!/@example\.test/.test(everything), 'no email addresses in the report');
+  const present = billingSettingsPresent({ RAZORPAY_KEY_ID: 'x', CRON_SECRET: '  ' });
+  assert.deepEqual(present.find((s) => s.name === 'RAZORPAY_KEY_ID'), { name: 'RAZORPAY_KEY_ID', set: true });
+  assert.deepEqual(present.find((s) => s.name === 'CRON_SECRET'), { name: 'CRON_SECRET', set: false });
+  assert.ok(!JSON.stringify(present).includes('"x"'), 'values are never included');
 });

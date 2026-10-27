@@ -135,6 +135,16 @@ layer for each distinct set of routes; all billing/link routes now go through on
 a copy (this saved 38 KiB). **M3 and M4 will not fit.** Recommendation: move to the Workers Paid plan (limit 10 MiB, about USD 5 a
 month); it also suits a business taking payments. Needs the owner's yes; nothing was changed on the account.
 
+### Safeguards added after review (M2.5)
+- The account named in `BILLING_SELLER_EMAIL`, and any account holding a sales invoice, **can't be deleted** (409), and a sales
+  invoice can't be deleted from the invoice list (409). Deleting them would delete the sales records.
+- `npm run billing:status` (read-only, `db/billing-status.mts`): payments by status, paid payments still waiting for an invoice,
+  outbox jobs and the stuck ones, webhook events that didn't finish, and which billing settings this machine has (names only).
+  Run it against production with the production `DATABASE_URL` after any real payment, and daily at first.
+- The privacy page says the sales invoice (with the buyer's name and email) is kept after the buyer deletes their account.
+- Draft Terms and Refund & Cancellation wording for the owner's and CA's review: [`billing-policies-DRAFT.md`](billing-policies-DRAFT.md).
+  Not on the site.
+
 ### Not in M2
 Automated WhatsApp, receivables summaries, accountant packs, automatic link expiry, an unsubscribe/consent store, a support screen
 for stuck jobs (`listStuck` is the query), refund-credit-notes for the sales invoice (a refunded payment keeps its invoice).

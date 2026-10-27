@@ -17,7 +17,7 @@ import { getDb } from '@/db/client';
 import { getEntitlements } from '@/db/entitlements';
 import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
-import { deleteInvoice, getInvoice, InvoiceLockedError, updateInvoice } from '@/db/invoices';
+import { deleteInvoice, getInvoice, InvoiceLockedError, SalesInvoiceError, updateInvoice } from '@/db/invoices';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -76,5 +76,10 @@ export async function DELETE(req: Request, { params }: Ctx) {
   if (user instanceof Response) return user;
   const { id } = await params;
   if (!isUuid(id)) return notFound();
-  return (await deleteInvoice(await getDb(), user.id, id)) ? json({ ok: true }) : notFound();
+  try {
+    return (await deleteInvoice(await getDb(), user.id, id)) ? json({ ok: true }) : notFound();
+  } catch (e) {
+    if (e instanceof SalesInvoiceError) return fail(409, 'sales_invoice', 'This is one of KaamSolv’s own sales invoices, so it can’t be deleted.');
+    throw e;
+  }
 }

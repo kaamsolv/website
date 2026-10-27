@@ -97,3 +97,19 @@ test.describe('checkout and status', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 });
+
+test('the account that issues KaamSolv invoices can not be deleted; any other account can', async ({ page }) => {
+  const seller = process.env.BILLING_SELLER_EMAIL ?? '';
+  expect(seller).toContain('@');
+  const signIn = await page.request.post('/api/test/oauth-sign-in', { headers: { 'x-kk-e2e-secret': SECRET }, data: { email: seller, name: 'Seller' } });
+  expect(signIn.status()).toBe(200);
+  const refused = await page.request.delete('/api/me', { headers: { origin: BASE }, data: { confirm: 'DELETE' } });
+  expect(refused.status()).toBe(409);
+  expect(((await refused.json()) as { error: string }).error).toBe('billing_account');
+  expect((await page.request.get('/api/me')).status(), 'still signed in, account still there').toBe(200);
+
+  const other = await page.request.post('/api/test/oauth-sign-in', { headers: { 'x-kk-e2e-secret': SECRET }, data: { email: `plain-${Date.now()}@example.test`, name: 'Plain' } });
+  expect(other.status()).toBe(200);
+  const gone = await page.request.delete('/api/me', { headers: { origin: BASE }, data: { confirm: 'DELETE' } });
+  expect(gone.status()).toBe(200);
+});

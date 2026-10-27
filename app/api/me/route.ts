@@ -10,7 +10,7 @@ import { NO_ENTITLEMENTS } from '@/app/lib/entitlements';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { getCurrentUser } from '@/app/lib/session';
 import { getDb } from '@/db/client';
-import { deleteAccount } from '@/db/accounts';
+import { deleteAccount, holdsSalesInvoices } from '@/db/accounts';
 import { countQr } from '@/db/qr';
 import { getEntitlements } from '@/db/entitlements';
 import { countInvoices } from '@/db/invoices';
@@ -45,7 +45,13 @@ export async function DELETE(req: Request) {
   if ((body as { confirm?: unknown })?.confirm !== 'DELETE') {
     return fail(400, 'confirm_required', 'Type DELETE to confirm.');
   }
-  await deleteAccount(await getDb(), user.id, user.email);
+  // The account that issues KaamSolv's own invoices is the accounting record: deleting it would delete them.
+  const db = await getDb();
+  const seller = process.env.BILLING_SELLER_EMAIL?.trim().toLowerCase();
+  if ((seller && user.email.toLowerCase() === seller) || (await holdsSalesInvoices(db, user.id))) {
+    return fail(409, 'billing_account', 'This account issues KaamSolv’s own invoices, so it can’t be deleted here.');
+  }
+  await deleteAccount(db, user.id, user.email);
   // The session row is gone with the user; clear the cookie too.
   const res = json({ ok: true });
   for (const name of ['kk.session_token', '__Secure-kk.session_token', 'kk.session_data', '__Secure-kk.session_data']) {

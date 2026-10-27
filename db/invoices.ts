@@ -242,12 +242,25 @@ export async function updateInvoice(db: Db, userId: string, id: string, doc: Inv
   return rows.length > 0;
 }
 
+/** The invoice is a KaamSolv sales invoice (issued for a subscription payment): it is an accounting record and can't be deleted. */
+export class SalesInvoiceError extends Error {
+  constructor() {
+    super('sales_invoice');
+  }
+}
+
 export async function deleteInvoice(db: Db, userId: string, id: string): Promise<boolean> {
   const rows = await db
     .delete(invoices)
-    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId), sql`not exists (select 1 from billing_payments where billing_payments.invoice_id = ${invoices.id})`))
     .returning({ id: invoices.id });
-  return rows.length > 0;
+  if (rows.length > 0) return true;
+  const [held] = await db
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+  if (held) throw new SalesInvoiceError();
+  return false;
 }
 
 // ─── Business profile / Settings ─────────────────────────────────────────────

@@ -15,6 +15,7 @@
     "db:rehearsal:prepare": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON db/prepare-rehearsal.mts",
     "db:host": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON db/print-host.mts",
     "link:status": "node db/link-status.mts",
+    "billing:status": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON db/billing-status.mts",
     "account:grant": "node db/account-grant.mts",
     "link:reports": "node db/link-reports.mts",
     "pdfjs:sync": "node scripts/sync-pdfjs-assets.mts",

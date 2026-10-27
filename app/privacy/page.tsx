@@ -90,7 +90,8 @@ export default function PrivacyPage() {
           payment references, and whether the payment went through, was refunded or was disputed. Payment is taken
           by Razorpay, so your card, UPI or bank details go to Razorpay and never to us. If you delete your account,
           your plan access goes with it; we keep the sale itself (amount, date, references) without any link to
-          you, so we can account for what we sold.
+          you, so we can account for what we sold. The invoice we issued to you for it also stays, with the name
+          and email you had then, because it is our accounting record.
         </li>
         <li>
           <strong>Invoice links you share</strong>: when you share an invoice, a private link to it, when it was
