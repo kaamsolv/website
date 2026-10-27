@@ -107,16 +107,18 @@ test('the flag never skips the check when a real ID is configured', () => {
   s.done();
 });
 
-test('cf:deploy runs the check after the build and before the deploy; preview/dev/test do not', () => {
+test('cf:deploy: deploy guard first, then the build, the analytics check, and only then the deploy; preview/dev/test run none of them', () => {
   const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts as Record<string, string>;
   const steps = scripts['cf:deploy'].split('&&').map((s) => s.trim());
   assert.deepEqual(steps, [
+    'tsx scripts/check-deploy-branch.mts',
     'opennextjs-cloudflare build',
     'tsx scripts/check-analytics-build.mts',
     'opennextjs-cloudflare deploy',
   ]);
   for (const name of ['cf:preview', 'cf:build', 'dev', 'build', 'test', 'test:e2e']) {
     assert.ok(!scripts[name].includes('check-analytics-build'), name);
+    assert.ok(!scripts[name].includes('check-deploy-branch'), name);
   }
 });
 

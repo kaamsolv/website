@@ -39,7 +39,7 @@ Config files: [`wrangler.jsonc`](../../wrangler.jsonc),
 | `npm run dev` | Normal Next.js dev server (localhost:3000) |
 | `npm run cf:build` | `next build` + OpenNext bundle → `.open-next/` |
 | `npm run cf:preview` | Build, then run the Worker locally in `workerd` (localhost:8787) — closest to production |
-| `npm run cf:deploy` | Build and deploy the `kaamsolv` Worker (needs `wrangler login`) |
+| `npm run cf:deploy` | Deploy guard, build, analytics check, then deploy the `kaamsolv` Worker (needs `wrangler login`) |
 
 Local preview note: with Custom Domains in `wrangler.jsonc`, `wrangler dev`
 rewrites every request's host to `kaamsolv.com`, so the www redirect can't be
@@ -73,7 +73,7 @@ only IPv6 answers for a while; check with
 
 ## 4. Ongoing deploys
 
-Either run `npm run cf:deploy` from a clean `main`, or connect the repo once in
+Either run `npm run cf:deploy` from a clean `main` (the deploy guard below enforces the "clean" and "main" part), or connect the repo once in
 **Workers & Pages → kaamsolv → Settings → Builds** (Workers Builds):
 
 - Git repository: `kaamsolv/website`, production branch `main`
@@ -89,6 +89,25 @@ the build, `npm run cf:deploy` runs `scripts/check-analytics-build.mts`, which s
 the deploy unless the resolved ID is actually in the built client files. Workers Builds
 runs `npx opennextjs-cloudflare build/deploy` directly and so skips that check; rely on
 `.env.production` there and run the post-deploy check in `docs/ANALYTICS.md`.
+
+### Deploy guard
+
+`npm run cf:deploy` first runs `scripts/check-deploy-branch.mts` (before the slow build). A deploy ships whatever is in the checkout, and twice a deploy quietly removed live features because the checkout lacked work that was already on `main`. The guard refuses unless:
+
+1. the checkout **contains everything on `origin/main`** (it fetches `origin/main` first; if it can't, it stops),
+2. the commit is **on GitHub** (pushed to any branch), so production never runs code that exists only on one machine,
+3. **nothing that gets built differs from that commit**: no edited, staged or untracked files outside `CLAUDE.md`, `AGENTS.md`, `.claude/`, `docs/`, `tests/`, `README.md`.
+
+It passes on a feature branch that already contains `main` and is pushed — it can't tell whether that branch has been merged *to* main, so merge (or open the PR) before or right after such a deploy, or `main` and production drift apart. For a deliberate exception (e.g. rolling back to an older commit): `KK_DEPLOY_OVERRIDE="reason"` — the reason is printed and nothing else is checked. **Workers Builds (git-connected) and a bare `opennextjs-cloudflare deploy` do not run the guard.** Tests: `test/deploy-guard.test.mts` (real throwaway git repos).
+
+### Security headers
+
+`next.config.mjs` (`securityHeaders`) sends, on every route the Worker handles (pages, API, 404s, `robots.txt`, `sitemap.xml`): `Strict-Transport-Security: max-age=31536000` (no `includeSubDomains`/`preload`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Content-Security-Policy: frame-ancestors 'self'; base-uri 'self'; object-src 'none'`, `Referrer-Policy: strict-origin-when-cross-origin`, and a `Permissions-Policy` that switches off camera, microphone, geolocation, USB and Bluetooth (no tool uses them).
+
+- Checked against a local Worker build (`wrangler dev --local`): every route above returned all six. Not checked on production until deployed.
+- **Not covered:** static asset files under `/_next/static/*` are served straight from Cloudflare's asset store, not the Worker, so they don't carry these headers (their `Content-Type` is correct).
+- **Deliberately not done:** a `script-src` Content-Security-Policy. It needs a nonce per request, which would end static pre-rendering, and must allow Google Analytics and (later) Razorpay. Revisit as its own decision; `form-action`, `COOP` and `includeSubDomains` also need their own testing (Google sign-in, Razorpay popups, subdomains such as `send.`).
+- `robots.txt` comes from `app/robots.ts`: everything crawlable except `/app/` and `/api/`, plus the `Sitemap:` line. Cloudflare may prepend its own managed content-signal comments at the edge.
 
 Rollback: Workers & Pages → kaamsolv → Deployments → roll back to a previous
 version (instant), or `npx wrangler rollback`.

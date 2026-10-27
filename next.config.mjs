@@ -1,5 +1,27 @@
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants.js';
 
+/**
+ * Response headers for every route (docs/infra/deployment.md → "Security headers").
+ * Deliberately conservative: nothing here can stop a script, style, image, font or
+ * connection the site uses today. A script-src Content-Security-Policy needs
+ * per-request nonces (which would end static pre-rendering), so it is a separate,
+ * later decision.
+ *  - HSTS: browsers talk HTTPS only, for a year (no includeSubDomains / preload: separate decisions).
+ *  - nosniff: a file is only ever treated as the type we declared.
+ *  - X-Frame-Options + frame-ancestors: other sites can't put KaamSolv in a frame (clickjacking).
+ *  - base-uri / object-src: no injected <base> or plugin content.
+ *  - Referrer-Policy: the browser default, made explicit.
+ *  - Permissions-Policy: no tool uses camera, microphone, location, USB or Bluetooth, so none may.
+ */
+export const securityHeaders = [
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'" },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), usb=(), bluetooth=()' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /**
@@ -42,6 +64,10 @@ const nextConfig = {
         default: './app/lib/image/heic2any-server-stub.ts',
       },
     },
+  },
+
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
   },
 
   /** Canonical host is the apex: www.kaamsolv.com → kaamsolv.com (308). */

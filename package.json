@@ -17,7 +17,7 @@
     "pdfjs:sync": "node scripts/sync-pdfjs-assets.mts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare build && tsx scripts/check-analytics-build.mts && opennextjs-cloudflare deploy",
+    "cf:deploy": "tsx scripts/check-deploy-branch.mts && opennextjs-cloudflare build && tsx scripts/check-analytics-build.mts && opennextjs-cloudflare deploy",
     "test:e2e": "playwright test"
   },
   "dependencies": {
