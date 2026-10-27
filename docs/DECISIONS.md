@@ -5,6 +5,22 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-27 — Rent Receipt Generator (new catalogue tool, India)
+
+**Decided by:** product owner (kickoff and plan approved 2026-10-27). Built, not deployed.
+
+- **What:** monthly rent receipts for HRA, up to 24 months in one PDF, three to an A4 page, each with a landlord signature line.
+  Made in the browser; nothing is sent or stored, not even locally. A **new** catalogue tool in **India** (the generic *Receipt
+  Generator* stays planned); URL `/rent-receipt-generator`.
+- **Rules it follows, from secondary sources only (tax-help sites), not the statute, and worded as "what employers usually ask for":**
+  landlord PAN when rent is more than ₹1,00,000 in a financial year (a warning, not a block; format check only); a ₹1 revenue-stamp
+  box for cash receipts above ₹5,000. Both limits are strict "more than". Rules and section numbers changed when the Income-tax
+  Act 2025 took over in April 2026, so the page quotes no section numbers.
+- **Out:** HRA calculation or tax advice, PAN verification or storage, e-signature, TDS, rent changing mid-range, any saved details.
+  The page says to make receipts only for rent actually paid, and to ask the employer or a CA about HRA.
+- **Not verified:** that any employer's payroll accepts the format, and the stamp and PAN rules against the statute.
+- Details: [`products/rent-receipt.md`](products/rent-receipt.md).
+
 ## 2026-10-27 — PDF to Word: text first, in the browser, free
 
 **Decided by:** product owner (chose both options when asked; plan approved 2026-10-27). Built, not deployed.

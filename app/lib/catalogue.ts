@@ -204,6 +204,7 @@ export const TOOLS: Tool[] = [
   { name: 'Random Number Generator', slug: 'random-number-generator', url: '/generators/random-number-generator', category: 'Everyday', blurb: 'Pick a number in a range — draws, raffles, decisions.', keywords: ['random', 'number', 'dice', 'pick', 'raffle'], status: 'planned' },
 
   // India
+  { name: 'Rent Receipt Generator', slug: 'rent-receipt-generator', url: '/rent-receipt-generator', category: 'India', blurb: 'Rent receipts for every month, ready for your landlord to sign.', keywords: ['rent receipt', 'hra', 'house rent', 'landlord pan', 'rent receipt format', 'hra receipt'], status: 'live' },
   { name: 'Indian Number to Words', slug: 'indian-number-to-words', url: '/indian-number-to-words', category: 'India', blurb: 'Rupees in figures to words, lakh and crore style.', keywords: ['rupees in words', 'number to words', 'lakh', 'crore', 'cheque', 'amount in words', 'paise'], status: 'live' },
   { name: 'Indian Currency Converter', slug: 'indian-currency-converter', url: '/calculators/indian-currency-converter', category: 'India', blurb: 'Between lakh/crore and million/billion.', keywords: ['lakh to million', 'crore to million', 'convert'], status: 'planned' },
   { name: 'Salary Calculator', slug: 'salary-calculator', url: '/salary-calculator', category: 'India', blurb: 'Your CTC, turned into monthly in-hand salary.', keywords: ['ctc', 'in hand salary', 'take home', 'net pay', 'salary', 'pf', 'hra', 'gross', 'new tax regime', 'old tax regime', 'income tax'], status: 'live' },

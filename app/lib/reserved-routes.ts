@@ -37,6 +37,7 @@ const ROUTE_SEGMENTS = [
   'salary-calculator',
   'indian-number-to-words',
   'pdf-to-word',
+  'rent-receipt-generator',
   'invoice-generator',
   'pdf-tools',
   'compress-pdf',

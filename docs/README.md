@@ -18,13 +18,14 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | Image tools (12: converters, compressor, resize to KB) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
 | URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
 | PDF tools (Compress, Merge, Split, PDF↔JPG) | **Live** (Stage 1, free) — [`products/pdf-tools.md`](products/pdf-tools.md) |
-| PDF to Word (`/pdf-to-word`) | Built, **not deployed** — text first, in the browser — [`products/pdf-tools.md`](products/pdf-tools.md) |
+| PDF to Word (`/pdf-to-word`) | **Live** (2026-10-27) — text first, in the browser — [`products/pdf-tools.md`](products/pdf-tools.md) |
 | Invoice Generator | **Live** — free tier, accounts and saving, workspace, GST tax invoice; Pro Stage 2C-1 (templates, multi-page, quotations) live but hidden until payments; payment ledger and partial payments (Stage C) the Pro Payments & Collections page (Stage D) and the invoice workspace (Stage E: list search and paging, customer pages) and Reports & exports (Stage F, Pro: CSV reports of invoices, payments and what's owed) built, not deployed — [`products/invoice-generator.md`](products/invoice-generator.md) |
 | Accounts (Google + email link, entitlements, `/app` hub) | **Live** — [`products/accounts.md`](products/accounts.md) |
 | Calculators (GST, EMI, Percentage, Discount, Salary/CTC, Age, Tip, Split Bill) | **Live** |
 | Writing tools (Word Counter, Character Counter, Case Converter, Text Cleaner, Lorem Ipsum) | **Live** |
-| Indian Number to Words (`/indian-number-to-words`) | Built, **not deployed** — [`products/indian-number-to-words.md`](products/indian-number-to-words.md) |
-| Everything else in the catalogue | Planned (35 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
+| Indian Number to Words (`/indian-number-to-words`) | **Live** (2026-10-27) — [`products/indian-number-to-words.md`](products/indian-number-to-words.md) |
+| Rent Receipt Generator (`/rent-receipt-generator`) | Built, **not deployed** — [`products/rent-receipt.md`](products/rent-receipt.md) |
+| Everything else in the catalogue | Planned (36 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack
 
