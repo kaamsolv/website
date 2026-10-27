@@ -317,10 +317,10 @@ test('outstanding and ageing equal the Collections page; filters equal the filte
   );
   assert.equal(ageing.totals.balance, col.summary.outstanding.amount);
   assert.equal(ageing.totals.count, col.summary.outstanding.count);
-  assert.equal(ageing.rows.length, 4, 'all four groups, always');
+  assert.equal(ageing.rows.length, 5, 'all five groups, always');
   assert.equal(verifyRows(COLUMNS.ageing, ageing.rows.map(ageingCells), ageing.totals).ok, true);
 
-  for (const bucket of ['not_due', 'd1_30', 'd31_60', 'd60_plus'] as const) {
+  for (const bucket of ['not_due', 'd1_30', 'd31_60', 'd61_90', 'd90_plus'] as const) {
     const r = await outstandingPage(db, A, query('outstanding', { bucket }));
     const list = await listInvoicesFiltered(db, A, { currency: 'INR', bucket }, TODAY);
     assert.deepEqual([r.totals.count, r.totals.balance], [list.totals[0]?.count ?? 0, list.totals[0]?.balance ?? 0], `bucket=${bucket}`);
@@ -343,7 +343,7 @@ test('outstanding rows: ages and groups as of the visitor’s date', async () =>
   const col = (key: string) => COLUMNS.outstanding.findIndex((c) => c.key === key);
   assert.deepEqual([cells.V1[col('daysOverdue')], cells.V1[col('ageGroup')], cells.V1[col('status')]], ['6', '1–30 days overdue', 'Unpaid']);
   assert.deepEqual([cells.G1[col('daysOverdue')], cells.G1[col('ageGroup')], cells.G1[col('status')], cells.G1[col('balance')]], ['41', '31–60 days overdue', 'Partially paid', '6800.00']);
-  assert.equal(cells.OLD[col('ageGroup')], 'Over 60 days overdue');
+  assert.equal(cells.OLD[col('ageGroup')], 'Over 90 days overdue');
   // The same data, one day later: nothing stored changes, the ages do.
   const later = await outstandingPage(db, A, { ...query('outstanding'), today: '2026-10-27' });
   assert.equal(outstandingCells(later.rows.find((x) => x.number === 'V1')!)[col('daysOverdue')], '7');

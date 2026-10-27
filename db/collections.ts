@@ -11,7 +11,7 @@
  *   Overdue         the part of that with due date < today
  *   Collection rate Σ amount_paid ÷ Σ total of invoices **issued in the range**, marked-paid excluded
  *                   — the invoice-cohort rate: money collected so far, to any date, on that cohort
- *   Ageing          Outstanding split by days past due: not yet due · 1–30 · 31–60 · over 60
+ *   Ageing          Outstanding split by days past due: not yet due · 1–30 · 31–60 · 61–90 · over 90
  *
  * One currency at a time, always: every query filters `currency = $c`, and nothing is summed or converted
  * across currencies. Every query is scoped to `user_id` (and, optionally, one of the user's saved customers).
@@ -26,13 +26,15 @@ import {
   AGEING_BUCKETS,
   collectionRate,
   daysOverdue,
+  monthEnd,
+  monthStart,
   monthsBetween,
   type AgeingBucket,
   type CollectionsQuery,
 } from '../app/lib/invoice/collections.ts';
 import { CURRENCIES, type CurrencyCode } from '../app/lib/invoice/types.ts';
 import { toCents } from '../app/lib/invoice/payments.ts';
-import { BALANCE, OPEN, bucketSql, overdueSql } from './invoice-filters.ts';
+import { BALANCE, OPEN, ageingCaseSql, overdueSql } from './invoice-filters.ts';
 import type { Db } from './links.ts';
 import { invoices } from './schema.ts';
 
@@ -58,7 +60,7 @@ export type Collections = {
   };
   /** Every month of the range, zero-filled. */
   monthly: { month: string; invoiced: number; invoicedCount: number; received: number; receivedCount: number }[];
-  /** All four buckets, always; they add up to `summary.outstanding`. */
+  /** All five buckets, always; they add up to `summary.outstanding`. */
   ageing: { bucket: AgeingBucket; label: string; amount: number; count: number }[];
   /** The five invoices longest past due. */
   needsChasing: { id: string; number: string; clientName: string; dueDate: string; balance: number; daysOverdue: number }[];
@@ -131,11 +133,7 @@ export async function getCollections(db: Db, userId: string, q: CollectionsQuery
     db.execute(sql`
       select b.bucket, coalesce(sum(${BALANCE}), 0)::text as amount, count(*)::int as n
       from ${invoices}
-      cross join lateral (select case
-          when ${bucketSql('not_due', today)} then 'not_due'
-          when ${bucketSql('d1_30', today)} then 'd1_30'
-          when ${bucketSql('d31_60', today)} then 'd31_60'
-          else 'd60_plus' end as bucket) b
+      cross join lateral (select ${ageingCaseSql(today)} as bucket) b
       where ${scope} and ${OPEN}
       group by b.bucket`),
     db.execute(sql`
@@ -187,3 +185,103 @@ export async function getCollections(db: Db, userId: string, q: CollectionsQuery
     })),
   };
 }
+
+// ─── Receivables snapshot (billing M3) ───────────────────────────────────────────────────
+
+export type Receivables = {
+  currency: CurrencyCode;
+  currencies: CurrencyOption[];
+  today: string;
+  /** The calendar month "received this month" covers. */
+  month: { from: string; to: string };
+  outstanding: MoneyCount;
+  overdue: MoneyCount;
+  /** Open balance due ON today's date (not overdue yet). */
+  dueToday: MoneyCount;
+  /** Open balance due tomorrow through 7 days from today. */
+  dueNext7: MoneyCount;
+  /** Open balance due tomorrow through 30 days from today (includes the next 7). */
+  dueNext30: MoneyCount;
+  /** Invoices with something paid and something still owed. */
+  partlyPaid: { count: number; remaining: number };
+  receivedThisMonth: MoneyCount;
+  ageing: Collections['ageing'];
+  /** The next five invoices to fall due (today or later). */
+  upcoming: { id: string; number: string; clientName: string; dueDate: string; balance: number }[];
+  /** The five most recent payments received (not voided). */
+  recentPayments: { invoiceId: string; number: string; clientName: string; amount: number; paidOn: string }[];
+};
+
+/**
+ * The receivables picture as of `today`, one currency at a time. It is built FROM getCollections (same ledger,
+ * same formulas, same ageing) for outstanding, overdue, ageing and received-this-month, and adds only what that
+ * page doesn't show: what falls due soon, part-paid invoices, the next invoices due and the latest payments.
+ * Voided payments, quotations, paid invoices and the "marked paid" legacy state are excluded exactly as there.
+ */
+export async function getReceivables(db: Db, userId: string, input: { today: string; currency?: CurrencyCode }): Promise<Receivables> {
+  const { today } = input;
+  const from = monthStart(today);
+  const to = monthEnd(today);
+  const base = await getCollections(db, userId, { today, from, to, ...(input.currency ? { currency: input.currency } : {}) });
+  const currency = base.currency;
+
+  const scope: SQL = sql`${invoices.userId} = ${userId}::uuid and ${invoices.kind} = 'invoice' and ${invoices.currency} = ${currency}`;
+  const dueIn = (a: number, b: number) => sql`(${OPEN} and ${invoices.dueDate} between ${day(today)} + ${a}::int and ${day(today)} + ${b}::int)`;
+
+  const [dueRows, partlyRows, upcomingRows, paymentRows] = await Promise.all([
+    db.execute(sql`
+      select
+        coalesce(sum(${BALANCE}) filter (where ${dueIn(0, 0)}), 0)::text as today_amount,
+        (count(*) filter (where ${dueIn(0, 0)}))::int as today_n,
+        coalesce(sum(${BALANCE}) filter (where ${dueIn(1, 7)}), 0)::text as d7_amount,
+        (count(*) filter (where ${dueIn(1, 7)}))::int as d7_n,
+        coalesce(sum(${BALANCE}) filter (where ${dueIn(1, 30)}), 0)::text as d30_amount,
+        (count(*) filter (where ${dueIn(1, 30)}))::int as d30_n
+      from ${invoices} where ${scope}`),
+    db.execute(sql`
+      select count(*)::int as n, coalesce(sum(${BALANCE}), 0)::text as remaining
+      from ${invoices} where ${scope} and ${OPEN} and ${invoices.amountPaid} > 0`),
+    db.execute(sql`
+      select ${invoices.id} as id, ${invoices.number} as number, ${invoices.clientName} as client_name,
+             ${invoices.dueDate}::text as due_date, ${BALANCE}::text as balance
+      from ${invoices} where ${scope} and ${OPEN} and ${invoices.dueDate} >= ${day(today)}
+      order by ${invoices.dueDate} asc, ${invoices.number} asc limit 5`),
+    db.execute(sql`
+      select i.id as invoice_id, i.number as number, i.client_name as client_name, p.amount::text as amount, p.paid_on::text as paid_on
+      from invoice_payments p join ${invoices} i on i.id = p.invoice_id and i.user_id = p.user_id
+      where p.user_id = ${userId}::uuid and p.currency = ${currency} and p.voided_at is null
+      order by p.paid_on desc, p.created_at desc limit 5`),
+  ]);
+  const d = rowsOf<Record<string, string | number>>(dueRows)[0] ?? {};
+  const partly = rowsOf<{ n: number; remaining: string }>(partlyRows)[0] ?? { n: 0, remaining: '0' };
+
+  return {
+    currency,
+    currencies: base.currencies,
+    today,
+    month: { from, to },
+    outstanding: base.summary.outstanding,
+    overdue: base.summary.overdue,
+    dueToday: { amount: money(d.today_amount), count: Number(d.today_n ?? 0) },
+    dueNext7: { amount: money(d.d7_amount), count: Number(d.d7_n ?? 0) },
+    dueNext30: { amount: money(d.d30_amount), count: Number(d.d30_n ?? 0) },
+    partlyPaid: { count: partly.n, remaining: money(partly.remaining) },
+    receivedThisMonth: base.summary.received,
+    ageing: base.ageing,
+    upcoming: rowsOf<{ id: string; number: string; client_name: string; due_date: string; balance: string }>(upcomingRows).map((r) => ({
+      id: r.id,
+      number: r.number,
+      clientName: r.client_name,
+      dueDate: r.due_date,
+      balance: money(r.balance),
+    })),
+    recentPayments: rowsOf<{ invoice_id: string; number: string; client_name: string; amount: string; paid_on: string }>(paymentRows).map((r) => ({
+      invoiceId: r.invoice_id,
+      number: r.number,
+      clientName: r.client_name,
+      amount: money(r.amount),
+      paidOn: r.paid_on,
+    })),
+  };
+}
+

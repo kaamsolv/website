@@ -22,8 +22,19 @@ never makes a second invoice. Nothing about tax is guessed: no `BILLING_TAX_TREA
 honour it → the job waits as `blocked`. "Tax included" works only where the total reconciles exactly (₹149 monthly at 18% does
 **not**: no two half-rate taxes add back to ₹149.00); "tax added on top" is not supported. Every account can share any invoice on
 WhatsApp (click-to-chat, a wa.me link: nothing is sent for the user). Server PDF is a ~100-line writer, not pdf-lib (stubbed out of
-the Worker). **Worker size: 2,966 KiB of 3,072 KiB gzip (was 2,730 at M1)**: no room for the next milestone, see the
-recommendation in `products/billing.md`. Details: [`products/billing.md`](products/billing.md).
+the Worker). Worker 2,966 KiB gzip (2,730 at M1). Cloudflare's size limit became 64 MiB uncompressed on every plan in September 2026, so
+size is not a blocker; Workers Paid is still recommended before live payments (subrequests, CPU, daily cap): `products/billing.md`. Details: [`products/billing.md`](products/billing.md).
+
+## 2026-10-27 — Billing M3: receivables snapshot, summary, opt-in email (built locally, not deployed)
+**Ageing is now five groups** (not yet due, 1–30, 31–60, 61–90, over 90; it was four with "over 60"), one definition shared by Payments &
+collections, the invoice list filter and the Ageing report. "Where things stand" on Payments & collections adds, from the same ledger:
+due today, due in the next 7 days (tomorrow to +7), due in the next 30 days (tomorrow to +30, **includes** the 7), part-paid invoices,
+the next five due, the latest five payments, and "received this month". A short message of these figures can be copied or shared on
+WhatsApp (click-to-chat; the user presses send). **Email is opt-in** (off by default, nothing without a row in `notification_prefs`):
+weekly (Monday) or monthly (the 1st), from 9 am India time, to the account's own address only, only for Pro, only when there is
+something to report, queued once per period and sent through the outbox with an idempotency key. **Not built:** WhatsApp sent
+automatically (needs the WhatsApp Business Platform: provider, approved templates, opt-in, charges), summaries to an accountant
+(M4), a time zone other than India. Details: [`products/billing.md`](products/billing.md).
 
 ## 2026-10-27 — Gratuity Calculator (new catalogue tool, India)
 `/gratuity-calculator`. Narrow on purpose, because the law changed on 21 Nov 2025 and the sources disagree: only the Act formula

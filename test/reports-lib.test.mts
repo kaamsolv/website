@@ -179,7 +179,8 @@ test('verifyRows for the register and the ageing summary', () => {
     ageingCells({ bucket: 'not_due', invoices: 0, balance: 0, currency: 'INR', asOf: '2026-10-26' }),
     ageingCells({ bucket: 'd1_30', invoices: 1, balance: 4000, currency: 'INR', asOf: '2026-10-26' }),
     ageingCells({ bucket: 'd31_60', invoices: 1, balance: 6800, currency: 'INR', asOf: '2026-10-26' }),
-    ageingCells({ bucket: 'd60_plus', invoices: 2, balance: 1600, currency: 'INR', asOf: '2026-10-26' }),
+    ageingCells({ bucket: 'd61_90', invoices: 0, balance: 0, currency: 'INR', asOf: '2026-10-26' }),
+    ageingCells({ bucket: 'd90_plus', invoices: 2, balance: 1600, currency: 'INR', asOf: '2026-10-26' }),
   ];
   const at: ReportTotals = { report: 'ageing', count: 4, balance: 12400, buckets: [] };
   assert.equal(verifyRows(COLUMNS.ageing, age, at).ok, true);

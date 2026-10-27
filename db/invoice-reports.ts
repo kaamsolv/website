@@ -21,7 +21,7 @@ import { computeTotals } from '../app/lib/invoice/totals.ts';
 import { toCents } from '../app/lib/invoice/payments.ts';
 import type { AgeingRow, OutstandingRow, PaymentRow, RegisterRow, ReportQuery, ReportTotals } from '../app/lib/invoice/reports.ts';
 import type { Invoice } from '../app/lib/invoice/types.ts';
-import { BALANCE, OPEN, OWED, bucketSql, overdueSql, stateSql } from './invoice-filters.ts';
+import { BALANCE, OPEN, OWED, ageingCaseSql, bucketSql, overdueSql, stateSql } from './invoice-filters.ts';
 import type { Db } from './links.ts';
 import { customers, invoicePayments, invoices } from './schema.ts';
 
@@ -317,17 +317,13 @@ export async function outstandingPage(db: Db, userId: string, q: ReportQuery): P
 
 type Ageing = { rows: AgeingRow[]; totals: Extract<ReportTotals, { report: 'ageing' }>; matched: number };
 
-/** The outstanding balance in the four age groups — the same grouping as the Collections page. Always four rows. */
+/** The outstanding balance in the five age groups — the same grouping as the Collections page. Always five rows. */
 export async function ageingSummary(db: Db, userId: string, q: ReportQuery): Promise<Ageing> {
   const stateOrCustomer = [...invoiceScope(userId, q), OPEN, ...(q.state ? [stateSql(q.state, q.today)] : [])];
   const result = await db.execute(sql`
     select b.bucket, coalesce(sum(${BALANCE}), 0)::text as amount, count(*)::int as n
     from ${invoices}
-    cross join lateral (select case
-        when ${bucketSql('not_due', q.today)} then 'not_due'
-        when ${bucketSql('d1_30', q.today)} then 'd1_30'
-        when ${bucketSql('d31_60', q.today)} then 'd31_60'
-        else 'd60_plus' end as bucket) b
+    cross join lateral (select ${ageingCaseSql(q.today)} as bucket) b
     where ${and(...stateOrCustomer)}
     group by b.bucket`);
   const found = new Map(rowsOf<{ bucket: string; amount: string; n: number }>(result).map((r) => [r.bucket, r]));

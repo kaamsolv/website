@@ -11,7 +11,7 @@
  */
 
 import { after } from 'next/server';
-import { drainOutbox } from '@/app/lib/billing/jobs';
+import { DRAIN_AFTER_REQUEST, drainOutbox } from '@/app/lib/billing/jobs';
 import { parseWebhook, verifyWebhookSignature, webhookSecret } from '@/app/lib/billing/razorpay';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
@@ -43,7 +43,7 @@ export async function handlePOST(req: Request) {
     if (out.result === 'retry') return reply(503, { ok: false, error: 'try_again', detail: out.detail });
     // First attempt at the invoice email right away, after the reply; the scheduled drain retries anything that fails.
     if (event.kind === 'captured' && out.result !== 'duplicate') {
-      after(() => drainOutbox(3).catch((e) => console.error('[api/billing/webhook] drain', formatErrorForLog(e))));
+      after(() => drainOutbox(DRAIN_AFTER_REQUEST).catch((e) => console.error('[api/billing/webhook] drain', formatErrorForLog(e))));
     }
     return reply(200, { ok: true, result: out.result });
   } catch (e) {

@@ -38,7 +38,8 @@ const nextConfig = {
 
   /**
    * Browser-only libraries: give the server build a stub so they stay out of
-   * the Cloudflare Worker bundle (free plan: 3 MB gzip). Invoice PDFs, HEIC
+   * the Cloudflare Worker bundle (it was the free plan's 3 MB gzip limit until Cloudflare replaced it with 64 MiB
+   * uncompressed in September 2026; a smaller Worker still starts faster). Invoice PDFs, HEIC
    * decoding and the PDF tools only ever run in the browser.
    */
   turbopack: {

@@ -93,8 +93,8 @@ test('overdue: due today is not overdue; one day later is 1 day; no due date is 
   assert.equal(daysOverdue('2025-12-31', '2026-01-01'), 1, 'across a year end');
 });
 
-test('ageing buckets: not yet due · 1–30 · 31–60 · over 60, on the exact boundary days', () => {
-  assert.deepEqual(AGEING_BUCKETS.map((b) => b.key), ['not_due', 'd1_30', 'd31_60', 'd60_plus']);
+test('ageing buckets: not yet due · 1–30 · 31–60 · 61–90 · over 90, on the exact boundary days', () => {
+  assert.deepEqual(AGEING_BUCKETS.map((b) => b.key), ['not_due', 'd1_30', 'd31_60', 'd61_90', 'd90_plus']);
   const today = '2026-04-30';
   const bucket = (due: string | null) => ageingBucket(due, today);
   assert.equal(bucket(null), 'not_due', 'no due date');
@@ -104,8 +104,11 @@ test('ageing buckets: not yet due · 1–30 · 31–60 · over 60, on the exact 
   assert.equal(bucket('2026-03-31'), 'd1_30', '30 days');
   assert.equal(bucket('2026-03-30'), 'd31_60', '31 days');
   assert.equal(bucket('2026-03-01'), 'd31_60', '60 days');
-  assert.equal(bucket('2026-02-28'), 'd60_plus', '61 days');
-  assert.equal(bucket('2020-01-01'), 'd60_plus');
+  assert.equal(bucket('2026-02-28'), 'd61_90', '61 days');
+  assert.equal(bucket('2026-01-31'), 'd61_90', '89 days');
+  assert.equal(bucket('2026-01-30'), 'd61_90', '90 days');
+  assert.equal(bucket('2026-01-29'), 'd90_plus', '91 days');
+  assert.equal(bucket('2020-01-01'), 'd90_plus');
 });
 
 // ─── Collection rate ─────────────────────────────────────────────────────────────────────────────────

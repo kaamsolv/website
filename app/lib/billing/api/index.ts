@@ -4,7 +4,8 @@
  * Each route file is a one-line wrapper that calls `dispatch`. They all import this module, and this module
  * imports every handler, so every one of these routes pulls the same set of modules into the Worker. Without it
  * the bundler gives each distinct set of routes its own ~255 KB copy of the database layer (measured: +270 KiB
- * gzip for four sets), and the Worker has a hard 3 MiB limit.
+ * gzip for four sets). Cloudflare lifted the old 3 MiB gzip limit in September 2026 (now 64 MiB uncompressed), so this
+ * is no longer forced, but a smaller Worker still starts faster.
  */
 
 import * as webhook from './webhook';
@@ -14,6 +15,8 @@ import * as drain from './drain';
 import * as resend from './resend';
 import * as link from './link';
 import * as invoice_pdf from './invoice-pdf';
+import * as receivables from './receivables';
+import * as prefs from './prefs';
 
 type Ctx = { params: Promise<any> };
 type Handler = (req: Request, ctx?: any) => Promise<Response> | Response;
@@ -28,6 +31,9 @@ const HANDLERS: Record<string, Handler> = {
   'link.POST': link.handlePOST,
   'link.DELETE': link.handleDELETE,
   'invoice-pdf.GET': invoice_pdf.handleGET,
+  'receivables.GET': receivables.handleGET,
+  'prefs.GET': prefs.handleGET,
+  'prefs.PUT': prefs.handlePUT,
 };
 
 export function dispatch(name: string, req: Request, ctx?: Ctx): Promise<Response> | Response {

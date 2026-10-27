@@ -145,11 +145,12 @@ test('INR figures match the hand-worked scenario: invoiced, received, outstandin
 
 test('ageing buckets use the balance and add up exactly to outstanding', async () => {
   const c = await getCollections(db, A, q({ currency: 'INR' }));
-  assert.deepEqual(c.ageing.map((b) => b.bucket), ['not_due', 'd1_30', 'd31_60', 'd60_plus'], 'all four, always, in order');
+  assert.deepEqual(c.ageing.map((b) => b.bucket), ['not_due', 'd1_30', 'd31_60', 'd61_90', 'd90_plus'], 'all five, always, in order');
   assert.deepEqual(c.ageing.map((b) => [b.amount, b.count]), [
     [5500, 2], // I5 (due today) 3,000 + I6 (no due date) 2,500
     [3000, 1], // I4, 1 day
     [6000, 1], // I3, 41 days
+    [0, 0], // nothing is 61–90 days overdue in this data
     [13000, 2], // I1 8,000 (185 days) + I8 5,000 (201 days)
   ]);
   assert.equal(c.ageing.reduce((s, b) => s + b.amount, 0), c.summary.outstanding.amount);
@@ -190,7 +191,7 @@ test('currencies are separate: USD has its own figures, INR is unaffected, and n
   assert.deepEqual(usd.summary.outstanding, { amount: 110, count: 2 });
   assert.deepEqual(usd.summary.overdue, { amount: 60, count: 1 });
   assert.deepEqual(usd.summary.collection, { percent: 26, collected: 40, invoiced: 150, invoices: 2 });
-  assert.deepEqual(usd.ageing.map((b) => b.amount), [50, 0, 0, 60]);
+  assert.deepEqual(usd.ageing.map((b) => b.amount), [50, 0, 0, 0, 60]);
   assert.deepEqual(usd.currencies.map((c) => [c.code, c.invoices, c.outstanding]), [['INR', 8, 27500], ['USD', 2, 110]], 'the picker lists both, INR first; quotes are not counted');
   const inr = await getCollections(db, A, q({ currency: 'INR' }));
   assert.equal(inr.summary.outstanding.amount, 27500, 'the dollars are not in the rupee figure');
@@ -219,7 +220,7 @@ test('customer filter: every figure is limited to that saved customer’s invoic
   assert.deepEqual(c.summary.outstanding, { amount: 14000, count: 2 });
   assert.deepEqual(c.summary.overdue, { amount: 14000, count: 2 });
   assert.equal(c.summary.collection.percent, Math.floor((12000 * 100) / 26000));
-  assert.deepEqual(c.ageing.map((b) => b.amount), [0, 0, 6000, 8000]);
+  assert.deepEqual(c.ageing.map((b) => b.amount), [0, 0, 6000, 0, 8000]);
   assert.deepEqual(c.needsChasing.map((r) => r.number), ['I1', 'I3']);
 });
 
@@ -338,7 +339,7 @@ test('overdue on the due date and the day after, across 31 March → 1 April', a
   assert.equal((await listInvoicesFiltered(db, E, { state: 'overdue' }, '2026-03-31')).invoices.length, 0);
 });
 
-test('an account with nothing: zeros, every month present, four empty buckets, no currencies', async () => {
+test('an account with nothing: zeros, every month present, five empty buckets, no currencies', async () => {
   const empty = await makeUser('collections-empty@example.test');
   const c = await getCollections(db, empty, q());
   assert.equal(c.currency, 'INR');
@@ -347,7 +348,7 @@ test('an account with nothing: zeros, every month present, four empty buckets, n
   assert.deepEqual(c.summary.collection, { percent: null, collected: 0, invoiced: 0, invoices: 0 }, 'nothing to measure is not 0%');
   assert.equal(c.monthly.length, 12);
   assert.ok(c.monthly.every((m) => m.invoiced === 0 && m.received === 0));
-  assert.deepEqual(c.ageing.map((b) => b.amount), [0, 0, 0, 0]);
+  assert.deepEqual(c.ageing.map((b) => b.amount), [0, 0, 0, 0, 0]);
   assert.deepEqual(c.needsChasing, []);
   assert.deepEqual(await listCurrencies(db, empty), []);
 });

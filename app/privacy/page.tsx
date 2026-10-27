@@ -94,6 +94,10 @@ export default function PrivacyPage() {
           and email you had then, because it is our accounting record.
         </li>
         <li>
+          <strong>Your email choices</strong>: whether you asked for the weekly or monthly receivables summary by email. We send nothing
+          until you turn it on, it goes only to your own address, and you can turn it off at any time on the Payments &amp; collections page.
+        </li>
+        <li>
           <strong>Invoice links you share</strong>: when you share an invoice, a private link to it, when it was
           made, how many times it was opened and when last, and whether you turned it off. Anyone who has the
           link can open that one invoice until you turn it off. Invoices we email you for a plan you bought, and

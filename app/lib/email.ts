@@ -17,6 +17,8 @@ import { isProductionServer } from './runtime-platform';
 export const EMAIL_FROM = 'KaamSolv <login@send.kaamsolv.com>';
 /** Sender for sales invoices (same verified sending subdomain as sign-in mail). */
 export const BILLING_EMAIL_FROM = 'KaamSolv Billing <billing@send.kaamsolv.com>';
+/** Sender for the opt-in receivables summary. */
+export const SUMMARY_EMAIL_FROM = 'KaamSolv <summary@send.kaamsolv.com>';
 
 /**
  * Offer "Email me a sign-in link" only when it can actually arrive: always in

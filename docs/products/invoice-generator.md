@@ -375,7 +375,7 @@ calendar date. `balance = total − amount_paid`.
 | **Outstanding** (now) | Σ `balance` of invoices with `status = unpaid` (Unpaid and Partially paid). Paid and Marked paid owe 0. |
 | **Overdue outstanding** | Σ `balance` of those with `due_date < today` (strictly before; no due date = never overdue). |
 | **Collection rate** (invoices issued in range) | Σ `amount_paid` ÷ Σ `total` over invoices issued in the range **excluding Marked paid**; whole %, rounded down; "—" when the denominator is 0. Marked-paid invoices are listed separately ("N settled with no payment records"). |
-| **Ageing** (Stage D) | Outstanding grouped by `today − due_date`: not yet due · 1–30 · 31–60 · over 60 days overdue — using the **balance**, not the original total. |
+| **Ageing** (Stage D) | Outstanding grouped by `today − due_date`: not yet due · 1–30 · 31–60 · 61–90 · over 90 days overdue — using the **balance**, not the original total. (Five groups since billing M3, 2026-10-27; it was four, with "over 60". A saved link with `bucket=d60_plus` now says the filter isn't valid.) |
 
 Received (range) ÷ Invoiced (range) compares different invoice cohorts, so charts
 labelled "invoiced vs collected" say what basis they use. **In Stage C** the Pro

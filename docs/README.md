@@ -24,7 +24,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | Calculators (GST, EMI, Percentage, Discount, Salary/CTC, Age, Tip, Split Bill) | **Live** |
 | Writing tools (Word Counter, Character Counter, Case Converter, Text Cleaner, Lorem Ipsum) | **Live** |
 | Indian Number to Words (`/indian-number-to-words`) | **Live** (2026-10-27) — [`products/indian-number-to-words.md`](products/indian-number-to-words.md) |
-| Billing — Razorpay plans, sales invoice, links (M1 committed, M2 built) | Built locally, **not deployed**, migrations 0011 and 0012 not applied — [`products/billing.md`](products/billing.md) |
+| Billing — Razorpay plans, sales invoice, links, receivables summary (M1–M2.5 committed, M3 built) | Built locally, **not deployed**, migrations 0011–0013 not applied — [`products/billing.md`](products/billing.md) |
 | Gratuity Calculator (`/gratuity-calculator`) | **Live** (2026-10-27; rules and FAQ reviewed by the owner) — [`products/gratuity-calculator.md`](products/gratuity-calculator.md) |
 | Rent Receipt Generator (`/rent-receipt-generator`) | Built, **not deployed** — [`products/rent-receipt.md`](products/rent-receipt.md) |
 | Everything else in the catalogue | Planned (36 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |

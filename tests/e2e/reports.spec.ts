@@ -265,7 +265,7 @@ test('Pro: outstanding and ageing reconcile with Collections, and each currency 
   await choose(page.getByTestId('rep-kind-ageing'));
   await expect(page.getByTestId('rep-balance')).toHaveText('₹24,000.00');
   const age = await download(page);
-  expect(age.table.length - 1, 'four age groups, always').toBe(4);
+  expect(age.table.length - 1, 'five age groups, always').toBe(5);
   expect(age.table.slice(1).map((r) => [Number(r[colOf(age.table, 'Balance')]), Number(r[colOf(age.table, 'Invoices')])])).toEqual(collections.ageing.map((b) => [b.amount, b.count]));
 
   // USD is a separate file; nothing is converted or added to the INR one.

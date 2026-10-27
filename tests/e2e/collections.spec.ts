@@ -140,11 +140,12 @@ test('Pro: the figures, the labels that keep cash and cohort apart, currency swi
   await expect(page.getByTestId('col-explain')).toContainText('won’t match');
   await expect(page.getByText('Still owed, as of today')).toBeVisible();
 
-  // Ageing: balances in four buckets that add up to Outstanding.
+  // Ageing: balances in five buckets that add up to Outstanding.
   await expect(page.getByTestId('age-not_due')).toHaveText('₹0.00');
   await expect(page.getByTestId('age-d1_30')).toHaveText('₹15,000.00');
   await expect(page.getByTestId('age-d31_60')).toHaveText('₹0.00');
-  await expect(page.getByTestId('age-d60_plus')).toHaveText('₹8,000.00');
+  await expect(page.getByTestId('age-d61_90')).toHaveText('₹8,000.00');
+  await expect(page.getByTestId('age-d90_plus')).toHaveText('₹0.00');
 
   // Needs chasing: C (70 days) then A (30 days).
   const chase = page.getByRole('list', { name: 'Invoices longest past due' }).getByRole('listitem');
@@ -306,7 +307,7 @@ test('the API: validation, the date rules, isolation, and an unchanged /api/dash
   expect(body.summary.outstanding.amount).toBe(23000);
   expect(body.summary.collection.percent).toBe(39);
   expect(body.monthly).toHaveLength(6);
-  expect(body.ageing).toHaveLength(4);
+  expect(body.ageing).toHaveLength(5);
 
   expect((await get(`from=${monthDay(5, 1)}&to=${localDay()}`)).status(), 'no today: no fallback to the server clock').toBe(400);
   expect((await get(query({ today: localDay(-5) }))).status(), 'a today that is days off').toBe(400);

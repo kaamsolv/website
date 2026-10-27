@@ -40,7 +40,7 @@ export const REPORT_BASIS: Record<ReportKind, string> = {
   register: 'One row per invoice issued in the period (quotations aren’t included), with its payment position as of today.',
   payments: 'One row per payment recorded with a date received in the period. Voided payments only if you ask for them — and never counted.',
   outstanding: 'One row per invoice that still has a balance, as of today. The period doesn’t apply: this is a position, like the dashboard’s Outstanding.',
-  ageing: 'What’s outstanding today, grouped by how long it has been past its due date — the same four groups as on Payments & collections.',
+  ageing: 'What’s outstanding today, grouped by how long it has been past its due date — the same five groups as on Payments & collections.',
 };
 
 /** Rows per request (a register row needs its whole invoice document read, so it's the smallest). */

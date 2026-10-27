@@ -458,6 +458,24 @@ export const outbox = pgTable(
   ],
 );
 
+/**
+ * What an account has opted in to hear from KaamSolv by email (billing M3). One row per account; no row means nothing
+ * is sent. `summary_cadence` is the receivables summary: off, weekly (Monday, India time) or monthly (the 1st).
+ * Messages go only to the account's own email, only after it turns this on, and only if it still has the plan.
+ */
+export const notificationPrefs = pgTable(
+  'notification_prefs',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    summaryCadence: text('summary_cadence').notNull().default('off'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('notification_prefs_cadence', sql`${table.summaryCadence} in ('off', 'weekly', 'monthly')`)],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 

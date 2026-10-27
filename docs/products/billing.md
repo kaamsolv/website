@@ -129,11 +129,70 @@ built, not started.
 amounts read "Rs. 1,490.00" and Indian-script text becomes "?". The browser PDF users make in the app is unchanged. `pdf-lib` and
 `@react-pdf` are deliberately stubbed out of the Worker (`next.config.mjs`), which is why this exists.
 
-### Worker size (needs a decision)
-Gzipped Worker: **2,730 KiB at M1 → 2,966 KiB now, limit 3,072 (free plan)**. The bundler keeps a separate ~255 KB copy of the database
-layer for each distinct set of routes; all billing/link routes now go through one door (`app/lib/billing/api/index.ts`) so they share
-a copy (this saved 38 KiB). **M3 and M4 will not fit.** Recommendation: move to the Workers Paid plan (limit 10 MiB, about USD 5 a
-month); it also suits a business taking payments. Needs the owner's yes; nothing was changed on the account.
+### Worker size (no longer a blocker)
+Gzipped Worker: 2,730 KiB at M1, 2,966 KiB after M2 (uncompressed about 14.4 MiB). **Cloudflare replaced the old 3 MB (Free) / 10 MB
+(Paid) gzip limits with one 64 MiB uncompressed limit on every plan in September 2026**, so size no longer limits M3/M4. Not yet proven
+by a real deploy (a rejected deploy fails without touching the live site). The bundler still keeps a separate ~255 KB copy of the
+database layer per distinct set of routes; all billing/link routes share one (`app/lib/billing/api/index.ts`).
+
+**Workers Paid (USD 5 a month minimum) is still recommended before live payments**, for three limits that do bite on Free:
+- **50 subrequests per request** (10,000 on Paid). Every Neon query is one, and one invoice job is about 25. So one request runs ONE
+  job (`DRAIN_AFTER_REQUEST`) and the schedule three (`DRAIN_SCHEDULED`); a job not run is picked up by the next schedule.
+- **10 ms CPU per request** (30 s default on Paid). Not measured for the webhook and PDF path; read it in the Workers dashboard after
+  the first test payments.
+- **100,000 requests a day** on Free; short-link redirects count, so a viral link could stop the whole site (Paid: no daily cap).
+Optional later: fewer queries per job (fold the lookups), Smart Placement near the Neon region, fewer duplicate database-layer copies.
+
+## M3 — receivables snapshot, summary, opt-in email
+
+**Where it is:** Invoices → Payments & collections (Pro), a "Where things stand" card above the existing figures.
+
+| Figure | Definition (as of the visitor's date, one currency) |
+|---|---|
+| Outstanding | Same as the page: open balance of unpaid invoices, quotations never |
+| Overdue | Open balance with a due date strictly before today |
+| Due today | Open balance due on today's date (not overdue) |
+| Due in the next 7 days | Open balance due tomorrow through today + 7 |
+| Due in the next 30 days | Open balance due tomorrow through today + 30; **includes the next 7**; invoices with no due date are in none of the due figures |
+| Received this month | Non-voided ledger payments dated in the calendar month of today |
+| Partly paid | Open invoices with something paid: how many, and what is still owed on them |
+| Next due / Latest payments | The next five invoices due (today or later); the five latest non-voided payments |
+| Ageing | Not yet due · 1–30 · 31–60 · 61–90 · over 90 days overdue; adds up to Outstanding |
+
+Built from `getCollections` (same ledger and formulas) plus four small queries (`getReceivables`, `db/collections.ts`), not a second
+calculation system. Verified by hand against a worked scenario (`test/receivables.test.mts`) and checked equal to the page.
+
+**The message** (`app/lib/invoice/receivables-summary.ts`): the figures above as plain text, one block per currency, with the link
+to the page. **Share on WhatsApp** opens `wa.me/?text=…`: the user picks the chat and presses send. **Copy message** too.
+
+**Email (opt-in).** Off by default; the card's "Email it to me" sets *Every Monday* or *On the 1st of each month* (`notification_prefs`,
+migration 0013). The scheduled trigger (every 15 minutes) queues each opted-in account's summary once per period from 9 am India time
+that day (`app/lib/notify/schedule.ts`; a day the trigger doesn't run is a summary skipped, not repeated). The job
+(`app/lib/notify/summary-job.ts`) re-checks at send time that the account still opted in, still has Pro and has something to
+report (money owed, or received this month), then emails the account's **own** address, at most two currencies, with the page link and
+how to turn it off. Sender `summary@send.kaamsolv.com`; Resend idempotency key per job. Turning it on needs Pro; turning it off never does.
+
+**Not in M3:** WhatsApp sent automatically (D2, needs the WhatsApp Business Platform), emailing anyone else, other time zones, a
+configurable send time, per-user currency choice in the email, a custom date range for the summary.
+**Known edges:** a job that renders several currencies uses more database calls than an invoice job (Free plan: 50 per request); a
+user who opts in on Monday after 9 am gets that Monday's summary the same day.
+**Changed on live code:** the ageing groups (see DECISIONS 2026-10-27); saved links with `bucket=d60_plus` stop working.
+
+| Piece | File |
+|---|---|
+| Snapshot | `db/collections.ts` (`getReceivables`), `db/invoice-filters.ts` (`ageingCaseSql`) |
+| Message | `app/lib/invoice/receivables-summary.ts` |
+| Schedule, preferences | `app/lib/notify/schedule.ts`, `db/notifications.ts`, `db/migrations/0013_notification_prefs.sql` |
+| Email job | `app/lib/notify/summary-job.ts` (run by the outbox in `app/lib/billing/jobs.ts`) |
+| Routes | `app/lib/billing/api/{receivables,prefs}.ts` (one door), `app/api/invoices/receivables`, `app/api/notifications/prefs`; the drain route also queues due summaries |
+| UI | `app/_components/account/receivables-card.tsx` |
+| Tests | `test/receivables.test.mts` (15), `tests/e2e/receivables.spec.ts` (3); ageing tests updated |
+
+### Rollback of 0013 (only if nothing depends on it)
+```sql
+DROP TABLE notification_prefs;
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM drizzle.__drizzle_migrations);
+```
 
 ### Safeguards added after review (M2.5)
 - The account named in `BILLING_SELLER_EMAIL`, and any account holding a sales invoice, **can't be deleted** (409), and a sales

@@ -15,13 +15,13 @@ import { enqueue, runDue, type JobOutcome, type OutboxJob } from '../../../db/ou
 import { authUsers, billingPayments, invoices, plans } from '../../../db/schema';
 import { BILLING_EMAIL_FROM, sendEmailChecked } from '../email';
 import { linkSecret } from '../links/token';
-import { SITE_ORIGIN } from '../site-urls';
+import { siteOrigin } from '../site-origin';
+import { summaryJob } from '../notify/summary-job';
 import { invoiceEmail } from './email';
 
 /** The public address of an invoice link. */
 export function invoiceUrl(token: string, env: Record<string, string | undefined> = process.env): string {
-  const origin = env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, '') || (process.env.NODE_ENV === 'production' ? SITE_ORIGIN : 'http://localhost:3000');
-  return `${origin}/i/${token}`;
+  return `${siteOrigin(env)}/i/${token}`;
 }
 
 /** Queues "invoice and email this payment". Safe to call any number of times for the same payment. */
@@ -63,8 +63,16 @@ export async function billingInvoiceJob(db: Db, job: OutboxJob, deps: JobDeps = 
   return sent.code === 'email_not_configured' ? { result: 'blocked', code: sent.code } : { result: 'retry', code: sent.code };
 }
 
+/**
+ * How many jobs one request may run. Every database query is a subrequest, a job is about 25 of them, and the Workers
+ * Free plan allows 50 per request (10,000 on Paid), so a request that already did its own work runs ONE job and the
+ * scheduled retry runs three. A job that doesn't get run is just picked up by the next schedule.
+ */
+export const DRAIN_AFTER_REQUEST = 1;
+export const DRAIN_SCHEDULED = 3;
+
 /** Runs whatever is due. Called right after a webhook (the fast path) and by the scheduled retry. */
-export async function drainOutbox(limit = 10) {
+export async function drainOutbox(limit = DRAIN_SCHEDULED) {
   const db = await getDb();
-  return runDue(db, { billing_invoice: (job) => billingInvoiceJob(db, job) }, limit);
+  return runDue(db, { billing_invoice: (job) => billingInvoiceJob(db, job), receivables_summary: (job) => summaryJob(db, job) }, limit);
 }

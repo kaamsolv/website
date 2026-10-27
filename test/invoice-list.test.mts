@@ -214,7 +214,7 @@ test('totals are over every match, per currency, and equal the Stage D filter to
   assert.equal(inr.balance, sum(expected('INR', () => true), (m) => m.total - m.paid));
 
   // Same conditions as Stage D's filtered list → same totals.
-  for (const filter of [{ state: 'outstanding' }, { state: 'overdue' }, { state: 'partial' }, { state: 'paid' }, { bucket: 'd60_plus' }, { state: 'unpaid', currency: 'INR' }] as const) {
+  for (const filter of [{ state: 'outstanding' }, { state: 'overdue' }, { state: 'partial' }, { state: 'paid' }, { bucket: 'd90_plus' }, { state: 'unpaid', currency: 'INR' }] as const) {
     const stageD = await listInvoicesFiltered(db, A, filter, TODAY);
     const paged = await listInvoicesPage(db, A, q({ filter, today: TODAY, kind: 'invoice', pageSize: 3 }));
     assert.deepEqual(paged.totals, stageD.totals, JSON.stringify(filter));

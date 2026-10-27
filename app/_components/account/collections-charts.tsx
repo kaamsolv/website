@@ -7,7 +7,7 @@ import { invoicesHref } from '@/app/lib/invoice/filters';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 
 type Month = { month: string; invoiced: number; invoicedCount: number; received: number; receivedCount: number };
-type Bucket = { bucket: 'not_due' | 'd1_30' | 'd31_60' | 'd60_plus'; label: string; amount: number; count: number };
+type Bucket = { bucket: 'not_due' | 'd1_30' | 'd31_60' | 'd61_90' | 'd90_plus'; label: string; amount: number; count: number };
 
 const monthFrom = (m: string) => `${m}-01`;
 
@@ -154,11 +154,12 @@ const BUCKET_BAR: Record<Bucket['bucket'], string> = {
   not_due: 'bg-navy-300',
   d1_30: 'bg-yellow-500',
   d31_60: 'bg-coral-500',
-  d60_plus: 'bg-coral-700',
+  d61_90: 'bg-coral-600',
+  d90_plus: 'bg-coral-700',
 };
 
 /**
- * Outstanding by age, as a list of four rows: label, how many invoices, the balance, and a bar sized to the
+ * Outstanding by age, as a list of five rows: label, how many invoices, the balance, and a bar sized to the
  * biggest bucket. Each row with invoices in it is a link to exactly those invoices. Built from HTML rather than
  * SVG so it reads and tabs like any list.
  */

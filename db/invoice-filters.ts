@@ -40,9 +40,21 @@ export function bucketSql(bucket: AgeingBucket, today: string): SQL {
       return sql`(${OPEN} and ${age} between 1 and 30)`;
     case 'd31_60':
       return sql`(${OPEN} and ${age} between 31 and 60)`;
-    case 'd60_plus':
-      return sql`(${OPEN} and ${age} > 60)`;
+    case 'd61_90':
+      return sql`(${OPEN} and ${age} between 61 and 90)`;
+    case 'd90_plus':
+      return sql`(${OPEN} and ${age} > 90)`;
   }
+}
+
+/** The ageing bucket of each open invoice as a SQL expression, for `group by`. One definition, used by Collections and the Ageing report. */
+export function ageingCaseSql(today: string): SQL {
+  return sql`case
+    when ${bucketSql('not_due', today)} then 'not_due'
+    when ${bucketSql('d1_30', today)} then 'd1_30'
+    when ${bucketSql('d31_60', today)} then 'd31_60'
+    when ${bucketSql('d61_90', today)} then 'd61_90'
+    else 'd90_plus' end`;
 }
 
 export function stateSql(state: FilterState, today: string | null): SQL {

@@ -118,7 +118,8 @@ export const AGEING_BUCKETS = [
   { key: 'not_due', label: 'Not yet due' },
   { key: 'd1_30', label: '1–30 days overdue' },
   { key: 'd31_60', label: '31–60 days overdue' },
-  { key: 'd60_plus', label: 'Over 60 days overdue' },
+  { key: 'd61_90', label: '61–90 days overdue' },
+  { key: 'd90_plus', label: 'Over 90 days overdue' },
 ] as const;
 export type AgeingBucket = (typeof AGEING_BUCKETS)[number]['key'];
 export const isAgeingBucket = (v: unknown): v is AgeingBucket => typeof v === 'string' && AGEING_BUCKETS.some((b) => b.key === v);
@@ -132,7 +133,7 @@ export function daysOverdue(dueDate: string | null | undefined, today: string): 
 /** Which ageing bucket a balance falls in. No due date counts as not yet due. */
 export function ageingBucket(dueDate: string | null | undefined, today: string): AgeingBucket {
   const d = daysOverdue(dueDate, today);
-  return d === 0 ? 'not_due' : d <= 30 ? 'd1_30' : d <= 60 ? 'd31_60' : 'd60_plus';
+  return d === 0 ? 'not_due' : d <= 30 ? 'd1_30' : d <= 60 ? 'd31_60' : d <= 90 ? 'd61_90' : 'd90_plus';
 }
 
 // ─── Collection rate ─────────────────────────────────────────────────────────────────────

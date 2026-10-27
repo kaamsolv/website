@@ -11,7 +11,7 @@
 import { sql } from 'drizzle-orm';
 import type { Db } from './links.ts';
 
-export type OutboxKind = 'billing_invoice';
+export type OutboxKind = 'billing_invoice' | 'receivables_summary';
 
 export type OutboxJob = { id: string; kind: string; dedupeKey: string; payload: Record<string, unknown>; attempts: number };
 

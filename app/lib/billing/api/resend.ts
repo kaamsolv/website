@@ -7,7 +7,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { fail, isUuid, json, requireUser, sameOrigin } from '@/app/lib/api-response';
-import { drainOutbox, queueResend } from '@/app/lib/billing/jobs';
+import { DRAIN_AFTER_REQUEST, drainOutbox, queueResend } from '@/app/lib/billing/jobs';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
 import { billingPayments } from '@/db/schema';
@@ -28,7 +28,7 @@ export async function handlePOST(req: Request, ctx: { params: Promise<{ id: stri
       .where(and(eq(billingPayments.id, id), eq(billingPayments.userId, user.id)));
     if (!pay || pay.status !== 'paid') return fail(404, 'not_found', 'We couldn’t find that payment.');
     await queueResend(db, id);
-    after(() => drainOutbox(3).catch((e) => console.error('[api/billing/resend] drain', formatErrorForLog(e))));
+    after(() => drainOutbox(DRAIN_AFTER_REQUEST).catch((e) => console.error('[api/billing/resend] drain', formatErrorForLog(e))));
     return json({ ok: true, message: 'On its way. Check your inbox in a minute.' });
   } catch (e) {
     console.error('[api/billing/resend]', formatErrorForLog(e));
