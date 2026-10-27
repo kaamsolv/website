@@ -38,6 +38,7 @@ const ROUTE_SEGMENTS = [
   'indian-number-to-words',
   'pdf-to-word',
   'rent-receipt-generator',
+  'gratuity-calculator',
   'invoice-generator',
   'pdf-tools',
   'compress-pdf',

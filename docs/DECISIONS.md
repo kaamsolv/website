@@ -5,6 +5,13 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-27 — Gratuity Calculator (new catalogue tool, India)
+`/gratuity-calculator`. Narrow on purpose, because the law changed on 21 Nov 2025 and the sources disagree: only the Act formula
+(wages × 15 × years ÷ 26, more than six months rounds up, ₹20 lakh maximum, 5 years or 1 for fixed-term, none on death/disability).
+The person enters "wages"; no tax calculation, no employers outside the Act, no CTC estimator; the page lists the rules it uses with
+the date checked. Built locally, not committed; the rules box and FAQ wait for owner/CA review. Details:
+[`products/gratuity-calculator.md`](products/gratuity-calculator.md).
+
 ## 2026-10-27 — Rent Receipt Generator (new catalogue tool, India)
 
 **Decided by:** product owner (kickoff and plan approved 2026-10-27). Built, not deployed.
