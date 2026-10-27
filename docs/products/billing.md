@@ -11,10 +11,10 @@ A signed-in user opens **Plans and billing** (`/app/billing`), picks a plan and 
 to confirm, for up to a minute. Until the Razorpay keys are set the page says "Payments aren't switched on yet" and checkout
 answers 503. The page is not in the navigation yet (so nobody finds an unfinished feature); add the link at the release gate.
 
-## Plans and launch prices (approved 2026-10-27; GST treatment still open, see below)
+## Plans and launch prices (approved 2026-10-27; **all prices include 18% GST**, owner decision 2026-10-28; Invoice Pro monthly moved ₹149 → ₹150 because ₹149 can't be split into GST amounts that add back exactly)
 | Plan (`plan_key`) | Monthly | Yearly (≈ two months free) | Switches on |
 |---|---|---|---|
-| Invoice Pro (`invoice_pro`) | ₹149 | ₹1,490 | the existing Invoice Pro features |
+| Invoice Pro (`invoice_pro`) | ₹150 | ₹1,490 | the existing Invoice Pro features |
 | QR Pro (`qr_pro`) | ₹99 | ₹990 | the existing QR Pro features |
 | Invoice + QR Pro (`invoice_qr_bundle`) | ₹199 | ₹1,990 | **both** plans above (a price-list entry only, so features can't drift) |
 

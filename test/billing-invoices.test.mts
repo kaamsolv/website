@@ -120,6 +120,7 @@ test('with tax included, an invoice is made only when its total is exactly what 
   // A known one: Rs 149 including 18% GST can't be split into two half-rate taxes that add back to 149.00.
   assert.deepEqual(buildSubscriptionInvoice({ ...base, amountPaise: 14900, treatment: { mode: 'inclusive', rate: '18' } }), { ok: false, code: 'rounding_mismatch' });
   assert.equal(buildSubscriptionInvoice({ ...base, amountPaise: 149000, treatment: { mode: 'inclusive', rate: '18' } }).ok, true);
+  assert.equal(buildSubscriptionInvoice({ ...base, amountPaise: 15000, treatment: { mode: 'inclusive', rate: '18' } }).ok, true, 'the launch price of Invoice Pro monthly (Rs 150) reconciles');
 });
 
 test('the invoice is NOT made when the seller details or treatment can not honour it', () => {
@@ -254,8 +255,8 @@ test('a paid subscription becomes one numbered invoice in the seller account, se
   const [inv] = await db.select().from(invoices).where(eq(invoices.id, first.invoiceId));
   assert.equal(inv.userId, sellerId);
   assert.equal(inv.status, 'paid');
-  assert.equal(inv.total, 149);
-  assert.equal(inv.amountPaid, 149);
+  assert.equal(inv.total, 150);
+  assert.equal(inv.amountPaid, 150);
   assert.equal((inv.data as { number: string }).number, 'INV-0001', 'the number inside the document matches');
   assert.equal((inv.data as { client: { name: string } }).client.name, 'Pat Example');
   const ledger = await db.select().from(invoicePayments).where(eq(invoicePayments.invoiceId, first.invoiceId));
@@ -494,7 +495,7 @@ test('the seller sees these sales in the ordinary invoice list and the dashboard
   await issueInvoice(db, await paidPayment(await user('view2@example.test'), 'qr_pro', 'year'), env);
   const rows = await db.select({ number: invoices.number, total: invoices.total, status: invoices.status }).from(invoices).where(eq(invoices.userId, sellerId)).orderBy(invoices.number);
   assert.deepEqual(rows, [
-    { number: 'INV-0001', total: 149, status: 'paid' },
+    { number: 'INV-0001', total: 150, status: 'paid' },
     { number: 'INV-0002', total: 990, status: 'paid' },
   ]);
 });

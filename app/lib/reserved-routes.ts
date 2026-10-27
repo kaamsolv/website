@@ -79,6 +79,7 @@ const ROUTE_SEGMENTS = [
   'billing',
   'privacy',
   'terms',
+  'refund-policy',
   'cookies',
   'legal',
   'security',

@@ -7,6 +7,8 @@
  */
 
 import { isBillingPeriod } from '@/app/lib/billing/plans';
+import { billingConfig } from '@/app/lib/billing/invoice';
+import { splitIncludingTax } from '@/app/lib/billing/plans';
 import { createRazorpayOrder, razorpayKeys } from '@/app/lib/billing/razorpay';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { hashIp, resolveIpHashSalt } from '@/app/lib/ip-hash';
@@ -65,7 +67,7 @@ export async function handlePOST(req: Request) {
       orderId: order.id,
       amountPaise: price.amountPaise,
       currency: price.currency,
-      description: `${price.name} — ${price.period === 'year' ? 'one year' : 'one month'}`,
+      description: `${price.name} — ${price.period === 'year' ? 'one year' : 'one month'}${gstNote(price.amountPaise)}`,
       email: user.email,
     });
   } catch (e) {
@@ -79,4 +81,12 @@ export async function handlePOST(req: Request) {
     }
     return fail(502, 'checkout_failed', 'We couldn’t start the payment. Nothing was charged. Try again in a moment.');
   }
+}
+
+/** " (incl. GST ₹22.88)" when the price includes GST, so the payment window shows the split too. */
+function gstNote(pricePaise: number): string {
+  const treatment = billingConfig().treatment;
+  if (treatment?.mode !== 'inclusive') return '';
+  const { taxPaise } = splitIncludingTax(pricePaise, Number(treatment.rate));
+  return ` (incl. ${treatment.rate}% GST ₹${(taxPaise / 100).toFixed(2)})`;
 }

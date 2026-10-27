@@ -78,7 +78,7 @@ test.describe('checkout and status', () => {
     expect(status.status()).toBe(200);
     const data = (await status.json()) as { configured: boolean; prices: { planKey: string; period: string; amountPaise: number }[]; subscriptions: unknown[]; payments: unknown[] };
     expect(data.configured).toBe(false);
-    expect(data.prices.find((p) => p.planKey === 'invoice_pro' && p.period === 'month')?.amountPaise).toBe(14900);
+    expect(data.prices.find((p) => p.planKey === 'invoice_pro' && p.period === 'month')?.amountPaise).toBe(15000);
     expect(data.subscriptions).toEqual([]);
 
     const checkout = await page.request.post('/api/billing/checkout', { data: { planKey: 'invoice_pro', period: 'month' }, headers: { origin: BASE } });
@@ -113,3 +113,17 @@ test('the account that issues KaamSolv invoices can not be deleted; any other ac
   const gone = await page.request.delete('/api/me', { headers: { origin: BASE }, data: { confirm: 'DELETE' } });
   expect(gone.status()).toBe(200);
 });
+
+test('the Terms say how paid plans work and the Refund policy page exists, is linked from the footer and is in the sitemap', async ({ page, request }) => {
+  await page.goto('/terms');
+  await expect(page.getByRole('heading', { name: 'Paid plans' })).toBeVisible();
+  await expect(page.getByText('BEAM ME UP, B1/31/3 Safdarjung Enclave')).toBeVisible();
+  await expect(page.getByText('KaamSolv doesn’t process or confirm payments.')).toHaveCount(0);
+  await page.goto('/refund-policy');
+  await expect(page).toHaveTitle(/Refund and cancellation policy/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Refund and cancellation policy' })).toBeVisible();
+  await expect(page.getByText('within 7 days of a purchase')).toBeVisible();
+  await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Refunds' })).toHaveAttribute('href', '/refund-policy');
+  expect(await (await request.get('/sitemap.xml')).text()).toContain('/refund-policy');
+});
+

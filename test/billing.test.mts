@@ -13,7 +13,7 @@ import { authUsers, billingEvents, billingPayments, subscriptions } from '../db/
 import { attachOrder, billingStatus, createPendingPayment, listPrices, priceFor, processBillingEvent } from '../db/billing.ts';
 import { getEntitlements } from '../db/entitlements.ts';
 import { deleteAccount } from '../db/accounts.ts';
-import { addPeriod, plansGranted, priceLabel } from '../app/lib/billing/plans.ts';
+import { addPeriod, plansGranted, priceLabel, splitIncludingTax } from '../app/lib/billing/plans.ts';
 import { parseWebhook, verifyWebhookSignature, type BillingEvent } from '../app/lib/billing/razorpay.ts';
 
 const SECRET = 'whsec_test_not_a_real_secret';
@@ -72,6 +72,16 @@ test('a month and a year are added in UTC, clamping to the month end', () => {
   assert.equal(addPeriod(new Date('2028-02-29T00:00:00Z'), 'year').toISOString(), '2029-02-28T00:00:00.000Z');
 });
 
+test('a price that includes GST splits into the part before tax and the tax, always adding back to the price', () => {
+  assert.deepEqual(splitIncludingTax(15000, 18), { basePaise: 12712, taxPaise: 2288 });
+  assert.deepEqual(splitIncludingTax(149000, 18), { basePaise: 126271, taxPaise: 22729 });
+  for (const price of [9900, 15000, 19900, 99000, 149000, 199000]) {
+    const s = splitIncludingTax(price, 18);
+    assert.equal(s.basePaise + s.taxPaise, price);
+    assert.ok(s.taxPaise > 0 && s.basePaise > s.taxPaise);
+  }
+});
+
 test('the bundle grants two plans, everything else grants itself; prices read in Indian grouping', () => {
   assert.deepEqual(plansGranted('invoice_qr_bundle'), ['invoice_pro', 'qr_pro']);
   assert.deepEqual(plansGranted('invoice_pro'), ['invoice_pro']);
@@ -119,7 +129,7 @@ const DAY = 86_400_000;
 test('the price list is seeded: three plans, monthly and yearly, in paise', async () => {
   const prices = await listPrices(db);
   const get = (k: string, p: string) => prices.find((x) => x.planKey === k && x.period === p)?.amountPaise;
-  assert.equal(get('invoice_pro', 'month'), 14900);
+  assert.equal(get('invoice_pro', 'month'), 15000);
   assert.equal(get('invoice_pro', 'year'), 149000);
   assert.equal(get('qr_pro', 'month'), 9900);
   assert.equal(get('qr_pro', 'year'), 99000);

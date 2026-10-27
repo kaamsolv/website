@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { PRIMARY } from './account-shell';
-import { priceLabel, type BillingPeriod } from '@/app/lib/billing/plans';
+import { priceLabel, splitIncludingTax, type BillingPeriod } from '@/app/lib/billing/plans';
 import { refreshMe } from '@/app/lib/me-client';
 import type { BillingStatus, Price } from '@/db/billing';
 
 type PaymentRow = Omit<BillingStatus['payments'][number], 'invoiceId'> & { invoiceUrl: string | null };
-type Loaded = { subscriptions: BillingStatus['subscriptions']; payments: PaymentRow[]; configured: boolean; prices: Price[] };
+type Loaded = { taxRate: number | null; subscriptions: BillingStatus['subscriptions']; payments: PaymentRow[]; configured: boolean; prices: Price[] };
 
 type RazorpayOptions = {
   key: string;
@@ -215,6 +215,11 @@ export function BillingPanel() {
                     {priceLabel(price.amountPaise)}
                     <span className="text-base font-semibold text-muted"> / {period === 'month' ? 'month' : 'year'}</span>
                   </p>
+                  {data.taxRate !== null && (
+                    <p className="mt-1 text-xs text-muted" data-testid={`gst-${planKey}`}>
+                      Includes {data.taxRate}% GST: {priceLabel(splitIncludingTax(price.amountPaise, data.taxRate).basePaise)} + {priceLabel(splitIncludingTax(price.amountPaise, data.taxRate).taxPaise)} GST
+                    </p>
+                  )}
                   <button type="button" className={`${PRIMARY} mt-4`} disabled={busy !== null} onClick={() => buy(planKey)} data-testid={`buy-${planKey}`}>
                     {busy === planKey ? 'Opening…' : `Get ${price.name}`}
                   </button>

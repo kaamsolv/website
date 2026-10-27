@@ -4,6 +4,7 @@
  */
 
 import { invoiceUrl } from '@/app/lib/billing/jobs';
+import { billingConfig } from '@/app/lib/billing/invoice';
 import { razorpayKeys } from '@/app/lib/billing/razorpay';
 import { linkSecret } from '@/app/lib/links/token';
 import { fail, json, requireUser } from '@/app/lib/api-response';
@@ -26,7 +27,10 @@ export async function handleGET(req: Request) {
         return { ...rest, invoiceUrl: token ? invoiceUrl(token) : null };
       }),
     );
-    return json({ ok: true, configured: razorpayKeys() !== null, prices, subscriptions: status.subscriptions, payments });
+    const treatment = billingConfig().treatment;
+    // Only a price that includes GST gets a split on screen; anything else shows the plain price.
+    const taxRate = treatment?.mode === 'inclusive' ? Number(treatment.rate) : null;
+    return json({ ok: true, configured: razorpayKeys() !== null, taxRate, prices, subscriptions: status.subscriptions, payments });
   } catch (e) {
     console.error('[api/billing/status]', formatErrorForLog(e));
     return fail(500, 'server_error', 'We couldn’t load your plans. Try again in a moment.');

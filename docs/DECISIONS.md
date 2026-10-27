@@ -25,6 +25,12 @@ WhatsApp (click-to-chat, a wa.me link: nothing is sent for the user). Server PDF
 the Worker). Worker 2,966 KiB gzip (2,730 at M1). Cloudflare's size limit became 64 MiB uncompressed on every plan in September 2026, so
 size is not a blocker; Workers Paid is still recommended before live payments (subrequests, CPU, daily cap): `products/billing.md`. Details: [`products/billing.md`](products/billing.md).
 
+## 2026-10-28 — Prices include 18% GST; Terms and Refund pages; launch runbook
+Owner: legal name BEAM ME UP (GSTIN 07ACPPV7985A1ZX, B1/31/3 Safdarjung Enclave, New Delhi 110029); prices **include** GST at 18% (industry standard for online
+software services per tax-guide sources; owner will verify and update; SAC code still to be confirmed by the CA). Invoice Pro monthly ₹149 → ₹150 (exact GST
+split); the billing page shows the split. Terms gained a Paid plans section and a new `/refund-policy` page (7-day refund, no auto-renew) is linked from the
+footer; owner approved publishing the draft as is and will change it later. Launch steps: [`infra/billing-launch-runbook.md`](infra/billing-launch-runbook.md).
+
 ## 2026-10-27 — Invoice links expire after 90 days (owner: "as per industry standards"; built locally after M3, uncommitted)
 Every invoice link (emailed and shared) now stops opening 90 days after it is made (`LINK_TTL_DAYS`). A new link replaces it; the invoice is never remade.
 

@@ -53,7 +53,7 @@ CREATE INDEX "billing_payments_user_id_idx" ON "billing_payments" USING btree ("
 -- qr_pro (app/lib/billing/plans.ts), so its features can never drift from those two plans.
 INSERT INTO "plans" ("plan_key", "name") VALUES ('invoice_qr_bundle', 'Invoice + QR Pro');--> statement-breakpoint
 INSERT INTO "plan_prices" ("plan_key", "period", "amount_paise") VALUES
-  ('invoice_pro', 'month', 14900),
+  ('invoice_pro', 'month', 15000),
   ('invoice_pro', 'year', 149000),
   ('qr_pro', 'month', 9900),
   ('qr_pro', 'year', 99000),

@@ -34,6 +34,15 @@ export function addPeriod(from: Date, period: BillingPeriod): Date {
   );
 }
 
+/**
+ * The split of a price that already includes GST at `rate` percent: the part before tax, and the tax. Paise in, paise out,
+ * and the two always add back to the price. (The invoice shows the tax as CGST + SGST or IGST; this is the same total.)
+ */
+export function splitIncludingTax(pricePaise: number, rate: number): { basePaise: number; taxPaise: number } {
+  const basePaise = Math.round((pricePaise * 100) / (100 + rate));
+  return { basePaise, taxPaise: pricePaise - basePaise };
+}
+
 /** "₹149" or "₹1,490" from paise (prices are set in whole rupees; paise show only if present). */
 export function priceLabel(amountPaise: number): string {
   const rupees = Math.floor(amountPaise / 100);

@@ -17,7 +17,7 @@ import { LIVE_TOOLS } from './catalogue';
 export const SITE_ORIGIN = 'https://kaamsolv.com';
 
 /** Public, indexable pages that aren't catalogue tools. */
-export const PUBLIC_PAGES = ['/', '/tools', '/pdf-tools', '/about', '/contact', '/privacy', '/terms'] as const;
+export const PUBLIC_PAGES = ['/', '/tools', '/pdf-tools', '/about', '/contact', '/privacy', '/terms', '/refund-policy'] as const;
 
 /** Paths (no origin), unique, in a stable order: public pages first, then live tools. */
 export function sitemapPaths(): string[] {

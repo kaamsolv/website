@@ -3,7 +3,7 @@ import { TextPage } from '../_components/text-page';
 
 export const metadata: Metadata = {
   title: 'Terms',
-  description: 'The rules for using KaamSolv’s free tools and optional accounts, including what you can and can’t shorten.',
+  description: 'The rules for using KaamSolv’s free tools, optional accounts and paid plans, including what you can and can’t shorten.',
   alternates: { canonical: '/terms' },
 };
 
@@ -12,7 +12,7 @@ export default function TermsPage() {
     <TextPage
       title="Terms"
       intro="The rules for using KaamSolv. They're short — please read them."
-      updated="2026-10-21"
+      updated="2026-10-28"
     >
       <h2>Using KaamSolv</h2>
       <p>
@@ -78,8 +78,43 @@ export default function TermsPage() {
       </p>
       <p>
         Check every QR code with your own phone before you print or share it. A UPI QR code fills in payment
-        details in a payment app — KaamSolv doesn&apos;t process or confirm payments.
+        details in a payment app. KaamSolv doesn&apos;t process or confirm those payments between you and your
+        customers. (Buying a KaamSolv plan is different: see Paid plans below.)
       </p>
+
+      <h2>Paid plans</h2>
+      <p>
+        The free tools stay free. Some extra features, such as the Invoice Generator&apos;s dashboard and reports and
+        QR campaigns, are part of paid plans: <strong>Invoice Pro</strong>, <strong>QR Pro</strong>, or{' '}
+        <strong>Invoice + QR Pro</strong>, for one month or one year at a time.
+      </p>
+      <ul>
+        <li>
+          <strong>Price.</strong> The price you pay is the price shown at checkout. It includes GST (18%), and the
+          checkout shows the split.
+        </li>
+        <li>
+          <strong>One payment, one period.</strong> A plan does not renew by itself. When your month or year ends,
+          your account goes back to the free account and your saved work stays. If you buy again before it ends, the
+          new period starts when the old one ends.
+        </li>
+        <li>
+          <strong>Paying.</strong> Payments are taken by Razorpay. Your card, UPI or bank details go to Razorpay and
+          never to us. Your plan switches on when Razorpay confirms the payment, usually within a minute, and we email
+          you an invoice with a private link that works for 90 days.
+        </li>
+        <li>
+          <strong>Refunds and cancelling.</strong> See the <a href="/refund-policy">Refund and cancellation policy</a>.
+        </li>
+        <li>
+          <strong>Price changes.</strong> We may change prices. A change never affects a period you have already paid
+          for.
+        </li>
+        <li>
+          <strong>Who sells it.</strong> BEAM ME UP, B1/31/3 Safdarjung Enclave, New Delhi 110029. GSTIN
+          07ACPPV7985A1ZX.
+        </li>
+      </ul>
 
       <h2>Results and information</h2>
       <p>
