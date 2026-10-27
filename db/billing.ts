@@ -12,7 +12,8 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { plansGranted, type BillingPeriod } from '../app/lib/billing/plans.ts';
 import type { BillingEvent } from '../app/lib/billing/razorpay.ts';
 import type { Db } from './links.ts';
-import { billingEvents, billingPayments, planPrices, plans, subscriptions } from './schema.ts';
+import { enqueue } from './outbox.ts';
+import { billingEvents, billingPayments, invoices, planPrices, plans, subscriptions } from './schema.ts';
 
 const rowsOf = <T>(r: unknown): T[] => (r as { rows: T[] }).rows;
 
@@ -59,7 +60,7 @@ export async function abandonPending(db: Db, paymentId: string): Promise<void> {
 
 export type BillingStatus = {
   subscriptions: { planKey: string; name: string; provider: string; status: string; currentPeriodEnd: string | null; active: boolean }[];
-  payments: { id: string; planKey: string; name: string; period: string; amountPaise: number; currency: string; status: string; createdAt: string; paidAt: string | null }[];
+  payments: { id: string; planKey: string; name: string; period: string; amountPaise: number; currency: string; status: string; createdAt: string; paidAt: string | null; invoiceId: string | null; invoiceNumber: string | null }[];
 };
 
 /** What the billing page shows for one account: its plans, and its last ten checkouts. */
@@ -81,9 +82,12 @@ export async function billingStatus(db: Db, userId: string, now: Date = new Date
       status: billingPayments.status,
       createdAt: billingPayments.createdAt,
       paidAt: billingPayments.paidAt,
+      invoiceId: billingPayments.invoiceId,
+      invoiceNumber: invoices.number,
     })
     .from(billingPayments)
     .innerJoin(plans, eq(plans.planKey, billingPayments.planKey))
+    .leftJoin(invoices, eq(invoices.id, billingPayments.invoiceId))
     .where(eq(billingPayments.userId, userId))
     .orderBy(desc(billingPayments.createdAt))
     .limit(10);
@@ -153,7 +157,12 @@ async function apply(db: Db, event: BillingEvent): Promise<Exclude<ProcessResult
     case 'captured': {
       const [pay] = await db.select().from(billingPayments).where(eq(billingPayments.razorpayOrderId, event.orderId));
       if (!pay) return { result: 'ignored', detail: 'unknown_order' };
-      if (pay.status === 'paid' || pay.status === 'refunded' || pay.status === 'disputed') return { result: 'ignored', detail: `already_${pay.status}` };
+      if (pay.status === 'paid') {
+        // A delivery that granted the plan but died before queueing the invoice is finished by its redelivery.
+        await enqueue(db, 'billing_invoice', `billing_invoice:${pay.id}`, { paymentId: pay.id });
+        return { result: 'ignored', detail: 'already_paid' };
+      }
+      if (pay.status === 'refunded' || pay.status === 'disputed') return { result: 'ignored', detail: `already_${pay.status}` };
       if (pay.amountPaise !== event.amountPaise || pay.currency !== event.currency) return { result: 'rejected', detail: 'amount_mismatch' };
 
       // One statement: claim the payment (only one delivery can win) and switch the plan(s) on. The period
@@ -176,6 +185,8 @@ async function apply(db: Db, event: BillingEvent): Promise<Exclude<ProcessResult
                current_period_end = greatest(subscriptions.current_period_end, now()) + ${length},
                updated_at = now()
       `);
+      // The invoice and its email are a job of their own: if they fail, the payment and the plan stay as they are.
+      await enqueue(db, 'billing_invoice', `billing_invoice:${pay.id}`, { paymentId: pay.id });
       return { result: 'processed', detail: 'paid' };
     }
 

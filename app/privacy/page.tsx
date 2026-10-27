@@ -93,6 +93,12 @@ export default function PrivacyPage() {
           you, so we can account for what we sold.
         </li>
         <li>
+          <strong>Invoice links you share</strong>: when you share an invoice, a private link to it, when it was
+          made, how many times it was opened and when last, and whether you turned it off. Anyone who has the
+          link can open that one invoice until you turn it off. Invoices we email you for a plan you bought, and
+          whether that email was delivered, are kept the same way.
+        </li>
+        <li>
           <strong>A history of each payment</strong>: every time a payment is recorded, voided, or has its
           reference or note changed, we keep a dated entry — including the reference and note as they were before
           an edit. We keep this history for as long as the invoice exists. It isn&apos;t shown anywhere in your

@@ -103,7 +103,7 @@ test('--through must be exact, and may not apply everything', async () => {
     assert.equal(h.connects.length, 0, JSON.stringify(bad));
     await h.close();
   }
-  for (const everything of ['0011', '0011_billing']) {
+  for (const everything of [all.at(-1)!.tag.slice(0, 4), all.at(-1)!.tag]) {
     const h = await harness();
     const r = await run([...NEON, '--through', everything], h);
     assert.equal(r.code, 1, everything);
@@ -114,7 +114,7 @@ test('--through must be exact, and may not apply everything', async () => {
   const h = await harness();
   const ok = await run([...NEON, '--through', '0005_gst_invoice'], h);
   assert.equal(ok.code, 0, ok.text);
-  assert.match(ok.out, /Would apply 6 of 12 migrations/, 'the full name works too');
+  assert.match(ok.out, new RegExp(`Would apply 6 of ${all.length} migrations`), 'the full name works too');
   await h.close();
 });
 
@@ -147,8 +147,8 @@ test('the dry run checks the database and describes the plan but migrates nothin
   const h = await harness();
   const r = await run(NEON, h);
   assert.equal(r.code, 0, r.text);
-  assert.match(r.out, /Would apply 10 of 12 migrations.*0000_powerful_masque … 0009_qr_campaigns/);
-  assert.match(r.out, /Left for the atomic runner: 0010_invoice_payments, 0011_billing/);
+  assert.match(r.out, new RegExp(`Would apply 10 of ${all.length} migrations.*0000_powerful_masque … 0009_qr_campaigns`));
+  assert.ok(r.out.includes(`Left for the atomic runner: ${all.slice(10).map((m) => m.tag).join(', ')}`));
   assert.match(r.out, /Dry run — nothing was changed/);
   assert.equal(h.migratedFolders.length, 0);
   assert.equal(((await (await h.pg()).query(`select to_regclass('drizzle.__drizzle_migrations') is not null as there`)).rows[0] as { there: boolean }).there, false, 'not even the journal table was created');

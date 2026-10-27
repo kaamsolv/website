@@ -6,7 +6,8 @@ import { priceLabel, type BillingPeriod } from '@/app/lib/billing/plans';
 import { refreshMe } from '@/app/lib/me-client';
 import type { BillingStatus, Price } from '@/db/billing';
 
-type Loaded = BillingStatus & { configured: boolean; prices: Price[] };
+type PaymentRow = Omit<BillingStatus['payments'][number], 'invoiceId'> & { invoiceUrl: string | null };
+type Loaded = { subscriptions: BillingStatus['subscriptions']; payments: PaymentRow[]; configured: boolean; prices: Price[] };
 
 type RazorpayOptions = {
   key: string;
@@ -90,6 +91,12 @@ export function BillingPanel() {
       }
     }
     setNotice({ tone: 'wait', text: 'Still confirming. If you were charged, your plan will switch on shortly. Refresh this page in a minute.' });
+  }
+
+  async function resend(paymentId: string) {
+    const res = await fetch(`/api/billing/payments/${paymentId}/resend`, { method: 'POST', credentials: 'same-origin' }).catch(() => null);
+    const body = (await res?.json().catch(() => null)) as { message?: string } | null;
+    setNotice({ tone: res?.ok ? 'ok' : 'error', text: body?.message ?? 'We couldn’t send that. Try again in a moment.' });
   }
 
   async function buy(planKey: string) {
@@ -225,13 +232,27 @@ export function BillingPanel() {
           </h2>
           <ul className="mt-3 divide-y divide-hair">
             {data.payments.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+              <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
                 <span className="text-ink">
                   {p.name} · {p.period === 'year' ? 'yearly' : 'monthly'}
                 </span>
                 <span className="text-sm text-muted">
                   {priceLabel(p.amountPaise)} · {PAYMENT_WORDS[p.status] ?? p.status} · {date(p.paidAt ?? p.createdAt)}
                 </span>
+                {p.status === 'paid' && (
+                  <span className="flex w-full flex-wrap items-center gap-3 text-sm">
+                    {p.invoiceUrl ? (
+                      <a href={p.invoiceUrl} className="font-semibold text-coral-600 underline underline-offset-2" data-testid="invoice-open">
+                        Invoice {p.invoiceNumber}
+                      </a>
+                    ) : (
+                      <span className="text-muted">Your invoice is being prepared.</span>
+                    )}
+                    <button type="button" className="font-semibold text-coral-600 underline underline-offset-2" onClick={() => resend(p.id)}>
+                      Email it to me again
+                    </button>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

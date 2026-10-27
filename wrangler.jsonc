@@ -9,7 +9,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kaamsolv",
-  "main": ".open-next/worker.js",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
@@ -26,5 +26,6 @@
   // kaamsolv.com canonical, so it is not indexed as a duplicate.
   "workers_dev": true,
   "preview_urls": false,
+  "triggers": { "crons": ["*/15 * * * *"] },
   "observability": { "enabled": true }
 }

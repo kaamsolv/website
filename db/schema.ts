@@ -379,6 +379,9 @@ export const billingPayments = pgTable(
     currency: text('currency').notNull().default('INR'),
     razorpayOrderId: text('razorpay_order_id').unique(),
     razorpayPaymentId: text('razorpay_payment_id').unique(),
+    /** The sales invoice KaamSolv issued for this payment (billing M2). Set null if the seller deletes it; `invoicedAt` stops it being made twice. */
+    invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+    invoicedAt: timestamp('invoiced_at', { withTimezone: true }),
     /** created → paid | failed; paid → refunded | disputed. */
     status: text('status').notNull().default('created'),
     paidAt: timestamp('paid_at', { withTimezone: true }),
@@ -394,6 +397,64 @@ export const billingPayments = pgTable(
     check('billing_payments_status', sql`${table.status} in ('created', 'paid', 'failed', 'refunded', 'disputed')`),
     check('billing_payments_period', sql`${table.period} in ('month', 'year')`),
     check('billing_payments_amount', sql`${table.amountPaise} > 0`),
+  ],
+);
+
+/**
+ * A private, revocable link to one invoice (`/i/<token>`). Only a hash of the token is stored; the token itself
+ * is derived from the link's id and a server secret (app/lib/links/token.ts), so a retry can rebuild the same URL.
+ * Holds no customer details.
+ */
+export const invoiceLinks = pgTable(
+  'invoice_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    /** `billing` = the link in a KaamSolv sales invoice email; `share` = a link a user made from their own invoice. */
+    purpose: text('purpose').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    firstViewedAt: timestamp('first_viewed_at', { withTimezone: true }),
+    lastViewedAt: timestamp('last_viewed_at', { withTimezone: true }),
+    viewCount: integer('view_count').notNull().default(0),
+  },
+  (table) => [index('invoice_links_invoice_id_idx').on(table.invoiceId), check('invoice_links_purpose', sql`${table.purpose} in ('billing', 'share')`)],
+);
+
+/**
+ * Durable background work (billing M2): "make and email the invoice for this payment". A row is written before
+ * anything is attempted, `dedupe_key` makes enqueueing twice a no-op, and a failed attempt is retried with a
+ * back-off (app/lib/outbox.ts). The payload holds ids only, never an address or an invoice.
+ */
+export const outbox = pgTable(
+  'outbox',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    payload: jsonb('payload').notNull().default(sql`'{}'::jsonb`),
+    /** pending → sending → sent | failed (retried) | blocked (needs a setting) | dead (gave up). */
+    status: text('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    /** A short code ("email_rejected_422", "seller_not_configured"), never an address or a message body. */
+    lastError: text('last_error').notNull().default(''),
+    providerRef: text('provider_ref').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('outbox_due_idx').on(table.status, table.nextAttemptAt),
+    check('outbox_status', sql`${table.status} in ('pending', 'sending', 'sent', 'failed', 'blocked', 'dead')`),
   ],
 );
 

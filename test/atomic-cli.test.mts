@@ -130,7 +130,7 @@ test('the dry run reads the journal, describes the plan and the timeouts, and ne
   assert.deepEqual(f.connected, [URL_]);
   assert.deepEqual(f.calls, ['journal-exists', 'journal-read'], 'only reads');
   assert.match(r.out, new RegExp(`Applied in this database: ${BEFORE_LAST} of ${all.length}\\. Pending: 1\\.`));
-  assert.match(r.out, /0011_billing: \d+ statements/);
+  assert.match(r.out, new RegExp(`${all.at(-1)!.tag}: \\d+ statements`));
   assert.match(r.out, new RegExp(`lock ${DEFAULT_LOCK_TIMEOUT_MS} ms, statement ${DEFAULT_STATEMENT_TIMEOUT_MS} ms`));
   assert.match(r.out, /not validated on Neon/);
   assert.match(r.out, /Dry run — nothing was changed/);
@@ -161,7 +161,7 @@ test('applying opens exactly one transaction — timeouts first, then the lock a
   assert.equal(statement.text, `SET LOCAL statement_timeout = '${DEFAULT_STATEMENT_TIMEOUT_MS}ms'`);
   assert.ok(f.transactions[0].some((s) => s.text.includes(`<> ${BEFORE_LAST}`) && s.text.includes('migration_state_changed')), 'the journal-changed guard expects exactly the applied count the plan saw');
   assert.deepEqual(f.transactions[0].at(-1)?.params, [all.at(-1)!.hash, all.at(-1)!.folderMillis], 'its own journal row is the last statement');
-  assert.match(r.out, /Committed: 0011_billing/);
+  assert.match(r.out, new RegExp(`Committed: ${all.at(-1)!.tag}`));
   assert.match(r.out, new RegExp(`Journal now has ${all.length} rows`));
 });
 
@@ -296,7 +296,7 @@ test('if reading the journal back fails AFTER the commit, it says the migration 
   const f = fake({ readBack: new Error('read ECONNRESET') });
   const r = await run(APPLY, f);
   assert.equal(r.code, 3);
-  assert.match(r.out, /Committed: 0011_billing/);
+  assert.match(r.out, new RegExp(`Committed: ${all.at(-1)!.tag}`));
   assert.match(r.err, /WAS applied and committed.*not rolled back/s);
   assert.match(r.err, /Run the dry run/);
   assert.doesNotMatch(r.err, /rolled back as a whole|NOT known/);

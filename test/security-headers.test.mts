@@ -51,7 +51,7 @@ test('robots.txt: public pages crawlable, account area and API not, and it point
   const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules;
   assert.equal(rule.userAgent, '*');
   assert.equal(rule.allow, '/');
-  assert.deepEqual(rule.disallow, ['/app/', '/api/']);
+  assert.deepEqual(rule.disallow, ['/app/', '/api/', '/i/']);
   assert.equal(r.sitemap, 'https://kaamsolv.com/sitemap.xml');
   // Nothing the sitemap lists is blocked.
   for (const page of PUBLIC_PAGES) {

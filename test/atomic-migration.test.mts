@@ -299,11 +299,11 @@ test('a subset of the migrations (what the rehearsal builds first) loads with th
   assert.deepEqual(loaded.map((m) => [m.tag, m.hash, m.folderMillis]), through.map((m) => [m.tag, m.hash, m.folderMillis]), 'identical to the real ones');
   assert.throws(() => writeMigrationSubset(FULL, ['0009_qr_campaigns', 'no_such_migration'], mkdtempSync(join(tmpdir(), 'kk-subset-'))), /not in the journal/);
 
-  // Built that way, the database is exactly "production before 0010": and the atomic runner then plans the two that follow (0010, 0011).
+  // Built that way, the database is exactly "production before 0010": and the atomic runner then plans every migration from 0010 on.
   const pg = new PGlite();
   await migrate(drizzle(pg), { migrationsFolder: dir });
   const plan = planPending(all, await journalOf(pg));
-  assert.ok(plan.ok && plan.pending.map((m) => m.tag).join() === '0010_invoice_payments,0011_billing' && plan.notes.length === 0);
+  assert.ok(plan.ok && plan.pending.map((m) => m.tag).join() === all.slice(BEFORE_0010).map((m) => m.tag).join() && plan.notes.length === 0);
   await applyAtomically(plan.ok ? plan.pending : [], runner(pg));
   assert.equal((await journalOf(pg)).length, all.length);
   await pg.close();

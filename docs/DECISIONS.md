@@ -14,6 +14,17 @@ Sales records survive account deletion, unlinked. Open: GST treatment of prices 
 activation/keys/webhook. Later milestones (invoice email, links, WhatsApp share, summaries, accountant packs) are separate.
 Details: [`products/billing.md`](products/billing.md).
 
+## 2026-10-27 — Billing M2: sales invoice, email, private link, WhatsApp share (built locally, not deployed)
+A verified payment queues a durable job (`outbox`, written before anything is attempted, deduped by payment). The job makes
+**one** numbered invoice in the seller's own KaamSolv account (`BILLING_SELLER_EMAIL`; number, ledger and reports are the ordinary
+ones), makes a private `/i/<token>` link and emails it with a stable idempotency key; a failed email retries with a back-off and
+never makes a second invoice. Nothing about tax is guessed: no `BILLING_TAX_TREATMENT`, no seller details or a GSTIN that can't
+honour it → the job waits as `blocked`. "Tax included" works only where the total reconciles exactly (₹149 monthly at 18% does
+**not**: no two half-rate taxes add back to ₹149.00); "tax added on top" is not supported. Every account can share any invoice on
+WhatsApp (click-to-chat, a wa.me link: nothing is sent for the user). Server PDF is a ~100-line writer, not pdf-lib (stubbed out of
+the Worker). **Worker size: 2,966 KiB of 3,072 KiB gzip (was 2,730 at M1)**: no room for the next milestone, see the
+recommendation in `products/billing.md`. Details: [`products/billing.md`](products/billing.md).
+
 ## 2026-10-27 — Gratuity Calculator (new catalogue tool, India)
 `/gratuity-calculator`. Narrow on purpose, because the law changed on 21 Nov 2025 and the sources disagree: only the Act formula
 (wages × 15 × years ÷ 26, more than six months rounds up, ₹20 lakh maximum, 5 years or 1 for fixed-term, none on death/disability).

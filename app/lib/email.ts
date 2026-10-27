@@ -15,6 +15,8 @@
 import { isProductionServer } from './runtime-platform';
 
 export const EMAIL_FROM = 'KaamSolv <login@send.kaamsolv.com>';
+/** Sender for sales invoices (same verified sending subdomain as sign-in mail). */
+export const BILLING_EMAIL_FROM = 'KaamSolv Billing <billing@send.kaamsolv.com>';
 
 /**
  * Offer "Email me a sign-in link" only when it can actually arrive: always in
@@ -27,27 +29,46 @@ export function emailSignInAvailable(): boolean {
 
 export type Email = { to: string; subject: string; text: string; html: string };
 
-export async function sendEmail(email: Email): Promise<void> {
+export type SendResult = { ok: true; id: string } | { ok: false; code: string };
+
+/**
+ * Sends one email and says what happened. Unlike `sendEmail`, a missing key or a refusal from Resend comes back
+ * as `{ ok: false, code }` (a short code: never the address, the body or the key), so a caller that must not lose
+ * the message (the invoice outbox) can retry it. `from` defaults to the sign-in sender.
+ */
+export async function sendEmailChecked(email: Email, from: string = EMAIL_FROM, idempotencyKey?: string): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY?.trim();
 
   if (process.env.NODE_ENV !== 'production' && (!key || process.env.KK_E2E === '1')) {
     await writeDevOutbox(email);
-    return;
+    return { ok: true, id: 'dev-outbox' };
   }
+  if (!key) return { ok: false, code: 'email_not_configured' };
 
-  if (!key) {
+  let res: Response;
+  try {
+    res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
+      body: JSON.stringify({ from, to: [email.to], subject: email.subject, text: email.text, html: email.html }),
+    });
+  } catch {
+    return { ok: false, code: 'email_network_error' };
+  }
+  if (!res.ok) return { ok: false, code: `email_rejected_${res.status}` };
+  const body = (await res.json().catch(() => null)) as { id?: unknown } | null;
+  return { ok: true, id: typeof body?.id === 'string' ? body.id : '' };
+}
+
+/** Sign-in email: fire and forget. A failure is logged (status only) and the visitor still sees the neutral message. */
+export async function sendEmail(email: Email): Promise<void> {
+  const result = await sendEmailChecked(email);
+  if (result.ok) return;
+  if (result.code === 'email_not_configured') {
     console.error('[email] RESEND_API_KEY is not set — sign-in email not sent.' + (isProductionServer() ? '' : ' (dev)'));
-    return;
-  }
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: EMAIL_FROM, to: [email.to], subject: email.subject, text: email.text, html: email.html }),
-  });
-  if (!res.ok) {
+  } else {
     // Status only — never the address or the link.
-    console.error(`[email] Resend rejected the message: HTTP ${res.status}`);
+    console.error(`[email] ${result.code}`);
   }
 }
 

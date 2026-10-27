@@ -35,6 +35,9 @@ const noSecrets = (text: string) => {
   assert.ok(!text.includes('postgres://'), 'the connection string is never printed');
 };
 
+import { loadMigrations } from '../db/atomic-migration.ts';
+const ALL = loadMigrations(resolve(ROOT, 'db/migrations'));
+
 test('redact scrubs the connection string, the password and the user wherever they appear', () => {
   const msg = `connect failed for ${URL_WITH_SECRET}; auth failed for user app_user with ${PASSWORD} (${encodeURIComponent(PASSWORD)})`;
   const out = redact(msg, URL_WITH_SECRET);
@@ -127,19 +130,19 @@ test('the rehearsal-preparation tool refuses without an explicit matching target
 });
 
 test('the rehearsal-preparation tool will not apply everything, and its local self-check builds production’s state before 0010', () => {
-  const everything = run('db/prepare-rehearsal.mts', ['--local', '--through', '0011']);
+  const everything = run('db/prepare-rehearsal.mts', ['--local', '--through', ALL.at(-1)!.tag.slice(0, 4)]);
   assert.equal(everything.code, 1);
   assert.match(everything.out, /would apply every migration/);
   assert.equal(run('db/prepare-rehearsal.mts', ['--local', '--through', '9999']).code, 1);
 
   const dry = run('db/prepare-rehearsal.mts', ['--local']);
   assert.equal(dry.code, 0, dry.out.slice(-300));
-  assert.match(dry.out, /Would apply 10 of 12 migrations.*Dry run — nothing was changed/s);
+  assert.match(dry.out, new RegExp(`Would apply 10 of ${ALL.length} migrations.*Dry run — nothing was changed`, 's'));
 
   const done = run('db/prepare-rehearsal.mts', ['--local', '--confirm']);
   assert.equal(done.code, 0, done.out.slice(-300));
   assert.match(done.out, /Done: 10 migrations applied and recorded/);
-  assert.match(done.out, /Left for the atomic runner: 0010_invoice_payments, 0011_billing/);
+  assert.ok(done.out.includes(`Left for the atomic runner: ${ALL.slice(10).map((m) => m.tag).join(', ')}`));
 });
 
 // ─── Errors that escape: one scrubbed line, never Node's dump of the error object ──────────────────────

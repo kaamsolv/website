@@ -10,40 +10,9 @@
  * Nothing here logs the body, the signature or any key.
  */
 
-import { parseWebhook, verifyWebhookSignature, webhookSecret } from '@/app/lib/billing/razorpay';
-import { formatErrorForLog } from '@/app/lib/log-error';
-import { getDb } from '@/db/client';
-import { processBillingEvent } from '@/db/billing';
+import { dispatch } from '@/app/lib/billing/api';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_BODY = 100_000;
-const reply = (status: number, body: Record<string, unknown>) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
-
-export async function POST(req: Request) {
-  const secret = webhookSecret();
-  if (!secret) return reply(503, { ok: false, error: 'billing_unavailable' });
-
-  const raw = await req.text();
-  if (raw.length > MAX_BODY) return reply(413, { ok: false, error: 'too_large' });
-
-  if (!(await verifyWebhookSignature(raw, req.headers.get('x-razorpay-signature'), secret))) {
-    return reply(400, { ok: false, error: 'bad_signature' });
-  }
-  const eventId = req.headers.get('x-razorpay-event-id')?.trim();
-  if (!eventId || eventId.length > 100) return reply(400, { ok: false, error: 'no_event_id' });
-  const event = parseWebhook(raw);
-  if (!event) return reply(400, { ok: false, error: 'bad_payload' });
-
-  try {
-    const db = await getDb();
-    const type = event.kind === 'ignored' ? event.type : event.kind;
-    const out = await processBillingEvent(db, eventId, type, event);
-    if (out.result === 'retry') return reply(503, { ok: false, error: 'try_again', detail: out.detail });
-    return reply(200, { ok: true, result: out.result });
-  } catch (e) {
-    console.error('[api/billing/webhook]', formatErrorForLog(e));
-    return reply(500, { ok: false, error: 'server_error' });
-  }
-}
+export const POST = (req: Request) => dispatch('webhook.POST', req);

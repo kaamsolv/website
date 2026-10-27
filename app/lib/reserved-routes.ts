@@ -18,6 +18,7 @@
 const ROUTE_SEGMENTS = [
   'url-shortener',
   'qr-code-generator',
+  'i',
   'qr-generator',
   'image-tools',
   'image-compressor',

@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AccountShell, SECONDARY } from '@/app/_components/account/account-shell';
 import { InvoicePayments } from '@/app/_components/account/invoice-payments';
+import { InvoiceShare } from '@/app/_components/account/invoice-share';
 import { getCurrentUser } from '@/app/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,10 @@ export default async function InvoicePaymentsPage({ params }: { params: Promise<
         </a>
       }
     >
-      <InvoicePayments id={id} />
+      <div className="space-y-6">
+        <InvoicePayments id={id} />
+        <InvoiceShare id={id} />
+      </div>
     </AccountShell>
   );
 }
