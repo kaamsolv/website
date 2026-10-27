@@ -22,7 +22,8 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | Accounts (Google + email link, entitlements, `/app` hub) | **Live** — [`products/accounts.md`](products/accounts.md) |
 | Calculators (GST, EMI, Percentage, Discount, Salary/CTC, Age, Tip, Split Bill) | **Live** |
 | Writing tools (Word Counter, Character Counter, Case Converter, Text Cleaner, Lorem Ipsum) | **Live** |
-| Everything else in the catalogue | Planned (33 tools live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
+| Indian Number to Words (`/indian-number-to-words`) | Built, **not deployed** — [`products/indian-number-to-words.md`](products/indian-number-to-words.md) |
+| Everything else in the catalogue | Planned (34 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack
 

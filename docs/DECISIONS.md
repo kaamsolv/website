@@ -5,6 +5,16 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-10-27 — Indian Number to Words (first of the Number to Words → Rent Receipt → Gratuity shortlist)
+
+**Decided by:** product owner (picked from the shortlist; kickoff and plan approved 2026-10-27). Built, not deployed.
+
+- **Why this one:** fastest to build, steady India-wide demand (cheques, invoices, forms), and the core already existed in `app/lib/invoice/words.ts`. Rent Receipt and Gratuity each get their own kickoff.
+- **Exact text, no floats:** the tool parses what is typed (`parseAmountText`) and words it with BigInt, so paise never drift. It **refuses** what could change an amount (a comma that isn't a thousands separator such as `1,5`, a minus sign, letters, more than 2 decimal places) instead of guessing. Limit **14 integer digits** (99 lakh crore); the plan said 15, but at 15 the crore count itself passes a crore and the words repeat "Crore".
+- **Out for now:** Hindi and other languages (needs a reviewed 0–99 table), international (million/billion) wording, other currencies, lakh↔million conversion (the planned Indian Currency Converter), PDF/cheque printing.
+- **The Invoice Generator is unchanged:** `indianNumberWords` now delegates to the BigInt version; a test compares it with a verbatim copy of the old code on thousands of values.
+- Details: [`products/indian-number-to-words.md`](products/indian-number-to-words.md).
+
 ## 2026-10-27 — Security headers, robots.txt sitemap line, deploy guard
 
 **Decided by:** product owner (asked for both after a read-only audit on 2026-10-27). Not yet deployed.
