@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../icons';
 import { PAPER_MUTED, PAPER_TEXT, PaperCaption, PaperInput, PaperTextarea } from './paper-fields';
 import { countPdfPages, pdfFilename, renderInvoicePdf } from './generate-pdf';
-import { SavedDatalists, useSavedLists } from './saved-lists';
+import { SavedDatalists, useSavedLists, type SavedCustomer, type SavedItem } from './saved-lists';
 import { DesignPicker } from './design-panel';
 import { FxLine } from './fx-line';
 import { Segmented } from '../choice';
@@ -17,6 +17,7 @@ import { readLogo } from '@/app/lib/invoice/logo';
 import { GST_RATES, GST_RATES_NOTE, isListedGstRate, TAX_LABELS } from '@/app/lib/invoice/gst';
 import { EXPORT_CODE, isGstEstimate, isTaxInvoice, placeOfSupplyLabel, placeOfSupplyOf, taxInvoiceNumberProblem } from '@/app/lib/invoice/gst-tax';
 import { DEFAULT_DESIGN } from '@/app/lib/invoice/design';
+import { fillFromSavedItem, type LineFill } from '@/app/lib/invoice/item-fill';
 import { RECUR_EVERY, RECUR_LABELS, RECUR_SHORT, isRecurEvery, nextRecurAfter, type RecurEvery } from '@/app/lib/invoice/recurring';
 import { GST_STATES, hsnProblem } from '@/app/lib/invoice/india';
 import { rupeesInWords } from '@/app/lib/invoice/words';
@@ -145,12 +146,12 @@ export function InvoiceEditor() {
       if (profile.current) lastProfile.current = sellerKey(profile.current, profile.current.logo);
       const id = new URLSearchParams(window.location.search).get('id');
       if (id) {
-        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid'; recurEvery?: string | null; recurNext?: string | null }>(`/api/invoices/${encodeURIComponent(id)}`);
+        const r = await api<{ invoice?: Invoice; status?: 'unpaid' | 'paid'; amountPaid?: number; recurEvery?: string | null; recurNext?: string | null }>(`/api/invoices/${encodeURIComponent(id)}`);
         if (r.ok && r.body.invoice) {
           if (isRecurEvery(r.body.recurEvery) && r.body.recurNext) setRecur({ every: r.body.recurEvery, next: r.body.recurNext });
           const loaded = withFreshItemIds({ ...r.body.invoice, logo: profile.current?.logo ?? null, signature: profile.current?.signature ?? null });
           lastSaved.current = docKey(loaded);
-          setPaid(r.body.status ?? 'unpaid');
+          setPay({ status: r.body.status ?? 'unpaid', amountPaid: r.body.amountPaid ?? 0 });
           setSavedId(id);
           setSaveState('saved');
           setInv(loaded);
@@ -286,13 +287,20 @@ export function InvoiceEditor() {
   const canItems = signedIn && can('invoice_item_catalogue');
   const saved = useSavedLists({ customers: canCustomers, items: canItems });
   const [customerMsg, setCustomerMsg] = useState<string | null>(null);
+  // What the last saved-item fill put into each line (kept here, not in the document) and the note under a line.
+  const itemFills = useRef(new Map<string, LineFill>());
+  const [itemHint, setItemHint] = useState<{ id: string; text: string } | null>(null);
+  const latestClient = useRef('');
+  const latestDescription = useRef(new Map<string, string>());
+  const invRef = useRef<Invoice | null>(null);
   const customerLimit = limit('invoice_client_directory');
   const customersAtLimit =
     canCustomers && customerLimit !== null && me.status === 'signed-in' && me.usage.customers >= customerLimit;
 
-  // Paid / unpaid (Pro), for saved invoices.
-  const canTrack = signedIn && can('invoice_dashboard');
-  const [paid, setPaid] = useState<'unpaid' | 'paid'>('unpaid');
+  // Payments (every account), for saved invoices: the editor only points at the payments page, where the ledger lives.
+  // `amountPaid` is what the server has recorded; once it is more than zero the currency is fixed and the total can't fall below it.
+  const canTrack = signedIn && can('invoice_payments');
+  const [pay, setPay] = useState<{ status: 'unpaid' | 'paid'; amountPaid: number }>({ status: 'unpaid', amountPaid: 0 });
 
   // Pro (Stage 2C-1): quotations, templates and brand colour. Hidden from free accounts.
   const canQuote = signedIn && can('invoice_quote_mode');
@@ -300,6 +308,8 @@ export function InvoiceEditor() {
   const canRecur = signedIn && can('invoice_recurring');
   const [designOpen, setDesignOpen] = useState(false);
   const [converting, setConverting] = useState(false);
+
+  invRef.current = inv;
 
   if (!inv || !totals) {
     return <div className="mx-auto min-h-[60vh] max-w-[794px] animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
@@ -317,14 +327,8 @@ export function InvoiceEditor() {
   const setPayment = (patch: Partial<PaymentDetails>) =>
     setInv((cur) => (cur ? { ...cur, payment: { ...(cur.payment ?? EMPTY_PAYMENT), ...patch } } : cur));
 
-  /** Typing a saved customer's name (from the suggestions) fills "Bill to". */
-  function onClientName(name: string) {
-    const match = saved.customers.find((c) => c.name === name);
-    if (!match) {
-      // A different name than the linked customer: it's no longer that customer.
-      setInv((cur) => (cur ? { ...cur, client: { ...cur.client, name }, customerId: cur.customerId && cur.client.name !== name ? null : cur.customerId } : cur));
-      return;
-    }
+  /** Fill "Bill to" from a saved customer and connect the invoice to them. */
+  function applyCustomer(match: SavedCustomer) {
     const address = [match.contactName && `Attn: ${match.contactName}`, match.address].filter(Boolean).join('\n');
     set({
       client: {
@@ -339,9 +343,30 @@ export function InvoiceEditor() {
     setCustomerMsg(null);
   }
 
+  /** Typing a saved customer's name (from the suggestions) fills "Bill to". The connection is made only by picking or fully typing a saved name — never guessed later. */
+  function onClientName(name: string) {
+    latestClient.current = name;
+    const match = saved.customers.find((c) => c.name === name);
+    if (!match) {
+      // A different name than the linked customer: it's no longer that customer.
+      setInv((cur) => (cur ? { ...cur, client: { ...cur.client, name }, customerId: cur.customerId && cur.client.name !== name ? null : cur.customerId } : cur));
+      // A long list of saved customers isn't all loaded: ask the server, and use an exact match if it has one.
+      if (saved.truncated.customers && name.trim()) {
+        void saved.searchCustomers(name).then((rows) => {
+          const found = rows.find((c) => c.name === name);
+          if (found && latestClient.current === name) applyCustomer(found);
+        });
+      }
+      return;
+    }
+    applyCustomer(match);
+  }
+
   async function saveAsCustomer() {
     setCustomerMsg(null);
     const c = inv!.client;
+    const same = saved.customers.find((x) => x.name.trim().toLowerCase() === c.name.trim().toLowerCase());
+    if (same && !window.confirm(`You already have a customer called “${same.name}”. Save another one with the same name?`)) return;
     const r = await api<{ id?: string; message?: string; errors?: Record<string, string> }>('/api/customers', {
       method: 'POST',
       body: JSON.stringify({ name: c.name, address: c.address, email: c.email, stateCode: c.state ?? '', gstin: c.gstin ?? '' }),
@@ -356,28 +381,27 @@ export function InvoiceEditor() {
     void refreshMe();
   }
 
-  /** Picking a saved item from the suggestions fills its rate, HSN/SAC and unit. */
-  function onItemDescription(id: string, description: string) {
-    const match = saved.items.find((it) => it.name === description);
-    setItem(
-      id,
-      match
-        ? {
-            description,
-            rate: match.rate || '',
-            ...(match.hsnSac ? { hsn: match.hsnSac } : {}),
-            ...(match.unit ? { unit: match.unit } : {}),
-            ...(match.gstRate ? { gstRate: match.gstRate } : {}),
-          }
-        : { description },
-    );
+  /** Fill a line from a saved item (see app/lib/invoice/item-fill.ts): blanks and untouched values only — what was typed is kept. */
+  function runItemFill(id: string, description: string, list: readonly SavedItem[], doc: Invoice) {
+    const line = doc.items.find((it) => it.id === id);
+    if (!line) return;
+    const r = fillFromSavedItem(line, description, list, itemFills.current.get(id));
+    if (r.fill) itemFills.current.set(id, r.fill);
+    setItemHint(r.hint ? { id, text: r.hint } : (cur) => (cur?.id === id ? null : cur));
+    setItem(id, r.patch);
   }
 
-  async function togglePaid() {
-    const next = paid === 'paid' ? 'unpaid' : 'paid';
-    const r = await api(`/api/invoices/${savedId}/status`, { method: 'PUT', body: JSON.stringify({ status: next }) }).catch(() => null);
-    if (r?.ok) setPaid(next);
-    else setSaveMsg('Couldn’t change the paid status. Try again.');
+  /** Picking (or fully typing) a saved item's name fills its rate, HSN/SAC, unit and GST rate. */
+  function onItemDescription(id: string, description: string) {
+    latestDescription.current.set(id, description);
+    runItemFill(id, description, saved.items, inv!);
+    // A long list of saved items isn't all loaded: ask the server, and fill from an exact match if it has one.
+    if (saved.truncated.items && description.trim()) {
+      void saved.searchItems(description).then((rows) => {
+        const doc = invRef.current;
+        if (doc && latestDescription.current.get(id) === description && rows.some((it) => it.name.trim().toLowerCase() === description.trim().toLowerCase())) runItemFill(id, description, rows, doc);
+      });
+    }
   }
 
   function addItem() {
@@ -488,7 +512,9 @@ export function InvoiceEditor() {
         id={id}
         value={inv.currency}
         onChange={(e) => set({ currency: e.target.value as CurrencyCode })}
-        className="h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+        disabled={pay.amountPaid > 0}
+        title={pay.amountPaid > 0 ? 'Payments are recorded on this invoice, so its currency is fixed.' : undefined}
+        className="h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
         aria-label="Currency"
       >
         {CURRENCIES.map((c) => (
@@ -543,15 +569,19 @@ export function InvoiceEditor() {
             </button>
           )}
           {savedId && canTrack && !quote && (
-            <button type="button" onClick={() => void togglePaid()} className={SECONDARY} aria-pressed={paid === 'paid'}>
-              {paid === 'paid' ? (
+            <a href={`/app/invoices/${savedId}${pay.status === 'paid' && pay.amountPaid > 0 ? '' : '?record=1'}`} className={SECONDARY}>
+              {pay.status === 'paid' && pay.amountPaid > 0 ? (
                 <>
                   <Icon name="check" className="h-4 w-4 text-teal-500" /> Paid
                 </>
+              ) : pay.amountPaid > 0 ? (
+                `${formatMoney(pay.amountPaid, inv.currency)} received`
+              ) : pay.status === 'paid' ? (
+                'Marked paid'
               ) : (
-                'Mark as paid'
+                'Record payment'
               )}
-            </button>
+            </a>
           )}
           {signedIn && (!savedId || saveState === 'error') && (
             <button type="button" onClick={() => void save()} disabled={atLimit || saveState === 'saving'} className={SECONDARY}>
@@ -895,6 +925,11 @@ export function InvoiceEditor() {
                       autoComplete="off"
                       onChange={(e) => onItemDescription(it.id, e.target.value)}
                     />
+                    {itemHint?.id === it.id && (
+                      <p className={`mt-1 text-xs ${PAPER_MUTED}`} role="status" data-testid="item-hint">
+                        {itemHint.text}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <span className={`text-xs md:hidden ${PAPER_MUTED}`}>Qty</span>

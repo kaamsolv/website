@@ -10,7 +10,7 @@ import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
  * a free account, which must see none of it.
  */
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.KK_E2E_BASE ?? 'http://localhost:3000';
 const SECRET = process.env.KK_E2E_SECRET ?? '';
 const SHOTS = 'test-results/screenshots';
 const PDFS = 'test-results/pdfs';
@@ -263,7 +263,7 @@ test('Pro quotation: QUOTATION, Valid until, QT-0001, no UPI QR; Convert makes a
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Convert to invoice' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Mark as paid' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Record payment' })).toHaveCount(0); // quotations take no payments
   await expect(page.getByRole('radio', { name: 'Quotation', exact: true })).toHaveCount(0); // saved: the type is fixed
   await page.getByRole('button', { name: 'Convert to invoice' }).click();
   await page.waitForURL(/invoice-generator\?id=/);
@@ -271,7 +271,7 @@ test('Pro quotation: QUOTATION, Valid until, QT-0001, no UPI QR; Convert makes a
   await expect(page.getByLabel('Invoice number')).toHaveValue('INV-0002');
   await expect(page.getByLabel('Item 1 description')).toHaveValue('Website redesign');
   await expect(page.getByLabel('Client name')).toHaveValue('Acme Traders Pvt Ltd');
-  await expect(page.getByRole('button', { name: 'Mark as paid' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Record payment' })).toBeVisible();
 
   await page.goto('/app/invoices');
   const rows = page.getByRole('list', { name: 'Saved invoices' }).getByRole('listitem');

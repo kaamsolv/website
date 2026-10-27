@@ -149,13 +149,13 @@ test('items: save one, then picking it on the invoice fills the rate', async ({ 
   await page.getByRole('button', { name: '+ Add item' }).click();
   await page.getByLabel('Name (as printed on the invoice)').fill('Logo design package');
   await page.getByLabel('HSN / SAC code').fill('12345');
-  await page.getByLabel('Rate (₹)').fill('15000');
+  await page.getByLabel('Default rate').fill('15000'); // neutral wording: items carry no currency
   await page.getByRole('button', { name: 'Save item' }).click();
   await expect(page.getByText('HSN/SAC codes are 4, 6 or 8 digits.')).toBeVisible();
   await page.getByLabel('HSN / SAC code').fill('998391');
   await page.getByLabel('GST rate', { exact: true }).selectOption('18');
   await page.getByRole('button', { name: 'Save item' }).click();
-  await expect(page.getByText('HSN/SAC 998391 · ₹15000 · GST 18%')).toBeVisible();
+  await expect(page.getByText('HSN/SAC 998391 · Rate 15000 · GST 18%')).toBeVisible();
 
   await page.goto('/invoice-generator');
   await page.getByLabel('Item 1 description').fill('Logo design package');
@@ -204,7 +204,7 @@ test('hub for a free account: Invoices card says Free and x of 20; no Overview, 
   await expect(page.getByRole('button', { name: /^Mark .* as paid$/ })).toHaveCount(0);
 });
 
-test('Pro: dashboard totals, overdue, and marking paid', async ({ page }) => {
+test('Pro: dashboard totals, overdue, and settling an invoice by recording its payment', async ({ page }) => {
   await signIn(page, email('pro'));
   const mk = async (number: string, issueDate: string, dueDate: string, rate: string) =>
     ((await (
@@ -233,8 +233,13 @@ test('Pro: dashboard totals, overdue, and marking paid', async ({ page }) => {
 
   await page.goto('/app/invoices');
   await expect(page.getByRole('list', { name: 'Saved invoices' })).toBeVisible(); // the page is interactive once the list is drawn
-  await page.getByRole('button', { name: 'Mark P-2 as paid' }).click();
-  await expect(page.getByText('P-2 marked paid.')).toBeVisible();
+  // There is no "mark paid" switch: the payment settles it. The amount is prefilled with what is owed.
+  await expect(page.getByRole('button', { name: /^Mark .* as paid$/ })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Record a payment for P-2' }).click();
+  await expect(page.getByLabel('Amount received (INR)')).toHaveValue('500.00');
+  await page.getByRole('button', { name: 'Review' }).click();
+  await page.getByRole('button', { name: 'Confirm and record' }).click();
+  await expect(page.getByText('Recorded. P-2 is paid in full.')).toBeVisible();
   await page.goto('/app/invoices/overview');
   await expect(page.getByText('Nothing past due')).toBeVisible();
 });

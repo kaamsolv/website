@@ -14,6 +14,185 @@ infrastructure. Newest first. Detail lives in the linked docs.
 - **Deploy guard** in `cf:deploy`: the checkout must contain `origin/main`, be pushed, and have no uncommitted shipping files; `KK_DEPLOY_OVERRIDE="reason"` for deliberate exceptions. Does not cover Workers Builds or a bare `opennextjs-cloudflare deploy`, and can't know whether a pushed feature branch has been merged to `main`.
 - Details: `docs/infra/deployment.md` → Deploy guard, Security headers.
 
+## 2026-10-26 — Release-readiness audit: remediation before the invoice release (built, not deployed)
+
+**Decided by:** product owner, after a read-only audit of Stages C–F. Detail: [`infra/deployment.md`](./infra/deployment.md) §9
+"Applying a migration to production".
+
+- **`main` merged into the feature branch** (local only, no conflicts): the branch had lacked the analytics fix that keeps Google Analytics off `/app`
+  pages and strips page addresses — which matters more now that invoice-list and customer URLs carry filters and ids — and the QR "Save tracked QR" fix.
+  Deploy only from a branch that contains the latest `main`.
+- **Privacy page now describes payment records**: amount, date received, method, reference, note, void reason and date, and the payment audit history
+  (which also keeps a note's or reference's earlier wording). **Retention is unchanged and disclosed:** the history is kept while the invoice exists and
+  deleted with the invoice or account. A shorter retention would be a separate decision.
+- **Migration 0010 is applied with `npm run db:migrate:atomic`**, not `db:migrate`: the Neon HTTP migrator is not atomic (each statement is its own request, the
+  journal row comes last), so a mid-migration failure leaves a half-applied schema that a re-run can't get past. The atomic runner sends the statements and
+  the journal row as one transaction, refuses a database whose journal differs from the checkout, and needs `--confirm --restore-point-taken`. It never picks a
+  target: `DATABASE_URL` must be in that one command's environment (no `.env` file is read), `--expect-host` must match it every time (dry run included) or nothing is
+  contacted, and every error it prints is one line scrubbed of the connection string and password (an escaping error is caught and printed the same way — never Node's dump of the error object, which for an invalid URL contains the whole string). The rehearsal script additionally needs `--non-production` and refuses any
+  database that has a user in it; both CLIs are tested as real processes.
+  Proved on PGlite (same schema and journal as drizzle's migrator; injected failures leave nothing behind); **not yet run against any Neon database.**
+- **Tooling hardened after a review of how the Neon driver really behaves** (uncommitted at the time of writing): `sql.transaction` is one HTTP request whose atomicity is the server's, so an error
+  the database reports means rolled back, while a dropped connection or a 5xx means the outcome is *unknown* — the runner now says exactly that and tells the operator not to re-run `--confirm`.
+  The journal-hash check tolerates LF/CRLF (migration files are CRLF in a Windows checkout and LF in git; drizzle ignores the hash) but still refuses any other difference.
+  The rehearsal's emptiness check now covers **every application table**, not just users — a copy of production from before accounts existed has links and clicks but no users. The concurrency harness
+  fails on any unexpected error (deadlock, serialization failure, timeout, a refusal other than "more than is owed") and checks the payment audit trail. `npm run db:rehearsal:prepare` builds production's
+  pre-0010 state with drizzle's own migrator on a brand-new database, so the rehearsal starts where production is.
+- **Review fixes to that tooling** (an independent read-only review found these; uncommitted at the time of writing): uncaught errors could print the connection string (confirmed for a malformed URL in the payments
+  harness) — all three tools now install a handler that prints one scrubbed line; the emptiness check read `information_schema`, which hides tables from a role without privileges, so it now uses `pg_class`, and treats an unreadable
+  or row-level-security table as unverifiable; the harness read `--expect-host` as the *first argument* when the flag was missing — all tools now share one parser that never falls back; the runbook's `npm run db:migrate` step
+  (no host gate, reads `.env` files) is removed and the §9 warning added; claims of certain atomicity and of "everything printed is scrubbed" were qualified; and a test parses every `.mts` file with `node --check`, because
+  `npm run typecheck` covers only `.ts`/`.tsx` and had let a syntax error in a CLI through.
+- **Remaining tooling findings addressed** (uncommitted at the time of writing; none of it validated on Neon): the migration transaction now begins with `SET LOCAL lock_timeout` (5 s) and `statement_timeout` (60 s),
+  configurable within bounds, then an advisory lock and a check that the journal is still what the plan saw — so a second operator's stale plan fails cleanly instead of applying twice (a data-only migration would have);
+  timeout errors are a confirmed rollback only when the database reported them (they carry a SQLSTATE), a client or gateway timeout stays "outcome unknown". The CLI logic moved into `db/atomic-cli.ts` / `db/prepare-cli.ts`
+  behind a driver interface and is tested against a fake driver (gates, dry run, the exact transaction, already-applied, journal mismatch, confirmed rollback, unknown outcome, read-back failure → exit 3). The refusal no longer
+  tells the operator the host; the emptiness check covers every non-system schema; `--through` must be exact; `npm run db:host` replaces hand-parsing the URL in PowerShell; the payments rehearsal repeats its scenarios behind
+  a start barrier and reports requests and in-flight overlap without ever claiming a race, and a locally-injectable fault proves it fails on an unexpected error even when every total reconciles.
+- **First real Neon rehearsal, 2026-10-27** (a brand-new throwaway project, PostgreSQL 18.6, run with the committed tools through a one-command program; nothing of production was touched). Passed: real statement and lock
+  timeouts (57014, 55P03) inside Neon's HTTP transaction; the runner accepting drizzle's journal rows; a planted conflict making 0010 fail at its second-to-last statement and **rolling back completely** (a `42710` error from the
+  database, correctly reported as rolled back); the real apply in one transaction; repeat runs and drizzle's own migrator as no-ops. It found **two real defects**, both fixed: (1) the tools called `process.exit()` while the Neon driver's sockets
+  were closing, which crashed Node on Windows with a garbage exit code right after a correct message (the repo's db/link-status.mts documents the hazard; the tools now set `process.exitCode`, and a test forbids `process.exit()` in them);
+  (2) **payments deadlocked under concurrency** — the foreign-key check on `invoice_payments.invoice_id` takes a KEY SHARE lock on the invoice row, then the ledger trigger asks for FOR UPDATE on it, and two or more simultaneous payments
+  each wait to upgrade (SQLSTATE 40P01; 31 failed requests in 2 of 20 rounds, totals still correct). Fixed without a migration by taking `FOR UPDATE` on the invoice row inside the insert statement itself (`insertPaymentStatement`);
+  the same 20 rounds then passed with no deadlock (720 requests released together). PGlite, with its single connection, cannot show a deadlock, so this class of defect is only found on a real server.
+- **Docs corrected**: the old Worker does *not* simply ignore 0010 — its Pro "Mark paid" fails with a server error from the moment 0010 exists until the new
+  Worker is live (and after a Worker-only rollback); a Worker rollback keeps all payments; a database rollback destroys them.
+- **Cloudflare plan is not assumed.** The repo doesn't record it; earlier wording that treated it as the free plan was reworded. Owner to confirm the plan,
+  which sets the Worker's CPU and bundle limits.
+- **Stage E pager race fixed** (`directory-manager.tsx`, found while re-running the suite): the customers/items search timer also fired once after
+  the list opened and reset it to page 1 even though the search text hadn't changed, so a quick click on another page was undone; and a late answer
+  for an older page could replace a newer one. Now the list returns to page 1 only when the search text changes, and only the latest request's answer is
+  used. Two browser tests (a controlled clock that fires the timer after a page is chosen; a deliberately late page-2 answer) fail on the old code and
+  pass on the new.
+- **Neon rehearsal harness** (`scripts/rehearse-payments.mts`) prepared; it refuses any database that contains a user, so it can't run on a copy of real
+  data. Real concurrency on Neon remains unverified until it is run on a dedicated empty branch.
+
+---
+
+## 2026-10-26 — Reports & exports, Stage F (Pro): decisions applied (built, not deployed)
+
+**Decided by:** product owner (plan approved with F1–F8 as recommended, plus nine conditions). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Reports & exports".
+
+- **F1** The CSV is **built in the browser from small server-computed pages** (100 register / 500 payment rows), not on
+  the server: a Node benchmark of the existing export (5,000 GST invoices ≈ 90 ms of JavaScript, 7.6 MB of documents) is
+  a proxy only, but it is a lot of work for one request on any plan whose CPU limit is small (the actual Cloudflare plan is not
+  recorded and is unconfirmed), while a page costs under 1 ms of JavaScript. Cap 10,000 / 50,000 / 10,000 rows. **F2** Reuses the existing `invoice_csv_export` entitlement, checked
+  server-side on every request; no new key. **F3** One currency per file, never converted. **F4** Voided payments are
+  excluded from totals, listed only on request and labelled "Voided" / "Not counted". **F5** Nothing is invented for
+  legacy marked-paid invoices (a note and a count, no rows). **F6** The existing `/api/invoices/export` and `csv.ts`
+  are untouched. **F7** Formula-injection defence, escaping, UTF-8 BOM, caps, progress, cancel and an integrity check
+  (whole-paise totals, drift detection between pages) are all kept — the check exists because a multi-request export
+  is not one snapshot. **F8** Labelled operational reports — not GST returns or tax filings — in the page copy and in
+  tests that forbid statutory wording in column names.
+- **No migration, no dependency.** Page queries pick ids on narrow columns and read documents only for the page
+  (deep register pages 116 ms → 23 ms in the proxy); no index was needed. A new rate-limit entry (`invoiceReport`,
+  120/min and 1,200/h per account) is configuration, not schema.
+- The register's total, received and balance are the stored, ledger-backed figures; tax columns are derived from the
+  invoice's own lines and left blank (with a count in the result) when they no longer match the stored total.
+- Unverified: actual Worker CPU for a report page, and which Cloudflare plan (and so which limits) applies. The proxy says one page is ~1 ms of JavaScript plus database time;
+  confirm on a deployed Worker before relying on it, and lower the page sizes if a page ever runs hot.
+
+---
+
+## 2026-10-26 — Invoice workspace, Stage E: search and paging, customer pages, safer item fill (built, not deployed)
+
+**Decided by:** product owner (plan approved with E1–E8 as recommended). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Invoice workspace".
+
+- **E1** The customer page's money totals and invoice history are **free for every account** (own-data bookkeeping);
+  period analytics stay Pro. **E2** An **explicit connect / disconnect** flow for invoices typed in by a customer's
+  exact name — a list to review with nothing ticked, confirmed before it acts, changing only `customer_id`.
+  **E3** Offset pages (25 by default, ≤ 100), URL-driven; ZIP ticks persist across pages; the batch-result link uses
+  `ids=`. **E4** Items have no currency: neutral "Default rate" wording, rate filled as typed on any invoice.
+  **E5** Item fill never overwrites typed values, clears stale auto-filled ones when switching items, and does
+  nothing for duplicate names. **E6** Server-side suggestions in the editor past 200 saved. **E7** One stage,
+  one review. **E8** No migration and no index (benchmarked: every new query ≤ 26 ms median).
+- **Customers are never matched or merged by name.** The table allows duplicate names, so a name can't say which
+  customer was meant. Reads change nothing; a connection is made only for invoices the owner ticks and confirms.
+  Saving a name you already have warns, then allows it.
+- **The unfiltered `GET /api/invoices` answer is unchanged** (batch import depends on it), as is the Stage D filtered
+  answer; the paged answer is new and opt-in by parameter. `/api/dashboard`, invoice create and edit, GST maths,
+  PDFs, quotation workflows and recurring reminders are untouched; the invoice document gains no field.
+- Every list, page and customer total reconciles with the Stage D numbers (same SQL fragments), tested.
+- Directory lists page on the server: the old plain list stopped at 200 although Pro can save 1,000; it still does,
+  for compatibility, and the manager and editor no longer depend on it.
+
+---
+
+## 2026-10-26 — Payments & Collections, Stage D (Pro): decisions applied (built, not deployed)
+
+**Decided by:** product owner (plan approved with D1–D6 as recommended, plus two clarifications). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Payments & Collections".
+
+- **D1** Outstanding, overdue and ageing are **balances as of today**; the period applies to
+  invoiced, received, collection rate and the monthly chart. **D2** reuse the Pro key
+  `invoice_dashboard` (no new key, **no migration**). **D3** default period is the
+  current **Indian financial year (Apr–Mar)**. **D4** saved-customer filter included
+  (saved customers only). **D5** top-five "Needs chasing" included. **D6** no indexes
+  added; benchmarked first (5,000 invoices / 20,000 payments: dashboard median ≈ 41 ms,
+  24-month maximum ≈ 60 ms on in-memory Postgres).
+- **Clarification 1 — collection rate is the invoice-cohort rate**, labelled as such
+  ("Collection rate (invoices issued in this period)"), and kept visibly apart from
+  **Received** (cash that arrived in the period, any invoice). The page says they won't
+  match; marked-paid invoices are excluded from both and reported on their own.
+- **Clarification 2 — time, stated once:** business dates are plain calendar dates, never
+  converted; "today" is the browser's date, **required**, accepted only within a day of
+  server UTC (no server-clock fallback); the financial year, ranges, overdue and ageing are
+  all computed from that date, so IST just after midnight and 31 March ↔ 1 April behave
+  the same wherever the server runs. Boundary tests added.
+- **Everything is computed on the server from the ledger**; the browser lays numbers out.
+  One currency at a time, never summed or converted. Pro is enforced in the API (403, no
+  figures) as well as the page.
+- **Every drill-down reconciles:** the filter SQL (outstanding, overdue, buckets, payment
+  states) is defined once and shared with the figures; filtered lists return totals over
+  every match, which equal the card even when the list is cut at 200. Filtering one's own
+  invoices is open to every account; the analytics are Pro.
+- `/api/dashboard` and the Overview are unchanged apart from one link.
+
+---
+
+## 2026-10-26 — Invoice payments, Stage C: a ledger, not a switch (built, not deployed)
+
+**Decided by:** product owner (plan approved with six changes). Detail:
+[`products/invoice-generator.md`](./products/invoice-generator.md) "Payments".
+
+- **Source of truth is a payment ledger** (`invoice_payments`, migration 0010).
+  `invoices.amount_paid` is its trigger-maintained total and `invoices.status`
+  follows it. The `unpaid | paid` enum is **unchanged** — "partially paid" is
+  derived (`unpaid` with money received) — so no enum migration and old code keeps
+  working. The ledger tables are relational, with money in `numeric(14,2)`.
+- **Free accounts record payments and see the history** (new key `invoice_payments`
+  on `free_account` and `invoice_pro`); the Overview, collection analytics, ageing
+  and reports stay Pro. Previously even paid/unpaid tracking was Pro: **this widens
+  Free** — recorded payments are the basic record of whether an invoice was paid.
+- **No "Mark as paid" switch.** Recording the payment settles the invoice; the
+  database refuses `unpaid → paid` unless the ledger covers the total. The old
+  status endpoint now only undoes a legacy mark.
+- **Rules live in the database** (owner, currency, never above the total, immutable
+  amounts, fixed currency/type and a total floor once paid), enforced under the
+  invoice row's lock, so two payments at once can't overshoot. Neon HTTP can't hold a
+  transaction, so every change is a single statement plus triggers.
+- **Idempotent by key:** one `clientKey` per form; a repeat returns the original.
+- **Mistakes are voided, not edited or deleted:** the entry stays, with a reason, an
+  audit event is written, and the right payment is recorded after. Only reference and
+  note can change in place.
+- **Overpayment is refused** (no credit/advance workflow); **write-off/adjustment is
+  deferred** — a balance clears only by recording payments.
+- **Legacy "marked paid" invoices are not rewritten:** shown as "Marked paid — no
+  payments on record", counted as settled but not as received; reconciling is an
+  explicit action that can honestly turn one into Partially paid.
+- **Dashboard formulas are fixed** (per currency, never converted; invoiced vs
+  received vs outstanding vs overdue vs collection rate) and written down in the
+  product doc. In Stage C the Overview's "Unpaid"/"Overdue" already use the remaining
+  balance. Charts, ageing and customer totals are Stage D/E.
+- **Rollback caution:** unlike 0007–0009, dropping 0010's tables removes
+  user-entered financial data; prefer rolling back the Worker only (deployment doc).
+- Not done in Stage C: write-off, credit notes, refunds, reminders, any automatic email.
+
+---
+
 ## 2026-10-25 — Google Analytics 4 (consent-first) — deployed (d6193c4d, redeployed 8866be1c)
 
 **Decided by:** product owner. Deployed 2026-10-25 from branch `claude/exciting-spence-025d65` with `NEXT_PUBLIC_GA_ID` set at build time (Worker version `d6193c4d-7c5c-49c0-8338-0223c65d536c`). Enhanced measurement to be switched off in the GA4 stream.

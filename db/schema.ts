@@ -446,6 +446,13 @@ export const invoices = pgTable(
     recurEvery: text('recur_every'),
     recurNext: date('recur_next'),
     paidAt: timestamp('paid_at', { withTimezone: true }),
+    /**
+     * Payments received, kept in step with the ledger by triggers (migration 0010): always the sum of this
+     * invoice's non-voided `invoice_payments`. Never written by the app. `status` follows it: 'paid' means
+     * `amount_paid >= total`; 'unpaid' with `amount_paid > 0` is partially paid; 'paid' with `amount_paid = 0`
+     * is a legacy "marked paid" invoice with no payment records (docs/products/invoice-generator.md).
+     */
+    amountPaid: numeric('amount_paid', { precision: 14, scale: 2, mode: 'number' }).notNull().default(0),
     data: jsonb('data').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -457,10 +464,85 @@ export const invoices = pgTable(
     check('invoices_recur_every', sql`${table.recurEvery} is null or ${table.recurEvery} in ('week', 'month', 'quarter', 'year')`),
     index('invoices_user_recur_next_idx').on(table.userId, table.recurNext).where(sql`${table.recurNext} is not null`),
     check('invoices_data_len', sql`length(${table.data}::text) <= ${sql.raw(String(INVOICE_DATA_MAX_CHARS))}`),
+    check('invoices_amount_paid', sql`${table.amountPaid} >= 0`),
   ],
 );
 
 export type InvoiceRow = typeof invoices.$inferSelect;
+
+export const PAYMENT_METHODS_DB = ['upi', 'bank', 'cash', 'card', 'cheque', 'other'] as const;
+
+/**
+ * The payment ledger (migration 0010): one row per payment received against an invoice. Rows are never
+ * edited or deleted by the app — a mistake is *voided* (kept, with a reason) and the right payment recorded
+ * again. Only `reference` and `note` may change in place. Triggers enforce the rules at the database
+ * (owner, currency, never more than the invoice total, immutability) and keep `invoices.amount_paid` and
+ * `status` in step. `client_key` is the form's idempotency key: the same key can't record a payment twice.
+ */
+export const invoicePayments = pgTable(
+  'invoice_payments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    amount: numeric('amount', { precision: 14, scale: 2, mode: 'number' }).notNull(),
+    /** Copied from the invoice; the trigger refuses a mismatch. */
+    currency: text('currency').notNull(),
+    paidOn: date('paid_on').notNull(),
+    method: text('method').notNull(),
+    reference: text('reference').notNull().default(''),
+    note: text('note').notNull().default(''),
+    clientKey: uuid('client_key').notNull(),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidReason: text('void_reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('invoice_payments_user_client_key_idx').on(table.userId, table.clientKey),
+    index('invoice_payments_invoice_idx').on(table.invoiceId, table.paidOn),
+    index('invoice_payments_user_paid_on_idx').on(table.userId, table.paidOn).where(sql`${table.voidedAt} is null`),
+    check('invoice_payments_amount', sql`${table.amount} > 0`),
+    check('invoice_payments_method', sql`${table.method} in ('upi', 'bank', 'cash', 'card', 'cheque', 'other')`),
+    check('invoice_payments_reference_len', sql`char_length(${table.reference}) <= 100`),
+    check('invoice_payments_note_len', sql`char_length(${table.note}) <= 400`),
+    check('invoice_payments_void_reason_len', sql`char_length(${table.voidReason}) <= 200`),
+  ],
+);
+
+export type InvoicePaymentRow = typeof invoicePayments.$inferSelect;
+
+/**
+ * The ledger's audit trail (migration 0010): written by the ledger triggers whenever a payment is recorded,
+ * voided or has its reference/note edited — with the old and new values. Append-only; read by support, not
+ * by the app. Removed with the invoice or the account.
+ */
+export const invoicePaymentEvents = pgTable(
+  'invoice_payment_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    paymentId: uuid('payment_id')
+      .notNull()
+      .references(() => invoicePayments.id, { onDelete: 'cascade' }),
+    action: text('action').notNull(),
+    detail: jsonb('detail').notNull().default(sql`'{}'::jsonb`),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('invoice_payment_events_payment_idx').on(table.paymentId, table.at),
+    check('invoice_payment_events_action', sql`${table.action} in ('recorded', 'voided', 'edited')`),
+  ],
+);
 
 /** Largest saved QR payload + design, in characters (the logo is never saved). */
 export const QR_DATA_MAX_CHARS = 64_000;

@@ -1,7 +1,10 @@
 /**
  * GET    /api/invoices/:id  — one saved invoice (the full document, no logo).
  * PUT    /api/invoices/:id  — replace it. Body: { invoice }.
- * DELETE /api/invoices/:id
+ * DELETE /api/invoices/:id  — also removes the invoice's recorded payments.
+ *
+ * A save is refused (409) when it would leave an invoice with payments in another currency or with a total
+ * below what was received.
  *
  * Always scoped to the signed-in user: someone else's id is a plain 404.
  */
@@ -12,7 +15,9 @@ import { entitlementsFrom } from '@/app/lib/entitlements';
 import { fail, isUuid, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { getDb } from '@/db/client';
 import { getEntitlements } from '@/db/entitlements';
-import { deleteInvoice, getInvoice, updateInvoice } from '@/db/invoices';
+import { formatMoney } from '@/app/lib/invoice/money';
+import type { CurrencyCode } from '@/app/lib/invoice/types';
+import { deleteInvoice, getInvoice, InvoiceLockedError, updateInvoice } from '@/db/invoices';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,7 +59,15 @@ export async function PUT(req: Request, { params }: Ctx) {
   });
   if (!cleaned.ok) return fail(400, 'invalid', cleaned.message);
 
-  return (await updateInvoice(db, user.id, id, cleaned.invoice)) ? json({ ok: true }) : notFound();
+  try {
+    return (await updateInvoice(db, user.id, id, cleaned.invoice)) ? json({ ok: true }) : notFound();
+  } catch (e) {
+    if (!(e instanceof InvoiceLockedError)) throw e;
+    const received = formatMoney(e.amountPaid, e.currency as CurrencyCode);
+    return e.code === 'has_payments'
+      ? fail(409, 'has_payments', `${received} has been received on this invoice, so its currency and type can’t change.`)
+      : fail(409, 'below_paid', `${received} has been received on this invoice, so its total can’t go below that. If a payment was recorded by mistake, void it on the payments page first.`);
+  }
 }
 
 export async function DELETE(req: Request, { params }: Ctx) {

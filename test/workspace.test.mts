@@ -5,13 +5,15 @@
  */
 
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { after, before, test } from 'node:test';
 import { eq } from 'drizzle-orm';
 import { makeTestDb } from './helpers/test-db.mts';
 import type { Db } from '../db/links.ts';
 import { authUsers, invoices, planFeatures, subscriptions } from '../db/schema.ts';
 import { getEntitlements } from '../db/entitlements.ts';
-import { createInvoice, getDashboard, getInvoice, getProfile, saveSettings, setInvoiceStatus, updateInvoice, DEFAULT_SETTINGS } from '../db/invoices.ts';
+import { clearMarkedPaid, createInvoice, getDashboard, getInvoice, getProfile, saveSettings, updateInvoice, DEFAULT_SETTINGS } from '../db/invoices.ts';
+import { recordPayment } from '../db/payments.ts';
 import { createCustomer, createItem, deleteCustomer, getCustomer, listCustomers, listItems, updateCustomer } from '../db/directory.ts';
 import { entitlementsFrom } from '../app/lib/entitlements.ts';
 import { GST_RATES, isListedGstRate } from '../app/lib/invoice/gst.ts';
@@ -81,7 +83,7 @@ test('plans: customers free up to 3, items free, dashboard and currency rates Pr
   assert.equal(pro.can('invoice_dashboard'), true);
   assert.equal(pro.can('invoice_fx_rates'), true);
   const proKeys = (await db.select().from(planFeatures).where(eq(planFeatures.planKey, 'invoice_pro'))).length;
-  assert.equal(proKeys, 13);
+  assert.equal(proKeys, 14, '13 invoice keys + invoice_payments (Stage C)');
 });
 
 test('customers: a free account saves 3; the 4th is refused; Pro limit null is fine', async () => {
@@ -189,7 +191,9 @@ test('dashboard (Pro): billed this month, unpaid, overdue per currency; marking 
   await mk('D-2', '2026-10-10', '2026-10-30', '2000'); // this month, unpaid, not yet due
   await mk('D-3', '2026-09-01', '2026-09-15', '500'); // last month, overdue
   await mk('D-4', '2026-10-12', '2026-10-26', '100', 'USD');
-  assert.equal(await setInvoiceStatus(db, id, paidOne, 'paid'), true);
+  // Paid means the ledger covers the invoice: record the payment (there is no "mark paid" switch any more).
+  const paid = await recordPayment(db, id, paidOne, { amountCents: 100_000, paidOn: '2026-10-06', method: 'upi', reference: '', note: '', clientKey: randomUUID(), reconcile: false });
+  assert.ok(paid.ok);
 
   const { totals, recent } = await getDashboard(db, id, '2026-10-22', '2026-10-01');
   const inr = totals.find((t) => t.currency === 'INR')!;
@@ -202,7 +206,8 @@ test('dashboard (Pro): billed this month, unpaid, overdue per currency; marking 
   assert.equal(recent.length, 4);
 
   const other = await makeUser('dash-other@example.test');
-  assert.equal(await setInvoiceStatus(db, other, paidOne, 'unpaid'), false, 'another user can’t change status');
+  assert.equal(await clearMarkedPaid(db, other, paidOne), 'not_found', 'another user can’t change status');
+  assert.equal(await clearMarkedPaid(db, id, paidOne), 'not_marked', 'an invoice paid through the ledger is not a legacy mark');
   assert.deepEqual((await getDashboard(db, other, '2026-10-22', '2026-10-01')).totals, []);
   await updateInvoice(db, id, paidOne, doc('D-1', { issueDate: '2026-10-05', dueDate: '2026-10-19' }));
   assert.equal((await getInvoice(db, id, paidOne))?.status, 'paid', 'editing keeps the paid status');

@@ -24,6 +24,8 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
         ...(inInvoices
           ? [
               { href: '/app/invoices/overview', label: 'Overview', pro: true, sub: true },
+              { href: '/app/invoices/collections', label: 'Payments & collections', pro: true, sub: true },
+              { href: '/app/invoices/reports', label: 'Reports & exports', sub: true, key: 'invoice_csv_export' as const },
               { href: '/app/invoices', label: 'All invoices', sub: true },
               { href: '/app/invoices/batch', label: 'From a CSV', sub: true, key: 'invoice_batch_csv' as const },
               { href: '/app/invoices/settings', label: 'Invoice settings', sub: true },
@@ -64,6 +66,8 @@ export function WorkspaceNav() {
     // A single code (/app/qr/<id>) sits under "All QR codes"; a campaign page under "Campaigns".
     if (l.href === '/app/qr/codes') return pathname === l.href || /^\/app\/qr\/[0-9a-f-]{36}$/i.test(pathname);
     if (l.href === '/app/qr/campaigns') return pathname.startsWith('/app/qr/campaigns');
+    // One customer's page sits under "Customers".
+    if (l.href === '/app/business/customers') return pathname === l.href || /^\/app\/business\/customers\/[0-9a-f-]{36}$/i.test(pathname);
     return pathname === l.href;
   };
 
@@ -81,7 +85,7 @@ export function WorkspaceNav() {
                     <a
                       href={l.href}
                       aria-current={active ? 'page' : undefined}
-                      className={`block whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 md:rounded-lg md:px-3 ${
+                      className={`block whitespace-nowrap rounded-full px-4 py-2 md:whitespace-normal text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 md:rounded-lg md:px-3 ${
                         l.sub ? 'md:ml-3 md:py-1.5 md:font-medium' : ''
                       } ${active ? 'bg-activebg text-activetext' : 'text-strong hover:bg-wash'}`}
                     >

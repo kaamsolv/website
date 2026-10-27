@@ -17,7 +17,8 @@ without an account. An account adds saving.
 | Settings (business details, GSTIN, bank/UPI, numbering, defaults) | — | ✓ | ✓ |
 | Saved customers | — | **3** | unlimited |
 | Saved items (HSN/SAC, unit, rate, GST) | — | ✓ | ✓ |
-| Dashboard + paid / unpaid / overdue | — | — | ✓ |
+| Record payments, partial payments, payment history, balance per invoice | — | ✓ | ✓ |
+| Overview (billed, still owed, overdue) + Payments & collections (received, ageing, monthly chart) | — | — | ✓ |
 | No footer, multi-page (up to 200 lines) | — | — | ✓ |
 | Templates + brand colour, quotations (+ convert to invoice) | — | — | ✓ |
 | Recurring, CSV, currency rates (Stage 2C-2) | — | — | ✓ |
@@ -79,7 +80,9 @@ Customers and items also have a hidden anti-abuse ceiling of 1,000 rows each
 | `plans`, `plan_features` | plan definitions | — |
 | `subscriptions` | provider, ref, plan, status, period end | cascade |
 | `business_profiles` | seller details, logo (≤ 280 k chars), next number | cascade |
-| `invoices` | summary columns + `data` jsonb (no logo, ≤ 64 k chars); `status`, `paid_at`, `due_date`, `customer_id` (0004) | cascade |
+| `invoices` | summary columns + `data` jsonb (no logo, ≤ 64 k chars); `status`, `paid_at`, `due_date`, `customer_id` (0004); `amount_paid` (0010, ledger total) | cascade |
+| `invoice_payments` (0010) | the payment ledger: amount, date, method, reference, note, idempotency key, voided_at | cascade |
+| `invoice_payment_events` (0010) | append-only audit trail of the ledger | cascade |
 | `customers` (0004) | name, contact, email, phone, address, state code, GSTIN | cascade |
 | `items` (0004) | name, HSN/SAC, unit, rate, GST rate | cascade |
 
@@ -98,12 +101,13 @@ documents.
 |---|---|
 | `/api/auth/*` | better-auth (sign-in, callbacks, sign-out, session) |
 | `GET /api/me` · `DELETE /api/me` | who/entitlements/usage · delete account (`{confirm:"DELETE"}`) |
-| `GET/POST /api/invoices` | list summaries · save new (403 `limit`) |
+| `GET/POST /api/invoices` | list summaries · save new (403 `limit`). `GET` also takes search, type, sort, `page` and the Stage D filters → one page with `matched` and totals over every match; no params = everything, as before |
 | `GET/PUT/DELETE /api/invoices/:id` | one invoice |
 | `POST /api/invoices/:id/duplicate` | copy with next number and new dates (a quotation copies as the next quotation) |
 | `POST /api/invoices/:id/convert` | quotation → new invoice, next invoice number (Pro) |
 | `PUT /api/invoices/:id/recurring` · `POST /api/invoices/:id/recur` · `GET /api/invoices/due` | repeat schedule · Create/Skip a due reminder · what's due (Pro) |
-| `GET /api/invoices/export` | CSV of invoices or line items (Pro) |
+| `GET /api/invoices/export` | CSV of invoices or line items (Pro) — server-built, up to 5,000 invoices; unchanged |
+| `GET /api/invoices/reports?report=register\|payments\|outstanding\|ageing&currency=&today=[&from=&to=&customer=&state=&bucket=&method=&includeVoided=1&page=&pageSize=]` · `?report=meta` | Pro (`invoice_csv_export`, checked on every request, 403 without and no data): one small page of a report with totals over every match; the browser assembles the CSV. One currency; 413 over the cap; rate-limited; `private, no-store` |
 | `POST /api/invoices/batch` | up to 50 invoices from a CSV (Pro) |
 | `GET /api/fx` | currency reference rates, from Frankfurter (Pro) |
 | `GET/POST /api/qr`, `GET/PUT/DELETE /api/qr/:id` | tracked QR codes: list · save (403 `limit` at 3 on free) · one with scans per day · rename / pause / resume · delete |
@@ -113,10 +117,14 @@ documents.
 | `GET /api/qr/export` | CSV of codes or scans (`qr_export`) |
 | `GET/PUT /api/business-profile` | seller details + logo (the editor's save) |
 | `GET/PUT /api/settings` | the Settings page (400 with `errors` per field) |
-| `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free) |
-| `GET/POST /api/items`, `GET/PUT/DELETE /api/items/:id` | saved items |
-| `PUT /api/invoices/:id/status` | paid / unpaid (Pro) |
-| `GET /api/dashboard?today=` | Pro dashboard totals + recent invoices |
+| `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/:id` | saved customers (403 `limit` at 3 on free). `GET` also takes `?q=&page=&pageSize=` (paged, `total`/`pages`) and, paged, `stats=1&today=` (per-customer invoice count and what's owed); without them the answer is unchanged (≤ 200) |
+| `GET /api/customers/:id/summary?today=`, `GET …/unlinked`, `POST …/links` | the customer page: per-currency totals of connected invoices · invoices typed in by the exact name (a list to review, connects nothing) · explicit connect / disconnect of ticked invoices (any account with saved customers) |
+| `GET/POST /api/items`, `GET/PUT/DELETE /api/items/:id` | saved items; `GET` also takes `?q=&page=&pageSize=` (paged) |
+| `GET/POST /api/invoices/:id/payments`, `PATCH …/:paymentId`, `POST …/:paymentId/void` | the payment ledger: view · record (idempotent, 409 `exceeds`) · edit reference/note · void (any account, `invoice_payments`) |
+| `PUT /api/invoices/:id/status` | only undoes a legacy “marked paid” (`unpaid`); `paid` is refused — record the payment |
+| `GET /api/dashboard?today=` | Pro dashboard totals + recent invoices (unchanged) |
+| `GET /api/invoices/collections?from=&to=&today=[&currency=&customer=]` | Pro (`invoice_dashboard`, 403 without): invoiced · received · outstanding · overdue · collection rate, monthly series, ageing, needs-chasing — one currency |
+| `GET /api/invoices?state=&currency=&bucket=&issuedFrom=…&paidTo=&customer=` | filtered list for drill-down (any account): invoices only, ≤ 200 rows + totals over all matches; no filters = unchanged |
 | `POST /api/test/oauth-sign-in` | **test only** — see below |
 
 ## Test-only sign-in
@@ -139,9 +147,12 @@ details shared by all business tools. Paths inside kaamsolv.com, not subdomains
 /app                         Your KaamSolv — hub: a card per tool you use, its plan
 /app/invoices                Invoices → All invoices
 /app/invoices/overview       Invoices → Overview (Pro: billed, unpaid, overdue)
+/app/invoices/collections    Invoices → Payments & collections (Pro: received, outstanding, ageing, monthly chart)
+/app/invoices/reports        Invoices → Reports & exports (Pro: register, payments, outstanding, ageing as CSV)
 /app/invoices/settings       Invoices → Invoice settings (numbering, defaults)
 /app/business                Shared → Business profile (details, GSTIN, logo, bank/UPI)
 /app/business/customers      Shared → Customers (free: 3)
+/app/business/customers/<id> One customer: totals, invoices, typed-in invoices to review
 /app/business/items          Shared → Items
 /app/account                 Account (sign out, delete)
 ```

@@ -11,7 +11,7 @@ import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 
 type Totals = { currency: CurrencyCode; billedThisMonth: number; unpaid: number; overdue: number; overdueCount: number };
-type Recent = { id: string; number: string; clientName: string; currency: CurrencyCode; total: number; issueDate: string | null; dueDate: string | null; status: 'unpaid' | 'paid' };
+type Recent = { id: string; number: string; clientName: string; currency: CurrencyCode; total: number; issueDate: string | null; dueDate: string | null; status: 'unpaid' | 'paid'; amountPaid: number };
 
 /** Pro dashboard: billed this month, unpaid, overdue (per currency) and recent invoices. */
 export function Dashboard() {
@@ -87,7 +87,7 @@ export function Dashboard() {
                   {inv.issueDate && <span className="block text-sm text-muted">{displayDate(inv.issueDate)}</span>}
                 </span>
                 <span className="flex items-center gap-3">
-                  <StatusBadge status={inv.status} dueDate={inv.dueDate} today={data.today} />
+                  <StatusBadge status={inv.status} amountPaid={inv.amountPaid} total={inv.total} dueDate={inv.dueDate} today={data.today} />
                   <span className="font-semibold tabular-nums text-ink">{formatMoney(inv.total, inv.currency)}</span>
                 </span>
               </a>
@@ -102,6 +102,9 @@ export function Dashboard() {
         </a>
         <a href="/app/business/customers" className={SECONDARY}>
           + Add customer
+        </a>
+        <a href="/app/invoices/collections" className={SECONDARY}>
+          Payments &amp; collections
         </a>
       </div>
     </div>

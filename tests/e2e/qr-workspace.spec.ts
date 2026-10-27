@@ -9,7 +9,7 @@ import { readFile } from 'node:fs/promises';
  * Scans are made the way a phone makes them: a GET of /{code}, redirect not followed.
  */
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.KK_E2E_BASE ?? 'http://localhost:3000';
 const SECRET = process.env.KK_E2E_SECRET ?? '';
 const SHOTS = 'test-results/screenshots';
 const ORIGIN = { origin: BASE };
