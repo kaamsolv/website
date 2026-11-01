@@ -1,9 +1,9 @@
 # Billing — selling KaamSolv plans (Razorpay)
 
-Status: **M1 committed (`b7c976d`); M2 built locally, not committed. Nothing deployed; migrations 0011 and 0012 not applied.** Plan approved 2026-10-27.
+Status (2026-11-01): **M1–M3 built, committed, pushed and DEPLOYED; migrations 0011–0013 applied to production. Razorpay is in TEST mode; the live switch waits for the owner's CA** (GST rate 18% confirmed by the owner; SAC code to confirm). Test mode was proven end to end on production (payment, plan, invoice email, refund message). M4 (accountant packs) is not started. Launch steps: [`../infra/billing-launch-runbook.md`](../infra/billing-launch-runbook.md).
 Separate from the invoice payment ledger, which records money a user's own customers paid *them*
 ([`invoice-generator.md`](invoice-generator.md)). This is KaamSolv's own sales. Later milestones (invoice email, secure
-links, WhatsApp share) are M2, below; summaries and accountant packs (M3, M4) are not started.
+links, WhatsApp share) are M2, below; summaries are M3, below; accountant packs (M4) are not started.
 
 ## What M1 does
 A signed-in user opens **Plans and billing** (`/app/billing`), picks a plan and Monthly/Yearly, and pays in Razorpay's checkout

@@ -1,8 +1,12 @@
 # Billing launch runbook (Razorpay, sales invoices, receivables)
 
-Do these in order. **Steps marked YOU need your accounts or secrets; I can't do them.** Nothing here has been run yet. Everything is
-in `main` on GitHub but **not deployed**, and migrations 0011–0013 are **not applied**. Do NOT deploy before step 2: the new code reads
-tables that don't exist in production yet, which would break deleting an invoice or an account.
+Do these in order. **Steps marked YOU need your accounts or secrets; I can't do them.**
+
+**Status 2026-11-01:** steps 1–6 are DONE in TEST mode (Business profile for kaamsolv@gmail.com; Neon safety branch `pre-billing-2026-11-01` and migrations 0011–0013
+applied; Razorpay test keys and webhook; Worker secrets; deployed `97af30f1`/`646efbc`; test purchase and a simulated refund). **Only step 7 (go live) is left,
+waiting for the owner's CA** (SAC code). Tips from the run: use `npm.cmd` / `npx.cmd` in PowerShell; Razorpay test refunds fail ("invalid request sent")
+because the test balance is 0, so prove refunds by sending a signed `refund.processed` to the webhook; generic test card 4111… is rejected as international,
+use Razorpay's domestic test cards or netbanking; never put secrets in a screenshot; paste multi-line scripts that contain `Read-Host` as separate steps.
 
 Decisions already made (2026-10-28): prices include 18% GST (shown split on the billing page); seller BEAM ME UP, GSTIN
 07ACPPV7985A1ZX, B1/31/3 Safdarjung Enclave, New Delhi 110029; invoice links expire after 90 days; plans don't auto-renew; refunds within
