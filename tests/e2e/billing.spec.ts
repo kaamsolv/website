@@ -86,6 +86,7 @@ test.describe('checkout and status', () => {
 
     await page.goto('/app/billing');
     await expect(page.getByRole('heading', { level: 1, name: 'Plans and billing' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Plans & billing' }).first()).toHaveAttribute('href', '/app/billing');
     await expect(page.getByTestId('billing-free')).toContainText('free account');
     await expect(page.getByTestId('billing-off')).toContainText('Payments aren’t switched on yet');
     await expect(page.getByTestId('buy-invoice_pro')).toHaveCount(0);

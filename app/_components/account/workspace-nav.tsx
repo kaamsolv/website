@@ -51,7 +51,12 @@ function groups(pathname: string): { label?: string; links: Link[] }[] {
         { href: '/app/business/items', label: 'Items' },
       ],
     },
-    { links: [{ href: '/app/account', label: 'Account' }] },
+    {
+      links: [
+        { href: '/app/billing', label: 'Plans & billing' },
+        { href: '/app/account', label: 'Account' },
+      ],
+    },
   ];
 }
 
