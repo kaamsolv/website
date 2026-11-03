@@ -22,7 +22,9 @@ const FAQ = [
   { q: 'RD or SIP: what is the difference?', a: 'An RD pays a fixed rate agreed upfront, so the maturity is known. A SIP usually goes into a market-linked fund, so the result can be higher or lower. The SIP calculator on KaamSolv shows an estimate for an assumed return.' },
   { q: 'What if I miss a monthly deposit?', a: 'Banks usually charge a small penalty for a late or missed deposit. That is not worked out here: the calculator assumes every deposit is made on time.' },
   { q: 'Is RD interest taxable?', a: 'Yes, it is generally taxable as income, and tax may be deducted at source above a limit that can change. This calculator does not work out tax.' },
-  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved.' },
+  { q: 'How much RD do I need each month for a goal?', a: 'Switch to Reach a goal, enter the amount you want and the time. The calculator shows the monthly deposit that gets you there, rounded up to the next rupee.' },
+  { q: 'Can I see the amount after tax?', a: 'Yes. Pick your tax rate and the calculator shows a simple estimate of the tax on the interest and what you keep. TDS, rebates and surcharge are not worked out.' },
+  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved. A share link only contains the numbers you typed.' },
 ];
 
 export default function Page() {
@@ -33,7 +35,7 @@ export default function Page() {
       intro="Put a little aside every month and see what the pot looks like at the end."
       steps={STEPS}
       faq={FAQ}
-      related={['fd-calculator', 'sip-calculator', 'compound-interest-calculator', 'emi-calculator']}
+      related={['fd-calculator', 'sip-calculator', 'sip-vs-fd-vs-rd-calculator', 'compound-interest-calculator']}
     >
       <RdCalculator />
     </ToolPageShell>

@@ -43,6 +43,7 @@ const ROUTE_SEGMENTS = [
   'sip-calculator',
   'fd-calculator',
   'rd-calculator',
+  'sip-vs-fd-vs-rd-calculator',
   'simple-interest-calculator',
   'compound-interest-calculator',
   'invoice-generator',

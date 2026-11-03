@@ -259,3 +259,9 @@ body {
   text-underline-offset: 6px;
   text-decoration-thickness: 3px;
 }
+
+/* Print / save as PDF from a calculator: only the answer, picture and numbers. */
+@media print {
+  header, footer, nav, [data-print-hide], [data-testid="share-tool"], details { display: none !important; }
+  body { background: #fff !important; }
+}

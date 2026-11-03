@@ -21,7 +21,7 @@ const FAQ = [
   { q: 'How is it different from simple interest?', a: 'Simple interest is worked out only on the original amount. Compound interest is worked out on the growing balance, so over long periods it pulls well ahead. The simple interest calculator shows the other side.' },
   { q: 'Which frequency should I pick?', a: 'Use whatever your deposit or loan states. Bank FDs usually add interest quarterly, savings accounts often work monthly or quarterly, and yearly is the simplest to check by hand.' },
   { q: 'Does it include tax or inflation?', a: 'No. It shows the growth of the amount before tax and before the rising cost of living. Interest is generally taxable, so ask a tax adviser about your own case.' },
-  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved.' },
+  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved. A share link only contains the numbers you typed.' },
 ];
 
 export default function Page() {

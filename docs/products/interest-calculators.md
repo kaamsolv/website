@@ -37,3 +37,15 @@ Fund, bank or scheme recommendations; today's FD rates; TDS or income tax; infla
 
 ## UI redesign (2026-11-04)
 Approved mockup implemented: `SliderField` (slider + typed box), `GrowthChart` (SVG, Graph|Table), two-column layout, sticky answer on phones, prefilled defaults, split bar, "About ₹X lakh". Simple interest has sliders and no chart. WhatsApp buttons site-wide use WhatsApp green (`whatsapp-style.ts`). Rule recorded as CLAUDE.md §47. Later: EMI/GST retrofit, SIP "reach a goal" mode.
+
+## Value-add pack (2026-11-04)
+Approved from the "make it better" list; rule recorded as CLAUDE.md §48.
+- **Reach a goal** (SIP, FD, RD): `goalSip/goalRd/goalCompound` in `app/lib/calc/interest.ts`. Results are linear in the amount, so a first estimate is refined to the smallest whole rupee that does not fall short (tested: one rupee less always falls short).
+- **Today's money**: `realValue = value ÷ (1+inflation)^years`, off by default, 6% suggested, 0–12% allowed. Dashed line on the chart.
+- **Tax estimate** (FD, RD): user picks 0/5/10/20/30%; tax = rate × interest. No slab law, TDS, rebate, surcharge or cess is built in, and the page says so.
+- **What-if nudges**: live one-liners with "Try it" that set the slider.
+- **Result-carrying share**: `app/lib/calc/share-state.ts` reads/writes `?a=&r=&y=&m=&s=&f=&g=&i=&t=&d=`; every value is range-checked, unknown or hostile values are ignored. Canonical URL, title and meta never change with the query (CLAUDE.md §20). WhatsApp message carries the numbers plus the link.
+- **Print / save as PDF**: `window.print()` and an `@media print` rule in `globals.css` (hides header, footer, inputs, share, FAQ); no PDF library.
+- **Compare page** `/sip-vs-fd-vs-rd-calculator`: Every month = SIP vs RD; One lump sum = market-linked vs FD. Neutral wording, no recommendation.
+- Components: `result-extras.tsx`, `compare-calculator.tsx`; tests `test/interest-extras.test.mts`, `tests/e2e/interest-extras.spec.ts`.
+- Not done: SIP vs FD with tax, goal mode for simple/compound pages beyond FD/compound, PDF with branding.

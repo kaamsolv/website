@@ -853,3 +853,6 @@ live configuration):
 - Feature branches (`url-shortener`, `feature/image-converters`,
   `cf-workers-poc`) still say KaamKit. Expect small text conflicts when they
   next merge `main`; resolve in favour of KaamSolv.
+
+## 2026-11-04 — Interest calculators: value-add pack and standing rules
+Added goal mode, today's money, tax estimate, what-if nudges, result-carrying share links, print, and a SIP vs FD vs RD compare page (details in `docs/products/interest-calculators.md`). New standing rules: CLAUDE.md §47 (tool UI standard: sliders, chart, green WhatsApp, design shown first) and §48 (offer ranked value-add ideas for every tool). Tax rate is chosen by the user rather than hard-coded, so no regulation is invented.

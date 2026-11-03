@@ -22,7 +22,9 @@ const FAQ = [
   { q: 'Is the result guaranteed?', a: 'No. It is an estimate based on a steady return you assume. Mutual fund investments are subject to market risk, and past performance does not promise the future.' },
   { q: 'Does it include tax, exit load or fund charges?', a: 'No. Enter a return you expect after the fund’s charges. Tax on your gains and any exit load are not worked out here, so ask a tax adviser about your own case.' },
   { q: 'Why is my fund app’s number a little different?', a: 'Apps differ in small ways: whether money goes in at the start or end of the month, how a month is counted, and whether they track real NAV dates. This calculator states its choice (start of the month, yearly return ÷ 12), so you can compare like with like.' },
-  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved.' },
+  { q: 'How much SIP do I need for 1 crore?', a: 'Switch to Reach a goal. To reach ₹1,00,00,000 in 15 years at an assumed 12% a year, you would invest about ₹19,819 a month. A higher return or more years lowers it. The return is an assumption, not a promise.' },
+  { q: 'What is my SIP worth in today’s money?', a: 'Turn on Show it in today’s money and set how fast prices rise. The calculator shows what the final amount would buy at today’s prices, because ₹1 crore in 20 years buys less than ₹1 crore does now.' },
+  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved. A share link only contains the numbers you typed.' },
 ];
 
 export default function Page() {
@@ -33,7 +35,7 @@ export default function Page() {
       intro="See what a monthly SIP could be worth in 5, 10 or 20 years. Enter three numbers and read the answer."
       steps={STEPS}
       faq={FAQ}
-      related={['fd-calculator', 'rd-calculator', 'emi-calculator', 'compound-interest-calculator']}
+      related={['fd-calculator', 'rd-calculator', 'sip-vs-fd-vs-rd-calculator', 'compound-interest-calculator']}
     >
       <SipCalculator />
     </ToolPageShell>

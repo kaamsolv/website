@@ -34,6 +34,7 @@ export function GrowthChart({
   investedLabel,
   earnedLabel,
   summary,
+  inflation,
 }: {
   rows: YearRow[];
   /** What the money is at year 0: nothing for a SIP or RD, the deposit for an FD. */
@@ -42,6 +43,8 @@ export function GrowthChart({
   earnedLabel: string;
   /** One sentence for screen readers, e.g. "…grows from ₹6,00,000 put in to ₹11,61,695". */
   summary: string;
+  /** Yearly inflation in percent: draws what the balance is worth in today's money as a dashed line. */
+  inflation?: number;
 }) {
   const [view, setView] = useState<'graph' | 'table'>('graph');
   const [hover, setHover] = useState<number | null>(null);
@@ -53,6 +56,7 @@ export function GrowthChart({
   const y = (v: number) => H - BOTTOM - ((H - BOTTOM - TOP) * v) / max;
   const total = pts.map((p) => `${x(p.year)},${y(p.balance)}`).join(' ');
   const put = pts.map((p) => `${x(p.year)},${y(p.invested)}`).join(' ');
+  const real = inflation !== undefined ? pts.map((p) => `${x(p.year)},${y(p.balance / (1 + inflation / 100) ** p.year)}`).join(' ') : null;
   const putReversed = [...pts].reverse().map((p) => `${x(p.year)},${y(p.invested)}`).join(' ');
   const labelStep = Math.max(1, Math.ceil(years / 8));
   const sel = hover === null ? null : pts[Math.min(Math.max(hover, 1), years)];
@@ -85,6 +89,12 @@ export function GrowthChart({
             <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-coral-500" aria-hidden="true" />
             {earnedLabel}
           </span>
+          {real && (
+            <span>
+              <span className="mr-1 inline-block h-0 w-3 border-t-2 border-dashed border-current align-middle" aria-hidden="true" />
+              In today&apos;s money
+            </span>
+          )}
         </p>
       </div>
 
@@ -123,6 +133,7 @@ export function GrowthChart({
             <polygon points={`${put} ${x(years)},${y(0)} ${x(0)},${y(0)}`} fill="var(--color-teal-500)" fillOpacity="0.16" />
             <polyline points={put} fill="none" stroke="var(--color-teal-500)" strokeWidth="2" strokeLinejoin="round" />
             <polyline points={total} fill="none" stroke="var(--color-coral-500)" strokeWidth="2" strokeLinejoin="round" />
+            {real && <polyline points={real} fill="none" stroke="currentColor" strokeOpacity="0.7" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" />}
             <circle cx={x(last.year)} cy={y(last.balance)} r="5" fill="var(--color-coral-500)" stroke="var(--color-surface)" strokeWidth="2" />
             {sel && (
               <>
@@ -154,6 +165,12 @@ export function GrowthChart({
               {investedLabel}: {formatRupees(sel.invested)}
               <br />
               Value: {formatRupees(sel.balance)}
+              {inflation !== undefined && (
+                <>
+                  <br />
+                  Today&apos;s money: {formatRupees(sel.balance / (1 + inflation / 100) ** sel.year)}
+                </>
+              )}
             </div>
           )}
           <p className="mt-1 text-center text-[11px] text-muted">Years on the bottom; tap or hover the chart to read a year.</p>

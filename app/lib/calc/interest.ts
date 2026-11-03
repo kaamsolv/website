@@ -24,6 +24,10 @@ export const INTEREST_LIMITS = {
   /** Highest assumed annual return for a SIP, in percent. */
   maxSipRate: 50,
   maxStepUp: 50,
+  /** Highest yearly inflation, in percent, for the today's-money view. */
+  maxInflation: 12,
+  /** Highest tax rate, in percent, for the tax estimate. */
+  maxTax: 40,
 } as const;
 
 export type Compounding = 'daily' | 'monthly' | 'quarterly' | 'half-yearly' | 'yearly';
@@ -145,4 +149,53 @@ export function simpleInterest(principal: number, annualRatePercent: number, yea
   if (t <= 0 || t > INTEREST_LIMITS.maxYears) return null;
   const interest = (principal * annualRatePercent * t) / 100;
   return { principal: round2(principal), interest: round2(interest), total: round2(principal + interest), years: t };
+}
+
+// ─── Value-adds: reach a goal, today's money, tax estimate ───────────────────────────────────────────────
+
+/**
+ * The smallest whole-rupee amount whose `valueOf(amount)` reaches `target`. Every result here grows in a straight line
+ * with the amount, so a first estimate from a large test amount is nearly exact; it is then nudged up or down until it is
+ * the smallest amount that does not fall short. Null if the target or the answer is out of range.
+ */
+function solveGoal(valueOf: (amount: number) => number | null, target: number): number | null {
+  if (!okAmount(target)) return null;
+  const probe = 1_000_000;
+  const at = valueOf(probe);
+  if (at === null || at <= 0) return null;
+  let amount = Math.max(1, Math.ceil((target / at) * probe));
+  const reaches = (a: number) => {
+    const v = valueOf(a);
+    return v !== null && v >= target;
+  };
+  for (let i = 0; i < 5 && !reaches(amount); i++) amount += 1;
+  while (amount > 1 && reaches(amount - 1)) amount -= 1;
+  return okAmount(amount) && reaches(amount) ? amount : null;
+}
+
+/** Monthly SIP needed to reach `target` after `months`, whole rupees, rounded up so it never falls short. */
+export const goalSip = (target: number, annualRatePercent: number, months: number, stepUpPercent = 0): number | null =>
+  solveGoal((a) => sip(a, annualRatePercent, months, stepUpPercent)?.value ?? null, target);
+
+/** Monthly RD deposit needed to reach `target` at maturity. */
+export const goalRd = (target: number, annualRatePercent: number, months: number): number | null =>
+  solveGoal((a) => rd(a, annualRatePercent, months)?.maturity ?? null, target);
+
+/** One-time deposit (FD or compound interest) needed today to reach `target` at maturity. */
+export const goalCompound = (target: number, annualRatePercent: number, months: number, compounding: Compounding): number | null =>
+  solveGoal((a) => compound(a, annualRatePercent, months, compounding)?.maturity ?? null, target);
+
+/** What `nominal` rupees, received after `years`, buy in today's money at `inflationPercent` a year. */
+export function realValue(nominal: number, inflationPercent: number, years: number): number | null {
+  if (!Number.isFinite(nominal) || nominal < 0 || !okRate(inflationPercent, INTEREST_LIMITS.maxInflation) || !Number.isFinite(years) || years <= 0 || years > INTEREST_LIMITS.maxYears) return null;
+  return round2(nominal / (1 + inflationPercent / 100) ** years);
+}
+
+export type TaxResult = { tax: number; afterTaxInterest: number; afterTaxTotal: number };
+
+/** A plain estimate: `taxPercent` of the interest, nothing else (no TDS, rebate, surcharge or cess). */
+export function afterTax(principalOrInvested: number, interest: number, taxPercent: number): TaxResult | null {
+  if (!Number.isFinite(principalOrInvested) || principalOrInvested < 0 || !Number.isFinite(interest) || interest < 0 || !okRate(taxPercent, INTEREST_LIMITS.maxTax)) return null;
+  const tax = round2((interest * taxPercent) / 100);
+  return { tax, afterTaxInterest: round2(interest - tax), afterTaxTotal: round2(principalOrInvested + interest - tax) };
 }

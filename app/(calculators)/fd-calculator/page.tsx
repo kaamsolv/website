@@ -22,7 +22,9 @@ const FAQ = [
   { q: 'Does it handle senior citizen or special rates?', a: 'You enter the rate yourself, so type the rate your bank offers you. KaamSolv doesn’t list bank rates, because they change often.' },
   { q: 'Why does my bank show a slightly different amount?', a: 'Banks may round at each step, count days instead of months, or treat part-periods differently. Expect a difference of a few rupees at most on a normal deposit.' },
   { q: 'What about withdrawing early?', a: 'Premature withdrawal usually lowers the rate and may carry a penalty. That varies by bank and is not calculated here.' },
-  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved.' },
+  { q: 'How much should I deposit to reach a goal?', a: 'Switch to Reach a goal, enter the amount you want and when you want it. The calculator works backwards and shows the deposit you need today, rounded up to the next rupee.' },
+  { q: 'Can I see the amount after tax?', a: 'Yes. Pick your tax rate and the calculator shows a simple estimate of the tax on the interest and what you keep. TDS, rebates and surcharge are not worked out.' },
+  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved. A share link only contains the numbers you typed.' },
 ];
 
 export default function Page() {

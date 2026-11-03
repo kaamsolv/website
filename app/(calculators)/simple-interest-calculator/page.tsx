@@ -20,7 +20,7 @@ const FAQ = [
   { q: 'What is the difference between simple and compound interest?', a: 'Simple interest is only ever worked out on the original amount, so it grows in a straight line. Compound interest is worked out on the amount plus the interest already earned. On ₹1,00,000 at 10% for 3 years, simple interest is ₹30,000 and compound interest (added yearly) is ₹33,100.' },
   { q: 'Where is simple interest used?', a: 'Often in short-term lending and some personal arrangements, and for quick checks. Most bank deposits and loans use compounding instead, so use the FD, RD or EMI calculator for those.' },
   { q: 'Can I find the rate or the time instead?', a: 'Not yet. This calculator works out the interest and the total. You can rearrange the formula: rate = interest × 100 ÷ (principal × time).' },
-  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved.' },
+  { q: 'Is my information sent anywhere?', a: 'No. It is worked out in your browser and nothing is sent or saved. A share link only contains the numbers you typed.' },
 ];
 
 export default function Page() {
