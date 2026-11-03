@@ -25,6 +25,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | Writing tools (Word Counter, Character Counter, Case Converter, Text Cleaner, Lorem Ipsum) | **Live** |
 | Indian Number to Words (`/indian-number-to-words`) | **Live** (2026-10-27) — [`products/indian-number-to-words.md`](products/indian-number-to-words.md) |
 | Billing — Razorpay plans, sales invoice, links, receivables summary (M1–M3) | **Deployed 2026-11-01, TEST mode** (live keys wait for the owner's CA); migrations 0011–0013 applied — [`products/billing.md`](products/billing.md) |
+| SIP, FD, RD, Simple and Compound Interest calculators + Share card + SEO upgrades | Built locally 2026-11-04 — [`products/interest-calculators.md`](products/interest-calculators.md) |
 | Gratuity Calculator (`/gratuity-calculator`) | **Live** (2026-10-27; rules and FAQ reviewed by the owner) — [`products/gratuity-calculator.md`](products/gratuity-calculator.md) |
 | Rent Receipt Generator (`/rent-receipt-generator`) | Built, **not deployed** — [`products/rent-receipt.md`](products/rent-receipt.md) |
 | Everything else in the catalogue | Planned (36 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |

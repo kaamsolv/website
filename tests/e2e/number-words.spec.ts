@@ -15,7 +15,7 @@ test('works signed out, with the page in place', async ({ page }) => {
   await expect(page.getByText('Type or paste an amount.')).toBeVisible();
   await expect(page.locator('#ntw-amount-err')).toHaveCount(0);
   // empty box: results are placeholders, nothing to copy
-  await expect(page.getByRole('button', { name: /^Copy/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Copy(?! link)/ })).toHaveCount(0);
 });
 
 test('updates as you type: cheque style and plain words, with the Indian regrouping shown', async ({ page }) => {
@@ -56,7 +56,7 @@ test('refuses input that could change the amount, calmly, and shows no words for
     await expect(page.locator('#ntw-amount-err'), text).toContainText(message);
     await expect(amount).toHaveAttribute('aria-invalid', 'true');
     await expect(page.getByText(/Only$/), `no words for ${text}`).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Copy/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Copy(?! link)/ })).toHaveCount(0);
   }
   // fixing it clears the message
   await amount.fill('1,500');
@@ -71,7 +71,7 @@ test('the example buttons fill the box, and Copy puts the line on the clipboard'
   await expect(page.getByLabel('Amount in figures')).toHaveValue('10,00,000');
   await expect(page.getByText('Rupees Ten Lakh Only', { exact: true })).toBeVisible();
 
-  const copies = page.getByRole('button', { name: /^Copy/ });
+  const copies = page.getByRole('button', { name: /^Copy(?! link)/ });
   await expect(copies).toHaveCount(2);
   await copies.first().click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Rupees Ten Lakh Only');

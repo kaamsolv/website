@@ -963,3 +963,20 @@ Before implementing any new tool from the catalogue:
 Do not start coding a new tool without this kickoff summary.
 
 
+
+
+# 47. Tool UI Standard: Sliders, Picture, Share
+
+Approved 2026-11-04. Every new tool that takes numbers must:
+
+- Show the design (mockup) to the owner BEFORE building it, as part of the §46 kickoff.
+- Pair each number with a slider and a typed box that stay in sync (`SliderField`): min/max labels under the slider, a sensible default prefilled so the answer shows on first load, typing outside the slider range still works.
+- Show a big answer, a short "About ₹X lakh" line where amounts are large, a split bar, and a picture of the result (`GrowthChart` or similar, plain SVG, no chart library) with a Graph | Table toggle, tooltip on hover/touch and arrow keys.
+- Two columns on desktop (inputs left, answer and picture right); on a phone the answer rides at the top of the inputs while the user drags.
+- Light and dark through tokens; the picture must also be readable as text (Table view, aria summary).
+- "Share on WhatsApp" uses WhatsApp green via `WHATSAPP_BUTTON` (`app/_components/whatsapp-style.ts`); every tool page carries the `ShareTool` card.
+
+
+# 48. Value-Add Suggestions (every tool)
+
+Approved 2026-11-04. At kickoff (§46) and again before any tool is committed, propose a short ranked list (about 3 to 7) of ways to make the tool more useful, not just correct: the follow-up question users ask next (reverse/goal mode), plain-language context (e.g. inflation, tax), side-by-side comparison, a result-carrying share link, print/PDF, "what if" nudges. For each give the benefit and size; say what to leave out; recommend a subset; and show the design before building (§47). Never add sign-up, ads or advice to the core flow for the sake of a suggestion.

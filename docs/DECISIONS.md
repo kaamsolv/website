@@ -25,6 +25,13 @@ WhatsApp (click-to-chat, a wa.me link: nothing is sent for the user). Server PDF
 the Worker). Worker 2,966 KiB gzip (2,730 at M1). Cloudflare's size limit became 64 MiB uncompressed on every plan in September 2026, so
 size is not a blocker; Workers Paid is still recommended before live payments (subrequests, CPU, daily cap): `products/billing.md`. Details: [`products/billing.md`](products/billing.md).
 
+## 2026-11-04 — Money calculators batch (SIP, FD, RD, simple and compound interest), SEO upgrades, Share card (built locally)
+Five pages in Money on one maths file; conventions stated on each page (SIP: start-of-month, yearly ÷ 12, optional step-up; FD quarterly by default; RD quarterly; time = years + months/12 + days/365).
+Every number quoted in the page copy is asserted by a unit test. Shared SEO upgrades for **all** tool pages: keywords, `en-IN` alternates, Open Graph image and locale, Twitter image, large-preview
+robots rules, FAQPage + Organization JSON-LD; one generated brand image `public/og-default.png`. A prominent **Share** card ("Saved you some kaam? Pass it on.", WhatsApp first, copy link, device share
+sheet) now sits under every tool. The plan's SIP example (₹63,809) was wrong: the start-of-month convention gives ₹64,046.64 for ₹5,000 × 12 months at 12% (₹63,412.65 if money went in at the end).
+Details: [`products/interest-calculators.md`](products/interest-calculators.md).
+
 ## 2026-10-28 — Prices include 18% GST; Terms and Refund pages; launch runbook
 Owner: legal name BEAM ME UP (GSTIN 07ACPPV7985A1ZX, B1/31/3 Safdarjung Enclave, New Delhi 110029); prices **include** GST at 18% (industry standard for online
 software services per tax-guide sources; owner will verify and update; SAC code still to be confirmed by the CA). Invoice Pro monthly ₹149 → ₹150 (exact GST

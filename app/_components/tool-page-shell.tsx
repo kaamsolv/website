@@ -5,6 +5,7 @@ import { Icon } from './icons';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 import { ToolCard } from './tool-card';
+import { ShareTool } from './share-tool';
 import { ToolOpen } from './tool-open';
 import { CATEGORIES, liveFirst, TOOLS, type Tool } from '@/app/lib/catalogue';
 
@@ -57,6 +58,7 @@ export function ToolPageShell({
         '@type': 'WebApplication',
         '@id': `${SITE_URL}${tool.url}#app`,
         name: `KaamSolv ${tool.name}`,
+        description: tool.blurb,
         url: `${SITE_URL}${tool.url}`,
         applicationCategory: 'UtilitiesApplication',
         operatingSystem: 'Any',
@@ -65,6 +67,21 @@ export function ToolPageShell({
         publisher: { '@id': `${SITE_URL}/#org` },
         inLanguage: 'en',
       },
+      {
+        '@type': 'Organization',
+        '@id': `${SITE_URL}/#org`,
+        name: 'KaamSolv',
+        url: SITE_URL,
+      },
+      ...(faq.length > 0
+        ? [
+            {
+              '@type': 'FAQPage',
+              '@id': `${SITE_URL}${tool.url}#faq`,
+              mainEntity: faq.map((item) => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })),
+            },
+          ]
+        : []),
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
@@ -111,6 +128,10 @@ export function ToolPageShell({
             </noscript>
 
             <div className="mt-8">{children}</div>
+
+            <div className="mt-8">
+              <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />
+            </div>
           </div>
         </section>
 

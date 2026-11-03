@@ -127,7 +127,7 @@ test('Copy puts the result and its working on the clipboard; nothing is sent any
   });
   await open(page);
   await enter(page, { joined: '2016-01-01', last: '2025-12-31', wages: '50,000' });
-  await page.getByRole('button', { name: /^Copy/ }).click();
+  await page.getByRole('button', { name: /^Copy(?! link)/ }).click();
   const text = await page.evaluate(() => navigator.clipboard.readText());
   expect(text).toContain('Gratuity: ₹2,88,462.');
   expect(text).toContain('₹50,000 × 15 × 10 ÷ 26');

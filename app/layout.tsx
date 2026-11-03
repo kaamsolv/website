@@ -46,17 +46,21 @@ export const metadata: Metadata = {
     type: 'website',
     url: SITE_URL,
     siteName: 'KaamSolv',
+    locale: 'en_IN',
+    images: [{ url: '/og-default.png', width: 1200, height: 630, alt: 'KaamSolv: small tools for everyday problems' }],
     title: 'KaamSolv — Small tools for everyday problems',
     description:
       'A growing toolbox for small everyday problems. Calculate, convert, create and get on with your day.',
   },
   twitter: {
     card: 'summary_large_image',
+    images: [{ url: '/og-default.png', alt: 'KaamSolv: small tools for everyday problems' }],
     title: 'KaamSolv — Small tools for everyday problems',
     description:
       'A growing toolbox for small everyday problems. Calculate, convert, create and get on with your day.',
   },
-  robots: { index: true, follow: true },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 } },
+  category: 'utilities',
 };
 
 export const viewport: Viewport = {

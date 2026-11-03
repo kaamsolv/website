@@ -87,7 +87,7 @@ export function Answer({ label, value, copy }: { label: string; value: string | 
     <div className="rounded-xl border border-teal-300 bg-tealx-100 px-5 py-4" aria-live="polite">
       <p className="text-sm font-medium text-strong">{label}</p>
       <div className="mt-1 flex items-center justify-between gap-3">
-        <p className="font-display text-3xl font-extrabold text-ink">{value ?? '—'}</p>
+        <p className="min-w-0 break-words font-display text-2xl font-extrabold text-ink sm:text-3xl">{value ?? '—'}</p>
         {value && <CopyButton value={copy ?? value} />}
       </div>
     </div>

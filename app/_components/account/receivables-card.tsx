@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PRIMARY, SECONDARY } from './account-shell';
+import { SECONDARY } from './account-shell';
+import { WHATSAPP_BUTTON } from '../whatsapp-style';
 import { displayDate } from '@/app/lib/invoice/defaults';
 import { invoicesHref } from '@/app/lib/invoice/filters';
 import { formatMoney } from '@/app/lib/invoice/money';
@@ -171,7 +172,7 @@ export function ReceivablesCard({ today, currency }: { today: string; currency: 
         )}
         <div className="mt-3 flex flex-wrap items-center gap-3">
           {data.whatsappHref && (
-            <a href={data.whatsappHref} target="_blank" rel="noopener noreferrer" className={PRIMARY} data-testid="rc-whatsapp">
+            <a href={data.whatsappHref} target="_blank" rel="noopener noreferrer" className={WHATSAPP_BUTTON} data-testid="rc-whatsapp">
               Share on WhatsApp
             </a>
           )}

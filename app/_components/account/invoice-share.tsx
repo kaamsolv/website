@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PRIMARY, SECONDARY } from './account-shell';
+import { SECONDARY } from './account-shell';
+import { WHATSAPP_BUTTON } from '../whatsapp-style';
 
 type Share = { url: string | null; expiresAt?: string | null; views: number; lastViewedAt: string | null; whatsapp: { message: string; href: string; hasClientNumber: boolean } | null };
 
@@ -88,7 +89,7 @@ export function InvoiceShare({ id }: { id: string }) {
       )}
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <button type="button" className={PRIMARY} disabled={busy} onClick={onWhatsApp} data-testid="share-whatsapp">
+        <button type="button" className={`${WHATSAPP_BUTTON} disabled:opacity-60`} disabled={busy} onClick={onWhatsApp} data-testid="share-whatsapp">
           Share on WhatsApp
         </button>
         <button type="button" className={SECONDARY} disabled={busy} onClick={onCopy} data-testid="share-copy">
