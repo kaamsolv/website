@@ -813,3 +813,9 @@ team seats · upsell clutter inside the free tool.
 - **Log:** invited / accepted / revoked / opened (once per view per hour) / downloaded, labels only (a view name or month): no content, name or address. Shown to the owner as "Recent activity".
 - **Rate limits:** invitations 10/h per owner, accept 20/h per person, reads 600/h per person.
 - Not built: per-section permissions (all three views come together), accountant-side notifications, a time limit on active access.
+
+## Pro packaging and stop actions (Invoice Pro completion, milestone F)
+
+Plan keys are unchanged: reminders use `invoice_reminders`; promises use `invoice_dashboard`; automatic recurring uses `invoice_recurring`; Accountant Connect and accountant access use `invoice_csv_export`. Only the `invoice_pro` plan grants them (QR Pro does not). Access is computed on every request from active, in-period subscriptions, so cancelled, halted or expired rows grant nothing (`test/pro-lifecycle.test.mts`).
+
+Rule: **starting** something needs Pro; **stopping** it never does. A lapsed account can still turn off scheduled reminders, pause reminders, clear a promise, turn off the monthly pack, end download links and end an accountant's access. The emailed pack link re-checks the owner's plan on each download. Jobs re-check the plan at send time. `/app/invoices/accountant` no longer redirects free accounts; it explains Pro (with a See Pro link) and leaves the stop controls reachable. Server checks: `tests/e2e/pro-gates.spec.ts`. Phone widths (360, 320, light and dark): `tests/e2e/pro-polish.spec.ts`.
