@@ -862,3 +862,9 @@ Added goal mode, today's money, tax estimate, what-if nudges, result-carrying sh
 - Chosen over the EMI upgrade, PPF and a separate Income Tax Calculator because the opportunity evidence was strongest: the 50% city list changed from FY 2026-27 (official rule 279) and two of three competitor pages checked were out of date. EMI stays next in line; PPF is already well covered by competitors; a separate income-tax page would duplicate the Salary Calculator's engine.
 - No result-carrying share link: salary details must not go into URLs. Share is the page link only.
 - Regime comparison reuses `incomeTax()` and is shown for FY 2026-27 only.
+
+## 2026-11-04 — EMI Calculator upgrade
+**Decided by:** product owner (research report and plan approved). Detail: [`products/emi-calculator.md`](./products/emi-calculator.md).
+- Chosen as the next item after HRA. Honest basis: the safest upgrade and our own standards debt, **not** a proven large opportunity (competitors already offer prepayment and sliders), so the page leans on clarity, side-by-side outcomes, "how much can I borrow", sharing and plain-words help.
+- Result link carries loan figures only (user-chosen). The RBI prepayment-charge rule is deliberately not stated on the page until the directions themselves are read.
+- Live-route drift in the catalogue doc fixed for this tool only.

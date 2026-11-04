@@ -4,7 +4,7 @@
  * is ignored, and the page address, title and search tags never change with it.
  */
 
-export type ShareKey = 'a' | 'r' | 'y' | 'm' | 's' | 'f' | 'g' | 'i' | 't' | 'd';
+export type ShareKey = 'a' | 'r' | 'y' | 'm' | 's' | 'f' | 'g' | 'i' | 't' | 'd' | 'p' | 'n' | 'x' | 'e';
 
 /** key: [min, max]. Counts (years, months, days) must also be whole numbers. */
 const RANGES: Record<ShareKey, { min: number; max: number; whole?: boolean }> = {
@@ -18,6 +18,10 @@ const RANGES: Record<ShareKey, { min: number; max: number; whole?: boolean }> = 
   i: { min: 0, max: 12 }, // inflation
   t: { min: 0, max: 40 }, // tax
   f: { min: 0, max: 4, whole: true }, // compounding index
+  p: { min: 1, max: 1_000_000_000 }, // prepayment lump sum
+  n: { min: 1, max: 479, whole: true }, // lump sum paid after this month
+  x: { min: 0, max: 1_000_000_000 }, // extra paid every month
+  e: { min: 1, max: 1_000_000_000 }, // EMI you can afford
 };
 
 export type ShareValues = Partial<Record<ShareKey, number>>;

@@ -126,3 +126,120 @@ export function emi(principal: number, annualRatePercent: number, months: number
     byYear,
   };
 }
+
+// ------------------------------------------------------------------ Prepayment
+
+/** Monthly EMI before rounding: P r (1+r)^n / ((1+r)^n - 1); r is the monthly rate as a fraction. */
+function rawEmi(principal: number, monthlyRate: number, months: number): number {
+  return monthlyRate === 0 ? principal / months : (principal * monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1);
+}
+
+export type PrepayMode = 'shorter' | 'lower';
+
+export type PrepayInput = {
+  principal: number;
+  annualRatePercent: number;
+  months: number;
+  /** Extra paid on top of every EMI, from the first month. */
+  extraMonthly?: number;
+  /** One lump sum paid right after the EMI of `lumpAfterMonth`. */
+  lumpAmount?: number;
+  lumpAfterMonth?: number;
+  /** `shorter`: keep the EMI, finish sooner. `lower`: keep the end date, recalculate a lower EMI. */
+  lumpMode?: PrepayMode;
+};
+
+export type PrepayResult = {
+  /** The EMI at the start. */
+  emi: number;
+  /** The EMI after the lump sum (the same as `emi` unless the mode is `lower`). */
+  newEmi: number;
+  /** Months until the loan is cleared. */
+  months: number;
+  totalInterest: number;
+  /** Every EMI, extra payment and the lump sum, added up. */
+  totalPaid: number;
+  interestSaved: number;
+  monthsSaved: number;
+  /** Outstanding balance at the end of each year, down to 0 once the loan is cleared. */
+  balanceByYear: { year: number; balance: number }[];
+  /** The lump sum actually paid (it is capped at what is still owed). */
+  lumpPaid: number;
+};
+
+/**
+ * The loan with an optional extra amount every month and/or one lump sum, compared with no prepayment. Month by month:
+ * interest on the balance, the EMI (plus extra), then, after the chosen month, the lump sum. Returns null for invalid input.
+ */
+export function emiPrepay(input: PrepayInput): PrepayResult | null {
+  const { principal, annualRatePercent, months, extraMonthly = 0, lumpAmount = 0, lumpAfterMonth = 0, lumpMode = 'shorter' } = input;
+  const base = emi(principal, annualRatePercent, months);
+  if (!base) return null;
+  if (!finite(extraMonthly, lumpAmount, lumpAfterMonth) || extraMonthly < 0 || lumpAmount < 0) return null;
+  if (extraMonthly > principal || lumpAmount > EMI_LIMITS.principal.max) return null;
+  if (lumpAmount > 0 && !(Number.isInteger(lumpAfterMonth) && lumpAfterMonth >= 1 && lumpAfterMonth < months)) return null;
+
+  const r = annualRatePercent / 12 / 100;
+  let monthly = base.emi;
+  let balance = principal;
+  let interestTotal = 0;
+  let paidTotal = 0;
+  let lumpPaid = 0;
+  let m = 0;
+  const years = Math.ceil(months / 12);
+  const balanceByYear: { year: number; balance: number }[] = [];
+  while (balance > 0 && m < months) {
+    m++;
+    const interest = round2(balance * r);
+    const last = m === months;
+    const due = round2(balance + interest);
+    const pay = last ? due : Math.min(round2(monthly + extraMonthly), due);
+    interestTotal += interest;
+    paidTotal += pay;
+    balance = pay >= due ? 0 : round2(balance - (pay - interest));
+    if (balance > 0 && lumpAmount > 0 && m === lumpAfterMonth) {
+      lumpPaid = Math.min(lumpAmount, balance);
+      paidTotal += lumpPaid;
+      balance = round2(balance - lumpPaid);
+      if (balance > 0 && lumpMode === 'lower') monthly = round2(rawEmi(balance, r, months - m));
+    }
+    if (m % 12 === 0 || balance === 0 || m === months) balanceByYear.push({ year: Math.ceil(m / 12), balance });
+  }
+  // Fill the years after the loan is cleared with 0, and carry the last balance across a year with no row.
+  const rows: { year: number; balance: number }[] = [];
+  for (let y = 1; y <= years; y++) {
+    const hit = balanceByYear.find((b) => b.year === y);
+    rows.push({ year: y, balance: hit ? hit.balance : 0 });
+  }
+  const totalInterest = round2(interestTotal);
+  return {
+    emi: base.emi,
+    newEmi: monthly,
+    months: m,
+    totalInterest,
+    totalPaid: round2(paidTotal),
+    interestSaved: round2(base.totalInterest - totalInterest),
+    monthsSaved: base.months - m,
+    balanceByYear: rows,
+    lumpPaid: round2(lumpPaid),
+  };
+}
+
+/** The largest whole-rupee loan whose EMI stays within `emiBudget` for `months` at the yearly rate. Null if out of range. */
+export function loanForEmi(emiBudget: number, annualRatePercent: number, months: number): number | null {
+  const L = EMI_LIMITS;
+  if (!finite(emiBudget, annualRatePercent, months) || !Number.isInteger(months) || emiBudget <= 0) return null;
+  if (annualRatePercent < L.rate.min || annualRatePercent > L.rate.max || months < L.months.min || months > L.months.max) return null;
+  const r = annualRatePercent / 12 / 100;
+  const exact = r === 0 ? emiBudget * months : (emiBudget * ((1 + r) ** months - 1)) / (r * (1 + r) ** months);
+  if (!Number.isFinite(exact) || exact > L.principal.max) return null;
+  let loan = Math.floor(exact + 1e-9);
+  let steps = 0;
+  // Rounding in emi() is to the paisa, so step down until the EMI really fits the budget.
+  while (loan >= 1 && steps++ < 50) {
+    const e = emi(loan, annualRatePercent, months);
+    if (e && e.emi <= emiBudget) break;
+    loan -= 1;
+  }
+  return loan >= L.principal.min && loan <= L.principal.max ? loan : null;
+}

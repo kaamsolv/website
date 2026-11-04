@@ -11,7 +11,7 @@ import { writeShare } from '@/app/lib/calc/share-state';
 import { formatNumber, formatRupees, parseAmount } from '@/app/lib/calc/everyday';
 
 type Mode = 'monthly' | 'lump';
-type Series = { name: string; colorVar: string; dash?: string; rows: YearRow[]; start: number; invested: number; value: number };
+export type Series = { name: string; colorVar: string; dash?: string; rows: YearRow[]; start: number; invested: number; value: number };
 
 const W = 560;
 const H = 230;
@@ -22,7 +22,7 @@ const BOTTOM = 26;
 const fmt = (n: number) => n.toLocaleString('en-IN');
 
 /** Two lines on one picture, plus the same numbers as a table. Colour is never the only cue: each line is named and one is dashed. */
-function CompareChart({ a, b }: { a: Series; b: Series }) {
+export function CompareChart({ a, b, title }: { a: Series; b: Series; title?: string }) {
   const [view, setView] = useState<'graph' | 'table'>('graph');
   const [hover, setHover] = useState<number | null>(null);
   const uid = useId();
@@ -68,7 +68,7 @@ function CompareChart({ a, b }: { a: Series; b: Series }) {
           onBlur={() => setHover(null)}
         >
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-labelledby={`${uid}-t`} className="touch-pan-y select-none">
-            <title id={`${uid}-t`}>{`${a.name} reaches ${formatRupees(a.value)} and ${b.name} reaches ${formatRupees(b.value)} after ${years} years.`}</title>
+            <title id={`${uid}-t`}>{title ?? `${a.name} reaches ${formatRupees(a.value)} and ${b.name} reaches ${formatRupees(b.value)} after ${years} years.`}</title>
             {[0, 1, 2, 3, 4].map((k) => {
               const v = (max * k) / 4;
               return (

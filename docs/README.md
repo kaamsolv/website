@@ -26,6 +26,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | Indian Number to Words (`/indian-number-to-words`) | **Live** (2026-10-27) — [`products/indian-number-to-words.md`](products/indian-number-to-words.md) |
 | Billing — Razorpay plans, sales invoice, links, receivables summary (M1–M3) | **Deployed 2026-11-01, TEST mode** (live keys wait for the owner's CA); migrations 0011–0013 applied — [`products/billing.md`](products/billing.md) |
 | SIP, FD, RD, Simple and Compound Interest calculators + Share card + SEO upgrades | Built locally 2026-11-04 — [`products/interest-calculators.md`](products/interest-calculators.md) |
+| EMI Calculator upgrade (`/emi-calculator`) | Built locally 2026-11-04 — [`products/emi-calculator.md`](products/emi-calculator.md) |
 | HRA Calculator (`/hra-calculator`) | Built locally 2026-11-04 — [`products/hra-calculator.md`](products/hra-calculator.md) |
 | Gratuity Calculator (`/gratuity-calculator`) | **Live** (2026-10-27; rules and FAQ reviewed by the owner) — [`products/gratuity-calculator.md`](products/gratuity-calculator.md) |
 | Rent Receipt Generator (`/rent-receipt-generator`) | Built, **not deployed** — [`products/rent-receipt.md`](products/rent-receipt.md) |

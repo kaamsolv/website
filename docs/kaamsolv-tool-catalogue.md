@@ -58,7 +58,7 @@ A tool exists **once**. Where the source brief listed the same tool under two ca
 ```json
 [
   { "name":"GST Calculator", "slug":"gst-calculator", "url":"/calculators/gst-calculator", "primary_category":"Money", "secondary_categories":["India"], "tool_type":"calculator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"free_forever" },
-  { "name":"EMI Calculator", "slug":"emi-calculator", "url":"/calculators/emi-calculator", "primary_category":"Money", "secondary_categories":[], "tool_type":"calculator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"free_forever" },
+  { "name":"EMI Calculator", "slug":"emi-calculator", "url":"/emi-calculator", "primary_category":"Money", "secondary_categories":[], "tool_type":"calculator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"free_forever" },
   { "name":"Percentage Calculator", "slug":"percentage-calculator", "url":"/calculators/percentage-calculator", "primary_category":"Money", "secondary_categories":["Everyday"], "tool_type":"calculator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"free_forever" },
   { "name":"Discount Calculator", "slug":"discount-calculator", "url":"/calculators/discount-calculator", "primary_category":"Money", "secondary_categories":["Everyday"], "tool_type":"calculator", "status":"planned", "build_priority":null, "acquisition_role":"seo_traffic", "monetisation_role":"free_forever" },
 

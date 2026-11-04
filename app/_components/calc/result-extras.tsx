@@ -37,13 +37,13 @@ export function PrintAction() {
 export type CalcMode = 'value' | 'goal';
 
 /** "Find my value | Reach a goal". */
-export function ModeToggle({ mode, onChange, goalLabel = 'Reach a goal' }: { mode: CalcMode; onChange: (m: CalcMode) => void; goalLabel?: string }) {
+export function ModeToggle({ mode, onChange, goalLabel = 'Reach a goal', valueLabel = 'Find my value' }: { mode: CalcMode; onChange: (m: CalcMode) => void; goalLabel?: string; valueLabel?: string }) {
   return (
     <Segmented
       legend="What do you want to work out?"
       hideLegend
       options={[
-        { value: 'value' as const, label: 'Find my value' },
+        { value: 'value' as const, label: valueLabel },
         { value: 'goal' as const, label: goalLabel },
       ]}
       value={mode}

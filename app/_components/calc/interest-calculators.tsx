@@ -25,7 +25,7 @@ import { writeShare } from '@/app/lib/calc/share-state';
 import { formatNumber, formatRupees, parseAmount } from '@/app/lib/calc/everyday';
 
 /** A whole number from a box: blank is 0, anything else that isn't a whole number is NaN. */
-function count(text: string): number {
+export function count(text: string): number {
   const t = text.trim();
   if (t === '') return 0;
   return /^\d{1,4}$/.test(t) ? Number(t) : Number.NaN;
@@ -111,9 +111,10 @@ function nudge(text: (diff: string) => string, base: number | null, better: numb
  * The page frame for a slider calculator: the inputs on the left, the answer and the picture on the right, stacked on a
  * phone. On a phone the answer also rides along at the top of the inputs while you drag, so you never lose it.
  */
-export function Frame({ inputs, results, stickyLabel, stickyValue }: { inputs: React.ReactNode; results: React.ReactNode; stickyLabel: string; stickyValue: string | null }) {
+export function Frame({ inputs, results, stickyLabel, stickyValue, after }: { inputs: React.ReactNode; results: React.ReactNode; stickyLabel: string; stickyValue: string | null; after?: React.ReactNode }) {
   return (
-    <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
+    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
       <div className={`min-w-0 space-y-5 ${CARD}`} data-print-hide>
         <div className="sticky top-16 z-10 -mx-5 -mt-5 mb-1 flex items-baseline justify-between gap-3 rounded-t-xl2 border-b border-hair bg-surface px-5 py-2.5 sm:-mx-6 sm:-mt-6 sm:px-6 lg:hidden" aria-hidden="true">
           <span className="text-xs text-muted">{stickyLabel}</span>
@@ -123,11 +124,13 @@ export function Frame({ inputs, results, stickyLabel, stickyValue }: { inputs: R
       </div>
       <div className={`min-w-0 space-y-5 ${CARD}`}>{results}</div>
     </div>
+    {after}
+    </div>
   );
 }
 
 /** Years and months sliders. */
-function Tenure({ idPrefix, years, months, setYears, setMonths, maxYears = 30, label = 'Time period', yearsInfo, monthsInfo }: { idPrefix: string; years: string; months: string; setYears: (v: string) => void; setMonths: (v: string) => void; maxYears?: number; label?: string; yearsInfo?: string; monthsInfo?: string }) {
+export function Tenure({ idPrefix, years, months, setYears, setMonths, maxYears = 30, label = 'Time period', yearsInfo, monthsInfo }: { idPrefix: string; years: string; months: string; setYears: (v: string) => void; setMonths: (v: string) => void; maxYears?: number; label?: string; yearsInfo?: string; monthsInfo?: string }) {
   return (
     <fieldset className="space-y-5">
       <legend className="sr-only">{label}</legend>
