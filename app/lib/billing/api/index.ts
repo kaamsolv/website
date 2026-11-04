@@ -20,6 +20,7 @@ import * as prefs from './prefs';
 import * as reminders from './reminders';
 import * as automation from './automation';
 import * as accountant from './accountant';
+import * as access from './access';
 
 type Ctx = { params: Promise<any> };
 type Handler = (req: Request, ctx?: any) => Promise<Response> | Response;
@@ -49,6 +50,9 @@ const HANDLERS: Record<string, Handler> = {
   'accountant.PUT': accountant.handleRootPUT,
   'accountant-action.GET': accountant.handleGET,
   'accountant-action.POST': accountant.handlePOST,
+  'access.GET': access.handleOwnerGET,
+  'access-action.GET': access.handleGET,
+  'access-action.POST': access.handlePOST,
 };
 
 export function dispatch(name: string, req: Request, ctx?: Ctx): Promise<Response> | Response {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from './account-shell';
+import { AccountantAccessCard } from './accountant-access-card';
 import { displayDate } from '@/app/lib/invoice/defaults';
 import { DEFAULT_DAY, DEFAULT_HOUR, MAX_DAY, MAX_NAME, PACK_SECTIONS, SECTION_LABELS, type PackSection } from '@/app/lib/invoice/accountant';
 
@@ -276,6 +277,7 @@ export function AccountantConnect() {
           </>
         )}
       </section>
+      <AccountantAccessCard />
       {msg && (
         <p role={msg.tone === 'error' ? 'alert' : 'status'} className={`text-sm font-semibold ${msg.tone === 'error' ? 'text-danger-600' : 'text-strong'}`} data-testid="ac-msg">{msg.text}</p>
       )}

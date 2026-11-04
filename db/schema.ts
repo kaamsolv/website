@@ -676,6 +676,63 @@ export const accountantPacks = pgTable(
   ],
 );
 
+/**
+ * A named accountant's read-only access to one owner's books (migration 0017). The owner invites an email address; the
+ * invited person signs in as that verified address and accepts (a one-time link, only a hash kept). Access is one
+ * `owner_id` and the approved views only, enforced on the server for every read; revoking ends it at once. The
+ * accountant's own account is an ordinary account with no rights over anyone else's data.
+ */
+export const accountantAccess = pgTable(
+  'accountant_access',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    name: text('name').notNull().default(''),
+    status: text('status').notNull().default('invited'),
+    inviteHash: text('invite_hash'),
+    inviteExpiresAt: timestamp('invite_expires_at', { withTimezone: true }),
+    accountantUserId: uuid('accountant_user_id').references(() => authUsers.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('accountant_access_owner_email_idx').on(table.ownerId, table.email),
+    uniqueIndex('accountant_access_invite_idx').on(table.inviteHash).where(sql`${table.inviteHash} is not null`),
+    index('accountant_access_user_idx').on(table.accountantUserId).where(sql`${table.status} = 'active'`),
+    check('accountant_access_status', sql`${table.status} in ('invited', 'active', 'revoked')`),
+    check('accountant_access_name_len', sql`char_length(${table.name}) <= 80`),
+  ],
+);
+
+/**
+ * What happened to an accountant's access: invited, accepted, revoked, and what they opened or downloaded. `detail` is
+ * a short label (a view name or a month), never report content, a name or an address.
+ */
+export const accountantAccessEvents = pgTable(
+  'accountant_access_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    accessId: uuid('access_id')
+      .notNull()
+      .references(() => accountantAccess.id, { onDelete: 'cascade' }),
+    action: text('action').notNull(),
+    detail: text('detail').notNull().default(''),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accountant_access_events_owner_idx').on(table.ownerId, table.at.desc()),
+    check('accountant_access_events_action', sql`${table.action} in ('invited', 'accepted', 'revoked', 'viewed', 'downloaded')`),
+    check('accountant_access_events_detail_len', sql`char_length(${table.detail}) <= 60`),
+  ],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 
