@@ -59,7 +59,7 @@ describe('share links', () => {
     assert.deepEqual(readShare(`?${q}`), { a: 5000, r: 12, y: 10, s: 10 });
   });
   it('drops hostile and out-of-range values', () => {
-    assert.deepEqual(readShare('a=-5&r=999&y=1.5&m=12&t=abc&i=<script>&x=1&f=2'), { f: 2 });
+    assert.deepEqual(readShare('a=-5&r=999&y=1.5&m=12&t=abc&i=<script>&z=1&f=2'), { f: 2 });
     assert.deepEqual(readShare('a=1e9&a=5'), {});
     assert.deepEqual(readShare(''), {});
     assert.deepEqual(readShare('r=12.345'), {});
