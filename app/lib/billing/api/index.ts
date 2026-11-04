@@ -17,6 +17,7 @@ import * as link from './link';
 import * as invoice_pdf from './invoice-pdf';
 import * as receivables from './receivables';
 import * as prefs from './prefs';
+import * as reminders from './reminders';
 
 type Ctx = { params: Promise<any> };
 type Handler = (req: Request, ctx?: any) => Promise<Response> | Response;
@@ -34,6 +35,12 @@ const HANDLERS: Record<string, Handler> = {
   'receivables.GET': receivables.handleGET,
   'prefs.GET': prefs.handleGET,
   'prefs.PUT': prefs.handlePUT,
+  'reminders.GET': reminders.handleGET,
+  'reminders.POST': reminders.handlePOST,
+  'followup.PUT': reminders.handleFollowupPUT,
+  'reminder-settings.GET': reminders.handleSettingsGET,
+  'reminder-settings.PUT': reminders.handleSettingsPUT,
+  'promises.GET': reminders.handlePromisesGET,
 };
 
 export function dispatch(name: string, req: Request, ctx?: Ctx): Promise<Response> | Response {

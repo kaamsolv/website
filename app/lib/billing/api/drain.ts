@@ -7,7 +7,9 @@
 import { DRAIN_SCHEDULED, drainOutbox } from '@/app/lib/billing/jobs';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
+import { istClock } from '@/app/lib/notify/schedule';
 import { enqueueDueSummaries } from '@/db/notifications';
+import { enqueueScheduledReminders } from '@/db/reminders';
 
 
 /** Constant-time string compare (no early exit on the first different character). */
@@ -24,9 +26,11 @@ export async function handlePOST(req: Request) {
   if (!same(req.headers.get('x-cron-secret') ?? '', secret)) return Response.json({ ok: false, error: 'forbidden' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
   try {
     // Queue the summaries due this period (a no-op outside the delivery windows), then run what is waiting.
-    const queued = await enqueueDueSummaries(await getDb());
+    const db = await getDb();
+    const queued = await enqueueDueSummaries(db);
+    const queuedReminders = await enqueueScheduledReminders(db, istClock(new Date()).date);
     const ran = await drainOutbox(DRAIN_SCHEDULED);
-    return Response.json({ ok: true, queuedSummaries: queued, ...ran }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ ok: true, queuedSummaries: queued, queuedReminders, ...ran }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     console.error('[api/billing/drain]', formatErrorForLog(e));
     return Response.json({ ok: false, error: 'server_error' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });

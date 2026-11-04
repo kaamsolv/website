@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { AccountShell, SECONDARY } from '@/app/_components/account/account-shell';
 import { InvoicePayments } from '@/app/_components/account/invoice-payments';
 import { InvoiceShare } from '@/app/_components/account/invoice-share';
+import { ReminderPanel } from '@/app/_components/account/reminder-panel';
 import { getCurrentUser } from '@/app/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ export default async function InvoicePaymentsPage({ params }: { params: Promise<
     >
       <div className="space-y-6">
         <InvoicePayments id={id} />
+        <ReminderPanel id={id} />
         <InvoiceShare id={id} />
       </div>
     </AccountShell>

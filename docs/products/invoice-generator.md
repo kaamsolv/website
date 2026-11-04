@@ -773,3 +773,12 @@ Login for the free tier · collecting payments from the user's clients (we recor
 what they received; we never take or move money) · GST
 filing-level compliance (GSTIN, HSN/SAC, e-invoicing/IRN) · multi-page in free ·
 team seats · upsell clutter inside the free tool.
+
+## Payment reminders and promises (Invoice Pro, 2026-11-04, on `feature/invoice-pro-completion`)
+
+- **Reminders** (`invoice_reminders` entitlement, Pro): an email to the customer for the balance still owed. Manual from the invoice page (confirmation first, optional own line) and scheduled (off by default; 1–4 days after the due date; Payments & collections). Code: `app/lib/invoice/reminders.ts` (rules, email), `db/reminders.ts`, `app/lib/notify/reminder-job.ts`, API `app/lib/billing/api/reminders.ts`.
+- **Eligibility** uses `paymentSummary`: only invoices with a balance; never paid, legacy marked-paid, quotations, no/bad email. Invoices have no void state. Re-checked at send time (plan, balance, email, pause, promise).
+- **No duplicates:** one manual reminder per invoice per India day, one scheduled send per invoice per step; the reminder row and outbox job share a dedupe key, and the provider gets it as an idempotency key. Limit 25 queued per account per India day. Scheduled steps run on the day or up to 2 days late, then are skipped.
+- **Replies** go to the owner's account email (`reply_to`); sender is `reminders@send.kaamsolv.com` (domain already verified for the other senders; the mailbox needs no setup for sending).
+- **Promises** (`invoice_dashboard`, Pro): a note beside the ledger (`invoice_followups`), never a balance. Shown as upcoming / missed / paid since; a promised date holds scheduled reminders back until it passes. Migration `0014`.
+- Not done yet: customer unsubscribe link, delivery webhooks (bounces), Milestones C–G.

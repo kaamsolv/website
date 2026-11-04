@@ -29,7 +29,7 @@ export function emailSignInAvailable(): boolean {
   return process.env.NODE_ENV !== 'production' || Boolean(process.env.RESEND_API_KEY?.trim());
 }
 
-export type Email = { to: string; subject: string; text: string; html: string };
+export type Email = { to: string; subject: string; text: string; html: string; /** Where a reply goes (Resend `reply_to`). Optional. */ replyTo?: string };
 
 export type SendResult = { ok: true; id: string } | { ok: false; code: string };
 
@@ -52,7 +52,7 @@ export async function sendEmailChecked(email: Email, from: string = EMAIL_FROM, 
     res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
-      body: JSON.stringify({ from, to: [email.to], subject: email.subject, text: email.text, html: email.html }),
+      body: JSON.stringify({ from, to: [email.to], subject: email.subject, text: email.text, html: email.html, ...(email.replyTo ? { reply_to: email.replyTo } : {}) }),
     });
   } catch {
     return { ok: false, code: 'email_network_error' };

@@ -17,6 +17,7 @@ import { BILLING_EMAIL_FROM, sendEmailChecked } from '../email';
 import { linkSecret } from '../links/token';
 import { siteOrigin } from '../site-origin';
 import { summaryJob } from '../notify/summary-job';
+import { reminderJob } from '../notify/reminder-job';
 import { invoiceEmail } from './email';
 
 /** The public address of an invoice link. */
@@ -74,5 +75,5 @@ export const DRAIN_SCHEDULED = 3;
 /** Runs whatever is due. Called right after a webhook (the fast path) and by the scheduled retry. */
 export async function drainOutbox(limit = DRAIN_SCHEDULED) {
   const db = await getDb();
-  return runDue(db, { billing_invoice: (job) => billingInvoiceJob(db, job), receivables_summary: (job) => summaryJob(db, job) }, limit);
+  return runDue(db, { billing_invoice: (job) => billingInvoiceJob(db, job), receivables_summary: (job) => summaryJob(db, job), invoice_reminder: (job) => reminderJob(db, job) }, limit);
 }

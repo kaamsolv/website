@@ -476,6 +476,82 @@ export const notificationPrefs = pgTable(
   (table) => [check('notification_prefs_cadence', sql`${table.summaryCadence} in ('off', 'weekly', 'monthly')`)],
 );
 
+/**
+ * Collections follow-up for one invoice (migration 0014): the owner's own notes about chasing it. Holds the
+ * "promised to pay on" date and note, and whether scheduled reminders are paused for it. It never holds a balance
+ * or a status: those stay with the payment ledger (`invoices.amount_paid`), so this table can't disagree with it.
+ */
+export const invoiceFollowups = pgTable(
+  'invoice_followups',
+  {
+    invoiceId: uuid('invoice_id')
+      .primaryKey()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    remindersPaused: boolean('reminders_paused').notNull().default(false),
+    promisedOn: date('promised_on'),
+    promiseNote: text('promise_note').notNull().default(''),
+    promiseSetAt: timestamp('promise_set_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('invoice_followups_user_promised_idx').on(table.userId, table.promisedOn).where(sql`${table.promisedOn} is not null`),
+    check('invoice_followups_note_len', sql`char_length(${table.promiseNote}) <= 200`),
+  ],
+);
+
+/**
+ * Scheduled customer reminders, per account (migration 0014). Off until the owner turns it on. `days_after_due` are
+ * the days past the due date on which a reminder goes out (1 to 4 of them).
+ */
+export const reminderPrefs = pgTable(
+  'reminder_prefs',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    scheduledEnabled: boolean('scheduled_enabled').notNull().default(false),
+    daysAfterDue: integer('days_after_due').array().notNull().default(sql`'{3,7,14}'::integer[]`),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('reminder_prefs_days', sql`cardinality(${table.daysAfterDue}) between 1 and 4`)],
+);
+
+/**
+ * One row per customer reminder asked for (manual or scheduled). `dedupe_key` is also the outbox job's key, so a
+ * repeated click or an overlapping scheduled run can't make a second one. Holds no address and no message text.
+ * `status`: queued → sent, or skipped (with the reason: the invoice was paid, the customer has no email…).
+ * Failed attempts and retries are read from the outbox row with the same key.
+ */
+export const invoiceReminders = pgTable(
+  'invoice_reminders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    /** For a scheduled reminder, the days-after-due step it belongs to. */
+    step: integer('step'),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    status: text('status').notNull().default('queued'),
+    reason: text('reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('invoice_reminders_invoice_idx').on(table.invoiceId, table.createdAt),
+    index('invoice_reminders_user_created_idx').on(table.userId, table.createdAt),
+    check('invoice_reminders_kind', sql`${table.kind} in ('manual', 'scheduled')`),
+    check('invoice_reminders_status', sql`${table.status} in ('queued', 'sent', 'skipped')`),
+  ],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 
