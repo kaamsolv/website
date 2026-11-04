@@ -782,3 +782,12 @@ team seats · upsell clutter inside the free tool.
 - **Replies** go to the owner's account email (`reply_to`); sender is `reminders@send.kaamsolv.com` (domain already verified for the other senders; the mailbox needs no setup for sending).
 - **Promises** (`invoice_dashboard`, Pro): a note beside the ledger (`invoice_followups`), never a balance. Shown as upcoming / missed / paid since; a promised date holds scheduled reminders back until it passes. Migration `0014`.
 - Not done yet: customer unsubscribe link, delivery webhooks (bounces), Milestones C–G.
+
+## Automatic recurring invoices (Invoice Pro, on `feature/invoice-pro-completion`)
+
+- **Model:** the schedule is unchanged (`invoices.recur_every` / `recur_next`, the "Due to repeat" prompt still works). Migration `0015` adds `recurring_automation` (on/paused, optional end date and invoice count, runs done, ended) and `recurring_runs` (one row per period, unique on invoice + due date).
+- **Run:** the existing 15-minute cron (`/api/billing/drain`) queues what is due (`enqueueDueRecurring`, one statement), then `app/lib/notify/recurring-job.ts` re-checks everything, claims the period, and calls the same `recurInvoice` as the Create button (same numbering, days-to-pay, plan limit, one compare-and-set to move the schedule on).
+- **Dates** are India calendar dates. A missed run makes one invoice and moves to the next future date. Month ends clamp (31 Jan → 28/29 Feb).
+- **Safety:** a period is made once (unique run row + schedule compare-and-set). A run that dies mid-way shows as "interrupted" and is never retried blindly. A plan-limit failure is shown and leaves the schedule due for the manual prompt.
+- **Never emailed:** generated invoices are plain copies. Automatic emailing was deliberately not built.
+- UI: "Repeat this invoice" card on the invoice page (schedule, confirm before turning on, pause/resume, stop after a date or count, run history). API: `/api/invoices/<id>/automation`. Tests: `test/recurring-auto.test.mts`, `tests/e2e/recurring-auto.spec.ts`.

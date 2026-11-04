@@ -10,6 +10,7 @@ import { getDb } from '@/db/client';
 import { istClock } from '@/app/lib/notify/schedule';
 import { enqueueDueSummaries } from '@/db/notifications';
 import { enqueueScheduledReminders } from '@/db/reminders';
+import { enqueueDueRecurring } from '@/db/recurring-auto';
 
 
 /** Constant-time string compare (no early exit on the first different character). */
@@ -28,9 +29,11 @@ export async function handlePOST(req: Request) {
     // Queue the summaries due this period (a no-op outside the delivery windows), then run what is waiting.
     const db = await getDb();
     const queued = await enqueueDueSummaries(db);
-    const queuedReminders = await enqueueScheduledReminders(db, istClock(new Date()).date);
+    const today = istClock(new Date()).date;
+    const queuedReminders = await enqueueScheduledReminders(db, today);
+    const queuedRecurring = await enqueueDueRecurring(db, today);
     const ran = await drainOutbox(DRAIN_SCHEDULED);
-    return Response.json({ ok: true, queuedSummaries: queued, queuedReminders, ...ran }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ ok: true, queuedSummaries: queued, queuedReminders, queuedRecurring, ...ran }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     console.error('[api/billing/drain]', formatErrorForLog(e));
     return Response.json({ ok: false, error: 'server_error' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });

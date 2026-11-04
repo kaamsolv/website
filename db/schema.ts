@@ -552,6 +552,67 @@ export const invoiceReminders = pgTable(
   ],
 );
 
+/**
+ * Automatic creation for a recurring invoice (migration 0015). The invoice that repeats keeps its schedule in
+ * `invoices.recur_every` / `recur_next` (unchanged, still driving the "Due to repeat" prompt); this row says whether
+ * the next copy is made by the schedule instead of a click, and when to stop. Dates are India calendar dates.
+ * A generated invoice is never emailed or shared automatically.
+ */
+export const recurringAutomation = pgTable(
+  'recurring_automation',
+  {
+    invoiceId: uuid('invoice_id')
+      .primaryKey()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    autoCreate: boolean('auto_create').notNull().default(false),
+    paused: boolean('paused').notNull().default(false),
+    /** Last day an invoice may be made (inclusive); null = no end date. */
+    endsOn: date('ends_on'),
+    /** Stop after this many automatic invoices; null = no limit. */
+    maxRuns: integer('max_runs'),
+    runsDone: integer('runs_done').notNull().default(0),
+    /** Set when the schedule finished by itself (end date or run count reached). */
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('recurring_automation_active_idx').on(table.autoCreate).where(sql`${table.autoCreate} and not ${table.paused} and ${table.endedAt} is null`),
+    check('recurring_automation_max_runs', sql`${table.maxRuns} is null or ${table.maxRuns} between 1 and 500`),
+  ],
+);
+
+/**
+ * What each automatic run did. `(invoice_id, due_on)` is unique, so a retried job or two overlapping cron runs can
+ * never make the same period's invoice twice. `started` that never finished is shown as failed ("interrupted"): the
+ * schedule is not retried blindly, because the copy may already exist.
+ */
+export const recurringRuns = pgTable(
+  'recurring_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    dueOn: date('due_on').notNull(),
+    createdInvoiceId: uuid('created_invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('started'),
+    reason: text('reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('recurring_runs_invoice_due_idx').on(table.invoiceId, table.dueOn),
+    index('recurring_runs_user_idx').on(table.userId, table.createdAt),
+    check('recurring_runs_status', sql`${table.status} in ('started', 'created', 'skipped', 'failed')`),
+  ],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 

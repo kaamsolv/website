@@ -18,6 +18,7 @@ import * as invoice_pdf from './invoice-pdf';
 import * as receivables from './receivables';
 import * as prefs from './prefs';
 import * as reminders from './reminders';
+import * as automation from './automation';
 
 type Ctx = { params: Promise<any> };
 type Handler = (req: Request, ctx?: any) => Promise<Response> | Response;
@@ -41,6 +42,8 @@ const HANDLERS: Record<string, Handler> = {
   'reminder-settings.GET': reminders.handleSettingsGET,
   'reminder-settings.PUT': reminders.handleSettingsPUT,
   'promises.GET': reminders.handlePromisesGET,
+  'automation.GET': automation.handleGET,
+  'automation.PUT': automation.handlePUT,
 };
 
 export function dispatch(name: string, req: Request, ctx?: Ctx): Promise<Response> | Response {
