@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from './account-shell';
 import { AccountantAccessCard } from './accountant-access-card';
@@ -138,6 +139,12 @@ export function AccountantConnect() {
 
   return (
     <div className="space-y-6" data-testid="accountant-connect">
+      {!d.plan && (
+        <p className="rounded-xl border border-hair bg-wash px-4 py-3 text-sm text-strong" data-testid="ac-upgrade">
+          Accountant Connect is part of Pro: the monthly pack, and a login for your accountant. {s || d.packs.length > 0 ? 'What you set up is kept, and you can still switch it off or end access below. ' : ''}
+          <Link href="/app/billing" className="font-semibold underline">See Pro</Link>
+        </p>
+      )}
       <section aria-labelledby="ac-h" className={CARD}>
         <h2 id="ac-h" className="font-display text-lg font-bold text-ink">Your accountant</h2>
         <p className="mt-1 text-sm text-muted">We email them a link to a ZIP of last month’s invoices, tax totals and payments. Replies come to {d.replyTo}. They don’t need an account.</p>
@@ -155,7 +162,7 @@ export function AccountantConnect() {
           {confirmed ? 'Email confirmed by your accountant.' : s?.confirmationPending ? 'Waiting for your accountant to confirm. The link works for 48 hours.' : s?.email ? 'Not confirmed yet. We won’t send anything until your accountant confirms.' : 'Save their name and email first.'}
         </p>
         {s?.email && !confirmed && (
-          <button type="button" className={`${SECONDARY} mt-3`} disabled={busy} onClick={() => void verify()} data-testid="ac-verify">
+          <button type="button" className={`${SECONDARY} mt-3`} disabled={busy || !d.plan} onClick={() => void verify()} data-testid="ac-verify">
             {s.confirmationPending ? 'Send the confirmation again' : 'Send confirmation email'}
           </button>
         )}
@@ -193,7 +200,7 @@ export function AccountantConnect() {
         </fieldset>
 
         <label className="mt-5 flex items-center gap-2 text-sm font-semibold text-ink">
-          <input type="checkbox" className="h-5 w-5 accent-coral-500" checked={enabled} disabled={!confirmed} onChange={(e) => setEnabled(e.target.checked)} data-testid="ac-enabled" />
+          <input type="checkbox" className="h-5 w-5 accent-coral-500" checked={enabled} disabled={!confirmed || (!d.plan && !enabled)} onChange={(e) => setEnabled(e.target.checked)} data-testid="ac-enabled" />
           Send the pack every month
         </label>
         {!confirmed && <p className="mt-1 text-xs text-muted">Available once your accountant has confirmed their email.</p>}
@@ -209,8 +216,12 @@ export function AccountantConnect() {
         <h2 id="ac-t" className="font-display text-lg font-bold text-ink">Try it first</h2>
         <p className="mt-1 text-sm text-muted">See what {d.lastMonth.label}’s pack would hold. Nothing is emailed from here.</p>
         <div className="mt-3 flex flex-wrap gap-3">
-          <button type="button" className={SECONDARY} disabled={busy} onClick={() => void runPreview()} data-testid="ac-preview">Preview {d.lastMonth.label}</button>
-          <a className={SECONDARY} href={`/api/accountant/pack?period=${d.lastMonth.period}`} data-testid="ac-download">Download a test ZIP</a>
+          <button type="button" className={SECONDARY} disabled={busy || !d.plan} onClick={() => void runPreview()} data-testid="ac-preview">Preview {d.lastMonth.label}</button>
+          {d.plan ? (
+            <a className={SECONDARY} href={`/api/accountant/pack?period=${d.lastMonth.period}`} data-testid="ac-download">Download a test ZIP</a>
+          ) : (
+            <button type="button" className={SECONDARY} disabled data-testid="ac-download">Download a test ZIP</button>
+          )}
         </div>
         {preview && (
           <div className="mt-4" data-testid="ac-preview-result">
@@ -256,7 +267,7 @@ export function AccountantConnect() {
                   {(p.state === 'retrying' || p.state === 'failed') && p.reason && <span className="text-muted">Reason: {p.reason}</span>}
                   {p.state === 'retrying' && p.nextAttemptAt && <span className="text-muted">Next try {when(p.nextAttemptAt)}</span>}
                   {(p.state === 'failed' || p.state === 'waiting') && (
-                    <button type="button" className="ml-auto text-sm font-semibold text-strong underline disabled:opacity-60" disabled={busy} onClick={() => void retry(p.id)} data-testid="ac-retry">Try again</button>
+                    <button type="button" className="ml-auto text-sm font-semibold text-strong underline disabled:opacity-60" disabled={busy || !d.plan} onClick={() => void retry(p.id)} data-testid="ac-retry">Try again</button>
                   )}
                 </li>
               ))}

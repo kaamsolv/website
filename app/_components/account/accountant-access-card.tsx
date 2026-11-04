@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from './account-shell';
 import { EVENT_TEXT } from '@/app/lib/invoice/accountant-access';
@@ -127,7 +128,11 @@ export function AccountantAccessCard() {
         </div>
         <button type="submit" className={PRIMARY} disabled={busy || !d.plan || !name.trim() || !email.trim()} data-testid="access-invite">Invite</button>
       </form>
-      {!d.plan && <p className="mt-2 text-xs text-muted">Accountant access is part of Pro.</p>}
+      {!d.plan && (
+        <p className="mt-2 text-sm text-strong" data-testid="access-upgrade">
+          Accountant access is part of Pro. <Link href="/app/billing" className="font-semibold underline">See Pro</Link>
+        </p>
+      )}
       {msg && <p role={msg.tone === 'error' ? 'alert' : 'status'} className={`mt-3 text-sm font-semibold ${msg.tone === 'error' ? 'text-danger-600' : 'text-strong'}`} data-testid="access-msg">{msg.text}</p>}
 
       {d.events.length > 0 && (

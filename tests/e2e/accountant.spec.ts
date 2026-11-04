@@ -51,8 +51,8 @@ test('connect an accountant, they confirm, the monthly pack is sent once, and th
 
   await page.goto('/app/invoices/accountant');
   await expect(page.getByTestId('ac-empty')).toBeVisible();
-  await page.getByLabel('Name').fill('CA Mehta');
-  await page.getByLabel('Email').fill(ca);
+  await page.getByLabel('Name', { exact: true }).fill('CA Mehta');
+  await page.getByLabel('Email', { exact: true }).fill(ca);
   await page.getByLabel('Day of month').selectOption('1');
   await page.getByLabel('Time').selectOption('0');
   await expect(page.getByTestId('ac-enabled')).toBeDisabled();
@@ -116,12 +116,17 @@ test('connect an accountant, they confirm, the monthly pack is sent once, and th
   await ctx.close();
 });
 
-test('a free account is sent away and the server refuses its requests; a visitor with no account gets nothing', async ({ page, browser }) => {
+test('a free account is told what Pro adds (not sent away) and the server refuses its requests; a visitor with no account gets nothing', async ({ page, browser }) => {
   await signIn(page, email('free'));
   await page.goto('/app/invoices/accountant');
-  await expect(page).toHaveURL(/\/app\/invoices$/);
+  await expect(page).toHaveURL(/\/app\/invoices\/accountant$/);
+  await expect(page.getByTestId('ac-upgrade')).toContainText('part of Pro');
+  await expect(page.getByTestId('ac-upgrade').getByRole('link', { name: 'See Pro' })).toHaveAttribute('href', '/app/billing');
+  await expect(page.getByTestId('ac-save')).toBeVisible();
+  await expect(page.getByTestId('ac-preview')).toBeDisabled();
+  await expect(page.getByTestId('access-upgrade')).toBeVisible();
   for (const path of ['/api/accountant/preview', '/api/accountant/pack']) expect((await page.request.get(path)).status()).toBe(403);
-  const put = await page.request.put('/api/accountant', { headers: ORIGIN, data: { name: 'x', email: 'a@b.test', enabled: false, day: 5, hour: 10, sections: ['register'] } });
+  const put = await page.request.put('/api/accountant', { headers: ORIGIN, data: { name: 'x', email: 'a@b.test', enabled: true, day: 5, hour: 10, sections: ['register'] } });
   expect(put.status()).toBe(403);
 
   const ctx = await browser.newContext({ baseURL: BASE });

@@ -128,10 +128,12 @@ export async function handleFollowupPUT(req: Request, ctx?: Ctx) {
     const ent = entitlementsFrom(await getEntitlements(db, user.id));
     const today = istClock(new Date()).date;
     if (typeof body?.paused === 'boolean') {
-      if (!ent.can('invoice_reminders')) return fail(403, 'not_allowed', 'Payment reminders are part of Pro.');
+      // Pausing is a stop and never needs Pro; resuming does.
+      if (!body.paused && !ent.can('invoice_reminders')) return fail(403, 'not_allowed', 'Payment reminders are part of Pro.');
       return (await setRemindersPaused(db, user.id, id, body.paused)) ? json({ ok: true, paused: body.paused }) : NOT_FOUND();
     }
-    if (!ent.can('invoice_dashboard')) return fail(403, 'not_allowed', 'Payment promises are part of Pro.');
+    // Clearing a promise never needs Pro; setting one does.
+    if (body?.promisedOn !== null && !ent.can('invoice_dashboard')) return fail(403, 'not_allowed', 'Payment promises are part of Pro.');
     if (body?.promisedOn === null) return (await clearPromise(db, user.id, id)) ? json({ ok: true, cleared: true }) : NOT_FOUND();
     const r = await setPromise(db, user.id, id, body?.promisedOn, body?.note, today);
     if (r.ok) return json({ ok: true });

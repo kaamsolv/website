@@ -82,7 +82,8 @@ export async function handleRootPUT(req: Request): Promise<Response> {
   const check = checkAccountant({ name: body.name, email: body.email, enabled: body.enabled, day: body.day, hour: body.hour, sections: body.sections });
   if (!check.ok) return fail(400, 'invalid', check.message);
   try {
-    if (!o.plan) return NO_PLAN();
+    // Switching the monthly pack off never needs Pro; switching it on (or changing it while on) does.
+    if (!o.plan && check.value.enabled) return NO_PLAN();
     const before = await getSettings(o.db, o.user.id);
     const changed = !before || before.email !== check.value.email;
     // Sending needs an address its owner has confirmed; a new address starts unconfirmed and switched off.
@@ -101,7 +102,8 @@ export async function handlePOST(req: Request, ctx?: Ctx): Promise<Response> {
   if (!sameOrigin(req)) return fail(403, 'forbidden', 'That request didn’t come from KaamSolv.');
   const o = await owner(req);
   if (o.res) return o.res;
-  if (!o.plan) return NO_PLAN();
+  // Ending the emailed links never needs Pro (a lapsed account can always shut them); everything else does.
+  if (!o.plan && action !== 'revoke') return NO_PLAN();
   try {
     if (action === 'verify') {
       const rate = await consumeRateLimits(o.db, [{ key: `acc-verify:${o.user.id}`, limit: 5, windowSeconds: 3600 }]);
@@ -194,6 +196,10 @@ async function download(req: Request) {
     if (!rate.allowed) return new Response('Too many downloads. Try again later.', { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': String(retryAfterSeconds(rate.resetAt)) } });
     const link = await resolvePackLink(db, token);
     if (!link) return new Response('This link has expired or isn’t valid. Ask your client to send a new pack.', { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+    // The plan is checked again on every download: an old link stops working when Pro ends.
+    if (!entitlementsFrom(await getEntitlements(db, link.userId)).can('invoice_csv_export')) {
+      return new Response('This link is no longer available. Ask your client to send a new pack.', { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+    }
     const s = await getSettings(db, link.userId);
     const built = await buildPack(db, link.userId, link.period, s?.sections ?? ['register', 'tax_summary', 'payments', 'outstanding', 'ageing'], clock().date, await businessName(db, link.userId, ''));
     if (!built) return new Response('Not found.', { status: 404, headers: { 'Cache-Control': 'no-store' } });

@@ -100,7 +100,8 @@ export async function handlePOST(req: Request, ctx?: Ctx): Promise<Response> {
   if (action === 'accept') return accept(req, body);
   const o = await owner(req);
   if (o.res) return o.res;
-  if (!o.plan) return fail(403, 'not_allowed', 'Accountant access is part of Pro.');
+  // Ending access never needs Pro: a lapsed account can always shut the door. Inviting does.
+  if (!o.plan && action !== 'revoke') return fail(403, 'not_allowed', 'Accountant access is part of Pro.');
   try {
     if (action === 'invite' || action === 'resend') {
       const rate = await consumeRateLimits(o.db, [{ key: `acc-invite:${o.user.id}`, limit: 10, windowSeconds: 3600 }]);
