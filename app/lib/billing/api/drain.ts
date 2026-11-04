@@ -11,6 +11,7 @@ import { istClock } from '@/app/lib/notify/schedule';
 import { enqueueDueSummaries } from '@/db/notifications';
 import { enqueueScheduledReminders } from '@/db/reminders';
 import { enqueueDueRecurring } from '@/db/recurring-auto';
+import { enqueueDuePacks } from '@/db/accountant';
 
 
 /** Constant-time string compare (no early exit on the first different character). */
@@ -32,8 +33,10 @@ export async function handlePOST(req: Request) {
     const today = istClock(new Date()).date;
     const queuedReminders = await enqueueScheduledReminders(db, today);
     const queuedRecurring = await enqueueDueRecurring(db, today);
+    const clock = istClock(new Date());
+    const queuedPacks = await enqueueDuePacks(db, { date: clock.date, hour: clock.hour });
     const ran = await drainOutbox(DRAIN_SCHEDULED);
-    return Response.json({ ok: true, queuedSummaries: queued, queuedReminders, queuedRecurring, ...ran }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ ok: true, queuedSummaries: queued, queuedReminders, queuedRecurring, queuedPacks, ...ran }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     console.error('[api/billing/drain]', formatErrorForLog(e));
     return Response.json({ ok: false, error: 'server_error' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });

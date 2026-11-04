@@ -113,6 +113,13 @@
       "when": 1793794980573,
       "tag": "0015_recurring_automation",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793795782138,
+      "tag": "0016_accountant_connect",
+      "breakpoints": true
     }
   ]
 }

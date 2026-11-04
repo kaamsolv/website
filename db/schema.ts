@@ -613,6 +613,69 @@ export const recurringRuns = pgTable(
   ],
 );
 
+/**
+ * Accountant Connect (migration 0016): where the monthly accountant pack goes and when. One row per account. The
+ * address must be confirmed by its owner (a one-time link, only a hash kept) before anything is sent to it.
+ * Changing the address clears the confirmation and ends any pack links already sent.
+ */
+export const accountantSettings = pgTable(
+  'accountant_settings',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    accountantName: text('accountant_name').notNull().default(''),
+    accountantEmail: text('accountant_email').notNull().default(''),
+    enabled: boolean('enabled').notNull().default(false),
+    /** Day of the month (1 to 28) and hour (India time) from which the previous month's pack is sent. */
+    dayOfMonth: integer('day_of_month').notNull().default(5),
+    sendHour: integer('send_hour').notNull().default(10),
+    timezone: text('timezone').notNull().default('Asia/Kolkata'),
+    sections: text('sections').array().notNull().default(sql`'{register,tax_summary,payments,outstanding,ageing}'::text[]`),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    verifyHash: text('verify_hash'),
+    verifyExpiresAt: timestamp('verify_expires_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accountant_settings_due_idx').on(table.enabled).where(sql`${table.enabled} and ${table.verifiedAt} is not null`),
+    check('accountant_settings_day', sql`${table.dayOfMonth} between 1 and 28`),
+    check('accountant_settings_hour', sql`${table.sendHour} between 0 and 23`),
+    check('accountant_settings_name_len', sql`char_length(${table.accountantName}) <= 80`),
+  ],
+);
+
+/**
+ * One delivery of the accountant pack for one month. `dedupe_key` (account + month) is also the outbox job's key, so
+ * the same month can never be queued twice. The download link is a token whose hash is kept here; it expires and can
+ * be ended. The ZIP itself is never stored: it is built from the live records when the link is opened. Holds no
+ * report content and no address.
+ */
+export const accountantPacks = pgTable(
+  'accountant_packs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    period: text('period').notNull(),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    status: text('status').notNull().default('queued'),
+    reason: text('reason').notNull().default(''),
+    tokenHash: text('token_hash'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    downloadCount: integer('download_count').notNull().default(0),
+    lastDownloadedAt: timestamp('last_downloaded_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accountant_packs_user_idx').on(table.userId, table.createdAt),
+    uniqueIndex('accountant_packs_token_idx').on(table.tokenHash).where(sql`${table.tokenHash} is not null`),
+    check('accountant_packs_status', sql`${table.status} in ('queued', 'sent', 'skipped')`),
+  ],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 

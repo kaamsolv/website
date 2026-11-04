@@ -791,3 +791,15 @@ team seats · upsell clutter inside the free tool.
 - **Safety:** a period is made once (unique run row + schedule compare-and-set). A run that dies mid-way shows as "interrupted" and is never retried blindly. A plan-limit failure is shown and leaves the schedule due for the manual prompt.
 - **Never emailed:** generated invoices are plain copies. Automatic emailing was deliberately not built.
 - UI: "Repeat this invoice" card on the invoice page (schedule, confirm before turning on, pause/resume, stop after a date or count, run history). API: `/api/invoices/<id>/automation`. Tests: `test/recurring-auto.test.mts`, `tests/e2e/recurring-auto.spec.ts`.
+
+## Accountant Connect: the monthly accountant pack (Invoice Pro, on `feature/invoice-pro-completion`)
+
+- **What it is:** an accountant *handover* of the sales invoices and payments recorded in KaamSolv for the last completed calendar month (India dates). Not a GST return; it holds no purchase bills, input tax credit, credit/debit notes or e-invoice data, and says so in the page, the email and the README inside the ZIP (`PACK_COVERAGE`).
+- **Gate:** `invoice_csv_export` (same as Reports & exports). No new entitlement key, no price change.
+- **Settings** (`/app/invoices/accountant`): accountant name and email, day 1–28 and hour (India time, `Asia/Kolkata`), sections (register with CGST/SGST/IGST, tax summary, payments, outstanding, ageing), on/off. Migration `0016`: `accountant_settings`, `accountant_packs`.
+- **Confirmation:** nothing is sent to an address until its owner confirms it (one-time link, 48 h, hash only; the page changes nothing on open, the button does). Changing the address clears confirmation, turns sending off and ends links already sent.
+- **Delivery:** the existing cron queues last month's pack on/after the chosen day and hour (one per account per month; a missed run is made up later that month). `app/lib/notify/accountant-job.ts` re-checks (still on, confirmed, Pro, month not empty), then emails a link, never an attachment. Sender `reports@send.kaamsolv.com`, replies to the owner. Retries/back-off/"Try again" use the outbox, as for reminders.
+- **The link:** `/api/accountant/download?t=…`, 7 days, rate-limited, revocable ("End download links"), counts downloads. It is a bearer link for the accountant, who has no account: that is by design until accountant sign-in exists (Milestone E).
+- **The ZIP is never stored.** It is built from the live records when opened (`db/accountant-pack.ts`), so no report content sits at rest and no storage service is needed. Bounded for a Worker: ≤2 currencies; ≤2,000 register/outstanding rows and ≤5,000 payments per file, over which that file is replaced by a note to export in parts from Reports. Outstanding and ageing are "as of the day it is opened".
+- **Safe test:** owner-only preview (file names and row counts) and a test ZIP download; neither emails anyone.
+- **Not done:** per-month re-send of an already sent pack, accountant sign-in and read-only access (E), delivery receipts/bounces.
