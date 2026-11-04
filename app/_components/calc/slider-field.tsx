@@ -1,6 +1,7 @@
 'use client';
 
 import { FIELD } from './everyday-calculators';
+import { useInfo } from './info-tip';
 import { parseAmount } from '@/app/lib/calc/everyday';
 
 /**
@@ -23,6 +24,7 @@ export function SliderField({
   maxLabel,
   group = false,
   placeholder,
+  info,
 }: {
   id: string;
   label: string;
@@ -38,7 +40,10 @@ export function SliderField({
   /** Show the number with Indian digit grouping while dragging (amounts). */
   group?: boolean;
   placeholder?: string;
+  /** Plain-words help, opened by a small "i" next to the label. */
+  info?: string;
 }) {
+  const { button: infoButton, note: infoNote } = useInfo(info);
   const n = parseAmount(value);
   const invalid = value.trim() !== '' && Number.isNaN(n);
   const sliderValue = Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min;
@@ -48,9 +53,12 @@ export function SliderField({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="text-sm font-semibold text-ink">
-          {label}
-        </label>
+        <div className="flex min-w-0 items-center gap-2">
+          <label htmlFor={id} className="text-sm font-semibold text-ink">
+            {label}
+          </label>
+          {infoButton}
+        </div>
         <div className="relative w-36 shrink-0">
           {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted">{prefix}</span>}
           <input
@@ -67,6 +75,7 @@ export function SliderField({
           {suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted">{suffix}</span>}
         </div>
       </div>
+      {infoNote}
       <input
         id={`${id}-slider`}
         type="range"

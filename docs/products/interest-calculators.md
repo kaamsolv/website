@@ -49,3 +49,8 @@ Approved from the "make it better" list; rule recorded as CLAUDE.md §48.
 - **Compare page** `/sip-vs-fd-vs-rd-calculator`: Every month = SIP vs RD; One lump sum = market-linked vs FD. Neutral wording, no recommendation.
 - Components: `result-extras.tsx`, `compare-calculator.tsx`; tests `test/interest-extras.test.mts`, `tests/e2e/interest-extras.spec.ts`.
 - Not done: SIP vs FD with tax, goal mode for simple/compound pages beyond FD/compound, PDF with branding.
+
+## Phone fix and "i" help (2026-11-04, after first live use)
+- **Bug:** on a phone with the Table view open, the page grew wider than the screen and the sliders and number boxes were cut off. Cause: a one-column grid sizes itself to its widest content, and the table has a minimum width. Fix: the grid column is `minmax(0,1fr)` and the cards are `min-w-0`, so the table scrolls inside its own box. Regression test at 360px and 320px with Table view open (`tests/e2e/interest-mobile.spec.ts`). Why it was missed: the earlier no-sideways-scroll check ran at 375px with the Graph view only.
+- **"i" help:** every slider, the compounding choice, tax rate and today's money carry a small "i" that opens a plain-words note under the label (`info-tip.tsx`, texts in `HELP` and the page components). In-flow, never floating, so it cannot be cut off. Rule for new tools: every input that is not self-explanatory gets one.
+- The big answer now shrinks and wraps its Copy button on narrow screens instead of breaking the number.

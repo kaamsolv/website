@@ -4,9 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../icons';
 import { Chips, Segmented } from '../choice';
 import { WHATSAPP_BUTTON } from '../whatsapp-style';
+import { InfoHeading, useInfo } from './info-tip';
 import { SliderField } from './slider-field';
 import { readShare, type ShareValues } from '@/app/lib/calc/share-state';
 import { SITE_ORIGIN } from '@/app/lib/site-urls';
+
+/** Plain-words explanations shown behind the small "i" buttons. Short, no jargon, no advice. */
+export const HELP = {
+  today: "Prices go up over the years, so ₹1 crore later buys less than ₹1 crore now. Switch this on to see roughly what the final amount would buy in today's terms.",
+  inflation: "How much prices rise in a year, on average. Around 5 to 6% is a common guess for India. Change it to see the effect.",
+  tax: "Interest you earn is added to your income and taxed. Pick the percentage you pay on your income (your tax slab) and we'll estimate the tax. It's only an estimate: TDS, rebates and extra charges aren't worked out.",
+  compounding: "How often the bank adds interest to your balance. The more often, the slightly more you earn, because earlier interest starts earning interest too. Most banks use quarterly.",
+  goal: "The amount you want to have at the end. The calculator works backwards to tell you what to put in.",
+} as const;
 
 export type CalcMode = 'value' | 'goal';
 
@@ -28,13 +38,18 @@ export function ModeToggle({ mode, onChange, goalLabel = 'Reach a goal' }: { mod
 
 /** A switch for the today's-money view; the inflation slider appears only when it is on. */
 export function TodayMoneyField({ id, on, onToggle, rate, onRate }: { id: string; on: boolean; onToggle: (v: boolean) => void; rate: string; onRate: (v: string) => void }) {
+  const { button: infoButton, note: infoNote } = useInfo(HELP.today);
   return (
     <div className="space-y-3 rounded-xl border border-hair bg-wash/60 p-3">
-      <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm font-semibold text-ink">
-        <input type="checkbox" id={`${id}-today`} checked={on} onChange={(e) => onToggle(e.target.checked)} className="h-5 w-5 accent-coral-500" />
-        Show it in today&apos;s money
-      </label>
-      {on && <SliderField id={`${id}-infl`} label="Prices rise each year by" value={rate} onChange={onRate} min={0} max={12} step={0.5} suffix="%" minLabel="0%" maxLabel="12%" />}
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm font-semibold text-ink">
+          <input type="checkbox" id={`${id}-today`} checked={on} onChange={(e) => onToggle(e.target.checked)} className="h-5 w-5 accent-coral-500" />
+          Show it in today&apos;s money
+        </label>
+        {infoButton}
+      </div>
+      {infoNote}
+      {on && <SliderField id={`${id}-infl`} label="Prices rise each year by" value={rate} onChange={onRate} min={0} max={12} step={0.5} suffix="%" minLabel="0%" maxLabel="12%" info={HELP.inflation} />}
     </div>
   );
 }
@@ -44,8 +59,9 @@ const TAX_CHOICES = [0, 5, 10, 20, 30];
 /** Your tax rate, for the after-tax estimate (FD, RD). The user picks it; no slab rules are built in. */
 export function TaxField({ tax, onChange }: { tax: number; onChange: (n: number) => void }) {
   return (
-    <div>
-      <Chips legend="Your tax rate on the interest (optional)" options={TAX_CHOICES.map((n) => ({ value: n, label: n === 0 ? 'No tax' : `${n}%` }))} value={tax} onChange={onChange} />
+    <div className="space-y-2">
+      <InfoHeading info={HELP.tax}>Your tax rate on the interest (optional)</InfoHeading>
+      <Chips legend="Your tax rate on the interest" hideLegend options={TAX_CHOICES.map((n) => ({ value: n, label: n === 0 ? 'No tax' : `${n}%` }))} value={tax} onChange={onChange} />
       {tax > 0 && <p className="mt-1.5 text-xs text-muted">A simple estimate at the rate you choose. TDS, rebates, surcharge and cess are not worked out.</p>}
     </div>
   );

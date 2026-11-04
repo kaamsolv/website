@@ -125,7 +125,7 @@ function CompareChart({ a, b }: { a: Series; b: Series }) {
         </div>
       ) : (
         <div className="mt-2 max-h-72 overflow-auto rounded-xl border border-hair px-3" data-testid="year-table">
-          <table className="w-full min-w-[22rem] text-sm">
+          <table className="w-full min-w-[19rem] text-sm">
             <caption className="sr-only">Value at the end of each year</caption>
             <thead>
               <tr className="text-left text-xs text-muted">
@@ -217,8 +217,8 @@ export function CompareCalculator() {
   const query = writeShare({ a: amountN, y: yearsN, r: a, t: b, f: lump ? 1 : 0 });
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
-      <div className={`space-y-5 ${CARD}`} data-print-hide>
+    <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
+      <div className={`min-w-0 space-y-5 ${CARD}`} data-print-hide>
         <Segmented
           legend="How are you saving?"
           hideLegend
@@ -230,20 +230,20 @@ export function CompareCalculator() {
           onChange={pickMode}
         />
         {lump ? (
-          <SliderField id="cmp-amount" label="Amount you put in" value={amount} onChange={setAmount} min={10000} max={5000000} step={10000} prefix="₹" minLabel="₹10,000" maxLabel="₹50,00,000" group />
+          <SliderField id="cmp-amount" label="Amount you put in" value={amount} onChange={setAmount} min={10000} max={5000000} step={10000} prefix="₹" minLabel="₹10,000" maxLabel="₹50,00,000" group info="What you save: every month in Every month mode, or once in One lump sum mode." />
         ) : (
-          <SliderField id="cmp-amount" label="Amount every month" value={amount} onChange={setAmount} min={500} max={100000} step={500} prefix="₹" minLabel="₹500" maxLabel="₹1,00,000" group />
+          <SliderField id="cmp-amount" label="Amount every month" value={amount} onChange={setAmount} min={500} max={100000} step={500} prefix="₹" minLabel="₹500" maxLabel="₹1,00,000" group info="What you save: every month in Every month mode, or once in One lump sum mode." />
         )}
-        <SliderField id="cmp-years" label="Time period" value={years} onChange={setYears} min={1} max={30} step={1} suffix="yrs" minLabel="1 year" maxLabel="30 years" />
-        <SliderField id="cmp-rate-a" label={lump ? 'Market-linked return (assumed)' : 'SIP return (assumed)'} value={rateA} onChange={setRateA} min={1} max={30} step={0.5} suffix="%" minLabel="1%" maxLabel="30%" />
-        <SliderField id="cmp-rate-b" label={lump ? 'Fixed deposit rate' : 'Recurring deposit rate'} value={rateB} onChange={setRateB} min={1} max={12} step={0.1} suffix="%" minLabel="1%" maxLabel="12%" />
+        <SliderField id="cmp-years" label="Time period" value={years} onChange={setYears} min={1} max={30} step={1} suffix="yrs" minLabel="1 year" maxLabel="30 years" info="How long you keep saving. Both options are compared over the same time." />
+        <SliderField id="cmp-rate-a" label={lump ? 'Market-linked return (assumed)' : 'SIP return (assumed)'} value={rateA} onChange={setRateA} min={1} max={30} step={0.5} suffix="%" minLabel="1%" maxLabel="30%" info="The yearly growth you assume for a market-linked investment such as an equity mutual fund. It is a guess, not a promise: the market can give less, or even a loss." />
+        <SliderField id="cmp-rate-b" label={lump ? 'Fixed deposit rate' : 'Recurring deposit rate'} value={rateB} onChange={setRateB} min={1} max={12} step={0.1} suffix="%" minLabel="1%" maxLabel="12%" info="The yearly interest a bank offers on a fixed or recurring deposit. It is fixed when you open the deposit, so this part is not a guess." />
         {filled && !first && (
           <p role="status" className="text-sm font-medium text-danger-700" data-testid="calc-error">
             Check the numbers: amount up to ₹100 crore, whole years up to 30, market-linked return 0–25%, deposit rate 0–25%.
           </p>
         )}
       </div>
-      <div className={`space-y-5 ${CARD}`}>
+      <div className={`min-w-0 space-y-5 ${CARD}`}>
         <Answer label={hi ? `${hi.name} ends higher by` : 'Difference'} value={first && second ? formatRupees(gap) : null} copy={summary} />
         {first && second && (
           <>

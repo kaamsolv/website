@@ -980,3 +980,7 @@ Approved 2026-11-04. Every new tool that takes numbers must:
 # 48. Value-Add Suggestions (every tool)
 
 Approved 2026-11-04. At kickoff (§46) and again before any tool is committed, propose a short ranked list (about 3 to 7) of ways to make the tool more useful, not just correct: the follow-up question users ask next (reverse/goal mode), plain-language context (e.g. inflation, tax), side-by-side comparison, a result-carrying share link, print/PDF, "what if" nudges. For each give the benefit and size; say what to leave out; recommend a subset; and show the design before building (§47). Never add sign-up, ads or advice to the core flow for the sake of a suggestion.
+
+# 49. Explain Every Input, Test on a Real Phone Width
+
+Approved 2026-11-04. Every input that a non-expert might not understand (rates, assumptions, tax, compounding, "market-linked") gets a small "i" (`useInfo` / `SliderField info`) with a plain-words note: what it is, why it matters, no advice, no jargon. Before calling a tool UI done, test at 360px and 320px with every view open (tables, charts, open notes), not only the default view and 375px.

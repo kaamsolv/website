@@ -5,7 +5,8 @@ import { Answer, CARD, Row } from './everyday-calculators';
 import { GrowthChart, shortRupees } from './growth-chart';
 import { SliderField } from './slider-field';
 import { Chips } from '../choice';
-import { ModeToggle, Nudges, ResultActions, TaxField, TodayMoneyField, useSharedValues, type CalcMode, type Nudge } from './result-extras';
+import { InfoHeading } from './info-tip';
+import { HELP, ModeToggle, Nudges, ResultActions, TaxField, TodayMoneyField, useSharedValues, type CalcMode, type Nudge } from './result-extras';
 import {
   afterTax,
   COMPOUNDING_LABELS,
@@ -32,6 +33,21 @@ function count(text: string): number {
 
 const LIMIT_TEXT = `up to ₹100 crore, up to ${INTEREST_LIMITS.maxYears} years`;
 const fmt = (n: number) => n.toLocaleString('en-IN');
+
+const INFO_FD = {
+  amount: "The lump sum you put into the fixed deposit on day one.",
+  goal: "The amount you want to get when the deposit matures. The calculator works backwards to tell you how much to deposit today.",
+  rate: "The yearly interest your bank promises, as shown on its FD rate card. Rates differ by bank, period and age, so check yours.",
+  years: "How long the money stays in the deposit before it matures. Add months below if it is not a whole number of years.",
+  months: "Extra months on top of the years.",
+} as const;
+const INFO_CI = {
+  amount: "The amount you start with. It earns interest, and the interest then earns interest too.",
+  goal: "The amount you want to have at the end. The calculator works backwards to tell you what to start with today.",
+  rate: "The yearly interest rate. A higher rate or a longer time makes the amount grow faster and faster.",
+  years: "How long the money stays invested. Add months below if it is not a whole number of years.",
+  months: "Extra months on top of the years.",
+} as const;
 const GOAL_SLIDER = { min: 100000, max: 50000000, step: 100000, minLabel: '₹1 lakh', maxLabel: '₹5 crore' } as const;
 
 /** Invested vs earned, as a bar plus a legend (colour is never the only cue: the numbers sit beside it). */
@@ -97,26 +113,26 @@ function nudge(text: (diff: string) => string, base: number | null, better: numb
  */
 function Frame({ inputs, results, stickyLabel, stickyValue }: { inputs: React.ReactNode; results: React.ReactNode; stickyLabel: string; stickyValue: string | null }) {
   return (
-    <div className="mx-auto grid max-w-5xl gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
-      <div className={`space-y-5 ${CARD}`} data-print-hide>
+    <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
+      <div className={`min-w-0 space-y-5 ${CARD}`} data-print-hide>
         <div className="sticky top-16 z-10 -mx-5 -mt-5 mb-1 flex items-baseline justify-between gap-3 rounded-t-xl2 border-b border-hair bg-surface px-5 py-2.5 sm:-mx-6 sm:-mt-6 sm:px-6 lg:hidden" aria-hidden="true">
           <span className="text-xs text-muted">{stickyLabel}</span>
           <span className="font-display text-lg font-extrabold text-ink">{stickyValue ?? '—'}</span>
         </div>
         {inputs}
       </div>
-      <div className={`space-y-5 ${CARD}`}>{results}</div>
+      <div className={`min-w-0 space-y-5 ${CARD}`}>{results}</div>
     </div>
   );
 }
 
 /** Years and months sliders. */
-function Tenure({ idPrefix, years, months, setYears, setMonths, maxYears = 30, label = 'Time period' }: { idPrefix: string; years: string; months: string; setYears: (v: string) => void; setMonths: (v: string) => void; maxYears?: number; label?: string }) {
+function Tenure({ idPrefix, years, months, setYears, setMonths, maxYears = 30, label = 'Time period', yearsInfo, monthsInfo }: { idPrefix: string; years: string; months: string; setYears: (v: string) => void; setMonths: (v: string) => void; maxYears?: number; label?: string; yearsInfo?: string; monthsInfo?: string }) {
   return (
     <fieldset className="space-y-5">
       <legend className="sr-only">{label}</legend>
-      <SliderField id={`${idPrefix}-years`} label={`${label}: years`} value={years} onChange={setYears} min={0} max={maxYears} step={1} suffix="yrs" minLabel="0" maxLabel={`${maxYears} years`} />
-      <SliderField id={`${idPrefix}-months`} label={`${label}: months`} value={months} onChange={setMonths} min={0} max={11} step={1} suffix="mo" minLabel="0" maxLabel="11 months" />
+      <SliderField id={`${idPrefix}-years`} label={`${label}: years`} value={years} onChange={setYears} min={0} max={maxYears} step={1} suffix="yrs" minLabel="0" maxLabel={`${maxYears} years`} info={yearsInfo} />
+      <SliderField id={`${idPrefix}-months`} label={`${label}: months`} value={months} onChange={setMonths} min={0} max={11} step={1} suffix="mo" minLabel="0" maxLabel="11 months" info={monthsInfo} />
     </fieldset>
   );
 }
@@ -193,13 +209,13 @@ export function SipCalculator() {
         <>
           <ModeToggle mode={mode} onChange={setMode} />
           {isGoal ? (
-            <SliderField id="sip-goal" label="Amount you want" value={goal} onChange={setGoal} {...GOAL_SLIDER} prefix="₹" group />
+            <SliderField id="sip-goal" label="Amount you want" value={goal} onChange={setGoal} {...GOAL_SLIDER} prefix="₹" group info="The amount you want to have at the end. The calculator works backwards to tell you how much to invest every month." />
           ) : (
-            <SliderField id="sip-amount" label="Monthly investment" value={amount} onChange={setAmount} min={500} max={100000} step={500} prefix="₹" minLabel="₹500" maxLabel="₹1,00,000" group />
+            <SliderField id="sip-amount" label="Monthly investment" value={amount} onChange={setAmount} min={500} max={100000} step={500} prefix="₹" minLabel="₹500" maxLabel="₹1,00,000" group info="The fixed amount you put in every month, like an instalment. You can change it any time in real life; here it stays the same (or grows if you add a step-up)." />
           )}
-          <SliderField id="sip-rate" label="Expected return (yearly)" value={rate} onChange={setRate} min={1} max={30} step={0.5} suffix="%" minLabel="1%" maxLabel="30%" />
-          <SliderField id="sip-years" label={isGoal ? 'Years to get there' : 'Time period'} value={years} onChange={setYears} min={1} max={40} step={1} suffix="yrs" minLabel="1 year" maxLabel="40 years" />
-          <SliderField id="sip-step" label="Yearly step-up (optional)" value={stepUp} onChange={setStepUp} min={0} max={25} step={1} suffix="%" minLabel="None" maxLabel="25%" />
+          <SliderField id="sip-rate" label="Expected return (yearly)" value={rate} onChange={setRate} min={1} max={30} step={0.5} suffix="%" minLabel="1%" maxLabel="30%" info="The yearly growth you assume your money will earn. It is a guess, not a promise: markets go up and down, and real returns can be lower or even negative. Try a few numbers to see the range." />
+          <SliderField id="sip-years" label={isGoal ? 'Years to get there' : 'Time period'} value={years} onChange={setYears} min={1} max={40} step={1} suffix="yrs" minLabel="1 year" maxLabel="40 years" info="How long you keep investing. Time matters a lot: the longer you stay, the more your earlier money grows on its own." />
+          <SliderField id="sip-step" label="Yearly step-up (optional)" value={stepUp} onChange={setStepUp} min={0} max={25} step={1} suffix="%" minLabel="None" maxLabel="25%" info="Raise your monthly amount by this much every year, for example as your salary grows. At 10%, ₹5,000 becomes ₹5,500 in year two, then ₹6,050." />
           <TodayMoneyField id="sip" on={todayOn} onToggle={setTodayOn} rate={infl} onRate={setInfl} />
           {filled && !r && (
             <Problem>
@@ -341,13 +357,16 @@ function GrowthCalculator({ kind }: { kind: 'fd' | 'compound' }) {
         <>
           <ModeToggle mode={mode} onChange={setMode} />
           {isGoal ? (
-            <SliderField id={`${id}-goal`} label="Amount you want" value={goal} onChange={setGoal} {...GOAL_SLIDER} prefix="₹" group />
+            <SliderField id={`${id}-goal`} label="Amount you want" value={goal} onChange={setGoal} {...GOAL_SLIDER} prefix="₹" group info={fd ? INFO_FD['goal'] : INFO_CI['goal']} />
           ) : (
-            <SliderField id={`${id}-amount`} label={fd ? 'Deposit amount' : 'Amount you start with'} value={amount} onChange={setAmount} min={10000} max={5000000} step={10000} prefix="₹" minLabel="₹10,000" maxLabel="₹50,00,000" group />
+            <SliderField id={`${id}-amount`} label={fd ? 'Deposit amount' : 'Amount you start with'} value={amount} onChange={setAmount} min={10000} max={5000000} step={10000} prefix="₹" minLabel="₹10,000" maxLabel="₹50,00,000" group info={fd ? INFO_FD['amount'] : INFO_CI['amount']} />
           )}
-          <SliderField id={`${id}-rate`} label="Interest rate (yearly)" value={rate} onChange={setRate} min={1} max={fd ? 12 : 25} step={fd ? 0.1 : 0.5} suffix="%" minLabel="1%" maxLabel={fd ? '12%' : '25%'} />
-          <Tenure idPrefix={id} years={years} months={monthsBox} setYears={setYears} setMonths={setMonthsBox} label={isGoal ? 'Time to get there' : fd ? 'Deposit period' : 'Time period'} />
-          <Chips legend="Interest is added" options={choices.map((f) => ({ value: f, label: COMPOUNDING_LABELS[f] }))} value={freq} onChange={setFreq} />
+          <SliderField id={`${id}-rate`} label="Interest rate (yearly)" value={rate} onChange={setRate} min={1} max={fd ? 12 : 25} step={fd ? 0.1 : 0.5} suffix="%" minLabel="1%" maxLabel={fd ? '12%' : '25%'} info={fd ? INFO_FD['rate'] : INFO_CI['rate']} />
+          <Tenure idPrefix={id} years={years} months={monthsBox} setYears={setYears} setMonths={setMonthsBox} label={isGoal ? 'Time to get there' : fd ? 'Deposit period' : 'Time period'} yearsInfo={fd ? INFO_FD.years : INFO_CI.years} monthsInfo={INFO_FD.months} />
+          <div className="space-y-2">
+            <InfoHeading info={HELP.compounding}>Interest is added</InfoHeading>
+            <Chips legend="Interest is added" hideLegend options={choices.map((f) => ({ value: f, label: COMPOUNDING_LABELS[f] }))} value={freq} onChange={setFreq} />
+          </div>
           {fd && <TaxField tax={tax} onChange={setTax} />}
           <TodayMoneyField id={id} on={todayOn} onToggle={setTodayOn} rate={infl} onRate={setInfl} />
           {filled && !r && (
@@ -478,12 +497,12 @@ export function RdCalculator() {
         <>
           <ModeToggle mode={mode} onChange={setMode} />
           {isGoal ? (
-            <SliderField id="rd-goal" label="Amount you want" value={goal} onChange={setGoal} {...GOAL_SLIDER} prefix="₹" group />
+            <SliderField id="rd-goal" label="Amount you want" value={goal} onChange={setGoal} {...GOAL_SLIDER} prefix="₹" group info="The amount you want to get when the RD matures. The calculator works backwards to tell you how much to deposit every month." />
           ) : (
-            <SliderField id="rd-amount" label="Monthly deposit" value={amount} onChange={setAmount} min={500} max={100000} step={500} prefix="₹" minLabel="₹500" maxLabel="₹1,00,000" group />
+            <SliderField id="rd-amount" label="Monthly deposit" value={amount} onChange={setAmount} min={500} max={100000} step={500} prefix="₹" minLabel="₹500" maxLabel="₹1,00,000" group info="The fixed amount you deposit every month in the recurring deposit." />
           )}
-          <SliderField id="rd-rate" label="Interest rate (yearly)" value={rate} onChange={setRate} min={1} max={12} step={0.1} suffix="%" minLabel="1%" maxLabel="12%" />
-          <Tenure idPrefix="rd" years={years} months={monthsBox} setYears={setYears} setMonths={setMonthsBox} label={isGoal ? 'Time to get there' : 'Deposit period'} />
+          <SliderField id="rd-rate" label="Interest rate (yearly)" value={rate} onChange={setRate} min={1} max={12} step={0.1} suffix="%" minLabel="1%" maxLabel="12%" info="The yearly interest your bank offers on a recurring deposit. It is fixed when you open the RD, so check your bank's rate." />
+          <Tenure idPrefix="rd" years={years} months={monthsBox} setYears={setYears} setMonths={setMonthsBox} label={isGoal ? 'Time to get there' : 'Deposit period'} yearsInfo="How long you will keep depositing every month. The RD matures at the end." monthsInfo="Extra months on top of the years." />
           <TaxField tax={tax} onChange={setTax} />
           <TodayMoneyField id="rd" on={todayOn} onToggle={setTodayOn} rate={infl} onRate={setInfl} />
           {filled && !r && (
@@ -577,11 +596,11 @@ export function SimpleInterestCalculator() {
       stickyValue={r ? shortRupees(r.interest) : null}
       inputs={
         <>
-          <SliderField id="si-amount" label="Principal (amount)" value={amount} onChange={setAmount} min={10000} max={5000000} step={10000} prefix="₹" minLabel="₹10,000" maxLabel="₹50,00,000" group />
-          <SliderField id="si-rate" label="Interest rate (yearly)" value={rate} onChange={setRate} min={1} max={25} step={0.5} suffix="%" minLabel="1%" maxLabel="25%" />
-          <SliderField id="si-years" label="Time period: years" value={years} onChange={setYears} min={0} max={30} step={1} suffix="yrs" minLabel="0" maxLabel="30 years" />
-          <SliderField id="si-months" label="Time period: months" value={monthsBox} onChange={setMonthsBox} min={0} max={11} step={1} suffix="mo" minLabel="0" maxLabel="11 months" />
-          <SliderField id="si-days" label="Time period: days" value={days} onChange={setDays} min={0} max={30} step={1} suffix="days" minLabel="0" maxLabel="30 days" />
+          <SliderField id="si-amount" label="Principal (amount)" value={amount} onChange={setAmount} min={10000} max={5000000} step={10000} prefix="₹" minLabel="₹10,000" maxLabel="₹50,00,000" group info="The money you lend or deposit. Simple interest is worked out on this amount only, and the interest is never added back." />
+          <SliderField id="si-rate" label="Interest rate (yearly)" value={rate} onChange={setRate} min={1} max={25} step={0.5} suffix="%" minLabel="1%" maxLabel="25%" info="The interest charged or paid for each year, as a percentage of the amount." />
+          <SliderField id="si-years" label="Time period: years" value={years} onChange={setYears} min={0} max={30} step={1} suffix="yrs" minLabel="0" maxLabel="30 years" info="Whole years in the time period." />
+          <SliderField id="si-months" label="Time period: months" value={monthsBox} onChange={setMonthsBox} min={0} max={11} step={1} suffix="mo" minLabel="0" maxLabel="11 months" info="Extra months. Each month counts as one twelfth of a year." />
+          <SliderField id="si-days" label="Time period: days" value={days} onChange={setDays} min={0} max={30} step={1} suffix="days" minLabel="0" maxLabel="30 days" info="Extra days. Each day counts as 1/365 of a year." />
           {filled && !r && <Problem>Check the numbers: amount {LIMIT_TEXT}, rate 0–{INTEREST_LIMITS.maxRate}% a year, and a time period of at least a day, in whole numbers.</Problem>}
         </>
       }
