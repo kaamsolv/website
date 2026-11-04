@@ -773,3 +773,49 @@ Login for the free tier · collecting payments from the user's clients (we recor
 what they received; we never take or move money) · GST
 filing-level compliance (GSTIN, HSN/SAC, e-invoicing/IRN) · multi-page in free ·
 team seats · upsell clutter inside the free tool.
+
+## Payment reminders and promises (Invoice Pro, 2026-11-04, on `feature/invoice-pro-completion`)
+
+- **Reminders** (`invoice_reminders` entitlement, Pro): an email to the customer for the balance still owed. Manual from the invoice page (confirmation first, optional own line) and scheduled (off by default; 1–4 days after the due date; Payments & collections). Code: `app/lib/invoice/reminders.ts` (rules, email), `db/reminders.ts`, `app/lib/notify/reminder-job.ts`, API `app/lib/billing/api/reminders.ts`.
+- **Eligibility** uses `paymentSummary`: only invoices with a balance; never paid, legacy marked-paid, quotations, no/bad email. Invoices have no void state. Re-checked at send time (plan, balance, email, pause, promise).
+- **No duplicates:** one manual reminder per invoice per India day, one scheduled send per invoice per step; the reminder row and outbox job share a dedupe key, and the provider gets it as an idempotency key. Limit 25 queued per account per India day. Scheduled steps run on the day or up to 2 days late, then are skipped.
+- **Replies** go to the owner's account email (`reply_to`); sender is `reminders@send.kaamsolv.com` (domain already verified for the other senders; the mailbox needs no setup for sending).
+- **Promises** (`invoice_dashboard`, Pro): a note beside the ledger (`invoice_followups`), never a balance. Shown as upcoming / missed / paid since; a promised date holds scheduled reminders back until it passes. Migration `0014`.
+- Not done yet: customer unsubscribe link, delivery webhooks (bounces), Milestones C–G.
+
+## Automatic recurring invoices (Invoice Pro, on `feature/invoice-pro-completion`)
+
+- **Model:** the schedule is unchanged (`invoices.recur_every` / `recur_next`, the "Due to repeat" prompt still works). Migration `0015` adds `recurring_automation` (on/paused, optional end date and invoice count, runs done, ended) and `recurring_runs` (one row per period, unique on invoice + due date).
+- **Run:** the existing 15-minute cron (`/api/billing/drain`) queues what is due (`enqueueDueRecurring`, one statement), then `app/lib/notify/recurring-job.ts` re-checks everything, claims the period, and calls the same `recurInvoice` as the Create button (same numbering, days-to-pay, plan limit, one compare-and-set to move the schedule on).
+- **Dates** are India calendar dates. A missed run makes one invoice and moves to the next future date. Month ends clamp (31 Jan → 28/29 Feb).
+- **Safety:** a period is made once (unique run row + schedule compare-and-set). A run that dies mid-way shows as "interrupted" and is never retried blindly. A plan-limit failure is shown and leaves the schedule due for the manual prompt.
+- **Never emailed:** generated invoices are plain copies. Automatic emailing was deliberately not built.
+- UI: "Repeat this invoice" card on the invoice page (schedule, confirm before turning on, pause/resume, stop after a date or count, run history). API: `/api/invoices/<id>/automation`. Tests: `test/recurring-auto.test.mts`, `tests/e2e/recurring-auto.spec.ts`.
+
+## Accountant Connect: the monthly accountant pack (Invoice Pro, on `feature/invoice-pro-completion`)
+
+- **What it is:** an accountant *handover* of the sales invoices and payments recorded in KaamSolv for the last completed calendar month (India dates). Not a GST return; it holds no purchase bills, input tax credit, credit/debit notes or e-invoice data, and says so in the page, the email and the README inside the ZIP (`PACK_COVERAGE`).
+- **Gate:** `invoice_csv_export` (same as Reports & exports). No new entitlement key, no price change.
+- **Settings** (`/app/invoices/accountant`): accountant name and email, day 1–28 and hour (India time, `Asia/Kolkata`), sections (register with CGST/SGST/IGST, tax summary, payments, outstanding, ageing), on/off. Migration `0016`: `accountant_settings`, `accountant_packs`.
+- **Confirmation:** nothing is sent to an address until its owner confirms it (one-time link, 48 h, hash only; the page changes nothing on open, the button does). Changing the address clears confirmation, turns sending off and ends links already sent.
+- **Delivery:** the existing cron queues last month's pack on/after the chosen day and hour (one per account per month; a missed run is made up later that month). `app/lib/notify/accountant-job.ts` re-checks (still on, confirmed, Pro, month not empty), then emails a link, never an attachment. Sender `reports@send.kaamsolv.com`, replies to the owner. Retries/back-off/"Try again" use the outbox, as for reminders.
+- **The link:** `/api/accountant/download?t=…`, 7 days, rate-limited, revocable ("End download links"), counts downloads. It is a bearer link for the accountant, who has no account: that is by design until accountant sign-in exists (Milestone E).
+- **The ZIP is never stored.** It is built from the live records when opened (`db/accountant-pack.ts`), so no report content sits at rest and no storage service is needed. Bounded for a Worker: ≤2 currencies; ≤2,000 register/outstanding rows and ≤5,000 payments per file, over which that file is replaced by a note to export in parts from Reports. Outstanding and ageing are "as of the day it is opened".
+- **Safe test:** owner-only preview (file names and row counts) and a test ZIP download; neither emails anyone.
+- **Not done:** per-month re-send of an already sent pack, accountant sign-in and read-only access (E), delivery receipts/bounces.
+
+## Accountant read-only access (Invoice Pro, on `feature/invoice-pro-completion`)
+
+- **Model:** the accountant is an ordinary KaamSolv account (Google or email-link sign-in) whose **verified email matches the invitation**. Migration `0017`: `accountant_access` (invitation and grant, one row per owner + email) and `accountant_access_events` (activity). No new auth system, no shared password, no permanent link to the whole account.
+- **Invite:** owner (Pro) enters name + email in Accountant Connect → email with `/accountant/accept/<token>` (7 days, one use, hash only; a newer invitation replaces the older link). The page changes nothing on open; the signed-in invited address presses Accept. A different signed-in address is refused and does not use the link up; an unverified account is refused. Up to 5 accountants per owner; an address that already has access can't be re-invited.
+- **What they can see** (`/accountant/clients/<owner>`): invoices and payments by month and currency (same queries as Reports), customers as name, GSTIN and state only (never email, phone or address), and the monthly pack ZIP. **Nothing else, and no write of any kind.** There is no accountant write endpoint; every owner route acts only on the signed-in person's own data, so an accountant session gets 404 on the owner's invoices, payments, reminders, links and settings (tested).
+- **Server-side authorization:** every read calls `grantFor` (`db/accountant-access.ts`) first: signed in, an *active* grant for exactly that owner. "No such business", "no access", "ended" and "not yours" are the same 404. The owner must still have Pro (403 otherwise). Revoking, or the accountant's account being deleted, answers no on the next request.
+- **Log:** invited / accepted / revoked / opened (once per view per hour) / downloaded, labels only (a view name or month): no content, name or address. Shown to the owner as "Recent activity".
+- **Rate limits:** invitations 10/h per owner, accept 20/h per person, reads 600/h per person.
+- Not built: per-section permissions (all three views come together), accountant-side notifications, a time limit on active access.
+
+## Pro packaging and stop actions (Invoice Pro completion, milestone F)
+
+Plan keys are unchanged: reminders use `invoice_reminders`; promises use `invoice_dashboard`; automatic recurring uses `invoice_recurring`; Accountant Connect and accountant access use `invoice_csv_export`. Only the `invoice_pro` plan grants them (QR Pro does not). Access is computed on every request from active, in-period subscriptions, so cancelled, halted or expired rows grant nothing (`test/pro-lifecycle.test.mts`).
+
+Rule: **starting** something needs Pro; **stopping** it never does. A lapsed account can still turn off scheduled reminders, pause reminders, clear a promise, turn off the monthly pack, end download links and end an accountant's access. The emailed pack link re-checks the owner's plan on each download. Jobs re-check the plan at send time. `/app/invoices/accountant` no longer redirects free accounts; it explains Pro (with a See Pro link) and leaves the stop controls reachable. Server checks: `tests/e2e/pro-gates.spec.ts`. Phone widths (360, 320, light and dark): `tests/e2e/pro-polish.spec.ts`.

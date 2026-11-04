@@ -26,6 +26,8 @@ export const ENTITLEMENT_KEYS = [
   'invoice_item_catalogue',
   /** Dashboard + paid/unpaid tracking (Pro). */
   'invoice_dashboard',
+  /** Email payment reminders to customers, manual and scheduled (Pro). */
+  'invoice_reminders',
   /** Currency reference rates on invoices (Pro, Stage 2C). */
   'invoice_fx_rates',
   /** Record payments against invoices and see each invoice's payment history (every account). */

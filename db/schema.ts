@@ -476,6 +476,263 @@ export const notificationPrefs = pgTable(
   (table) => [check('notification_prefs_cadence', sql`${table.summaryCadence} in ('off', 'weekly', 'monthly')`)],
 );
 
+/**
+ * Collections follow-up for one invoice (migration 0014): the owner's own notes about chasing it. Holds the
+ * "promised to pay on" date and note, and whether scheduled reminders are paused for it. It never holds a balance
+ * or a status: those stay with the payment ledger (`invoices.amount_paid`), so this table can't disagree with it.
+ */
+export const invoiceFollowups = pgTable(
+  'invoice_followups',
+  {
+    invoiceId: uuid('invoice_id')
+      .primaryKey()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    remindersPaused: boolean('reminders_paused').notNull().default(false),
+    promisedOn: date('promised_on'),
+    promiseNote: text('promise_note').notNull().default(''),
+    promiseSetAt: timestamp('promise_set_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('invoice_followups_user_promised_idx').on(table.userId, table.promisedOn).where(sql`${table.promisedOn} is not null`),
+    check('invoice_followups_note_len', sql`char_length(${table.promiseNote}) <= 200`),
+  ],
+);
+
+/**
+ * Scheduled customer reminders, per account (migration 0014). Off until the owner turns it on. `days_after_due` are
+ * the days past the due date on which a reminder goes out (1 to 4 of them).
+ */
+export const reminderPrefs = pgTable(
+  'reminder_prefs',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    scheduledEnabled: boolean('scheduled_enabled').notNull().default(false),
+    daysAfterDue: integer('days_after_due').array().notNull().default(sql`'{3,7,14}'::integer[]`),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('reminder_prefs_days', sql`cardinality(${table.daysAfterDue}) between 1 and 4`)],
+);
+
+/**
+ * One row per customer reminder asked for (manual or scheduled). `dedupe_key` is also the outbox job's key, so a
+ * repeated click or an overlapping scheduled run can't make a second one. Holds no address and no message text.
+ * `status`: queued → sent, or skipped (with the reason: the invoice was paid, the customer has no email…).
+ * Failed attempts and retries are read from the outbox row with the same key.
+ */
+export const invoiceReminders = pgTable(
+  'invoice_reminders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    /** For a scheduled reminder, the days-after-due step it belongs to. */
+    step: integer('step'),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    status: text('status').notNull().default('queued'),
+    reason: text('reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('invoice_reminders_invoice_idx').on(table.invoiceId, table.createdAt),
+    index('invoice_reminders_user_created_idx').on(table.userId, table.createdAt),
+    check('invoice_reminders_kind', sql`${table.kind} in ('manual', 'scheduled')`),
+    check('invoice_reminders_status', sql`${table.status} in ('queued', 'sent', 'skipped')`),
+  ],
+);
+
+/**
+ * Automatic creation for a recurring invoice (migration 0015). The invoice that repeats keeps its schedule in
+ * `invoices.recur_every` / `recur_next` (unchanged, still driving the "Due to repeat" prompt); this row says whether
+ * the next copy is made by the schedule instead of a click, and when to stop. Dates are India calendar dates.
+ * A generated invoice is never emailed or shared automatically.
+ */
+export const recurringAutomation = pgTable(
+  'recurring_automation',
+  {
+    invoiceId: uuid('invoice_id')
+      .primaryKey()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    autoCreate: boolean('auto_create').notNull().default(false),
+    paused: boolean('paused').notNull().default(false),
+    /** Last day an invoice may be made (inclusive); null = no end date. */
+    endsOn: date('ends_on'),
+    /** Stop after this many automatic invoices; null = no limit. */
+    maxRuns: integer('max_runs'),
+    runsDone: integer('runs_done').notNull().default(0),
+    /** Set when the schedule finished by itself (end date or run count reached). */
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('recurring_automation_active_idx').on(table.autoCreate).where(sql`${table.autoCreate} and not ${table.paused} and ${table.endedAt} is null`),
+    check('recurring_automation_max_runs', sql`${table.maxRuns} is null or ${table.maxRuns} between 1 and 500`),
+  ],
+);
+
+/**
+ * What each automatic run did. `(invoice_id, due_on)` is unique, so a retried job or two overlapping cron runs can
+ * never make the same period's invoice twice. `started` that never finished is shown as failed ("interrupted"): the
+ * schedule is not retried blindly, because the copy may already exist.
+ */
+export const recurringRuns = pgTable(
+  'recurring_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    dueOn: date('due_on').notNull(),
+    createdInvoiceId: uuid('created_invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('started'),
+    reason: text('reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('recurring_runs_invoice_due_idx').on(table.invoiceId, table.dueOn),
+    index('recurring_runs_user_idx').on(table.userId, table.createdAt),
+    check('recurring_runs_status', sql`${table.status} in ('started', 'created', 'skipped', 'failed')`),
+  ],
+);
+
+/**
+ * Accountant Connect (migration 0016): where the monthly accountant pack goes and when. One row per account. The
+ * address must be confirmed by its owner (a one-time link, only a hash kept) before anything is sent to it.
+ * Changing the address clears the confirmation and ends any pack links already sent.
+ */
+export const accountantSettings = pgTable(
+  'accountant_settings',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    accountantName: text('accountant_name').notNull().default(''),
+    accountantEmail: text('accountant_email').notNull().default(''),
+    enabled: boolean('enabled').notNull().default(false),
+    /** Day of the month (1 to 28) and hour (India time) from which the previous month's pack is sent. */
+    dayOfMonth: integer('day_of_month').notNull().default(5),
+    sendHour: integer('send_hour').notNull().default(10),
+    timezone: text('timezone').notNull().default('Asia/Kolkata'),
+    sections: text('sections').array().notNull().default(sql`'{register,tax_summary,payments,outstanding,ageing}'::text[]`),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    verifyHash: text('verify_hash'),
+    verifyExpiresAt: timestamp('verify_expires_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accountant_settings_due_idx').on(table.enabled).where(sql`${table.enabled} and ${table.verifiedAt} is not null`),
+    check('accountant_settings_day', sql`${table.dayOfMonth} between 1 and 28`),
+    check('accountant_settings_hour', sql`${table.sendHour} between 0 and 23`),
+    check('accountant_settings_name_len', sql`char_length(${table.accountantName}) <= 80`),
+  ],
+);
+
+/**
+ * One delivery of the accountant pack for one month. `dedupe_key` (account + month) is also the outbox job's key, so
+ * the same month can never be queued twice. The download link is a token whose hash is kept here; it expires and can
+ * be ended. The ZIP itself is never stored: it is built from the live records when the link is opened. Holds no
+ * report content and no address.
+ */
+export const accountantPacks = pgTable(
+  'accountant_packs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    period: text('period').notNull(),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    status: text('status').notNull().default('queued'),
+    reason: text('reason').notNull().default(''),
+    tokenHash: text('token_hash'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    downloadCount: integer('download_count').notNull().default(0),
+    lastDownloadedAt: timestamp('last_downloaded_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accountant_packs_user_idx').on(table.userId, table.createdAt),
+    uniqueIndex('accountant_packs_token_idx').on(table.tokenHash).where(sql`${table.tokenHash} is not null`),
+    check('accountant_packs_status', sql`${table.status} in ('queued', 'sent', 'skipped')`),
+  ],
+);
+
+/**
+ * A named accountant's read-only access to one owner's books (migration 0017). The owner invites an email address; the
+ * invited person signs in as that verified address and accepts (a one-time link, only a hash kept). Access is one
+ * `owner_id` and the approved views only, enforced on the server for every read; revoking ends it at once. The
+ * accountant's own account is an ordinary account with no rights over anyone else's data.
+ */
+export const accountantAccess = pgTable(
+  'accountant_access',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    name: text('name').notNull().default(''),
+    status: text('status').notNull().default('invited'),
+    inviteHash: text('invite_hash'),
+    inviteExpiresAt: timestamp('invite_expires_at', { withTimezone: true }),
+    accountantUserId: uuid('accountant_user_id').references(() => authUsers.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('accountant_access_owner_email_idx').on(table.ownerId, table.email),
+    uniqueIndex('accountant_access_invite_idx').on(table.inviteHash).where(sql`${table.inviteHash} is not null`),
+    index('accountant_access_user_idx').on(table.accountantUserId).where(sql`${table.status} = 'active'`),
+    check('accountant_access_status', sql`${table.status} in ('invited', 'active', 'revoked')`),
+    check('accountant_access_name_len', sql`char_length(${table.name}) <= 80`),
+  ],
+);
+
+/**
+ * What happened to an accountant's access: invited, accepted, revoked, and what they opened or downloaded. `detail` is
+ * a short label (a view name or a month), never report content, a name or an address.
+ */
+export const accountantAccessEvents = pgTable(
+  'accountant_access_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    accessId: uuid('access_id')
+      .notNull()
+      .references(() => accountantAccess.id, { onDelete: 'cascade' }),
+    action: text('action').notNull(),
+    detail: text('detail').notNull().default(''),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accountant_access_events_owner_idx').on(table.ownerId, table.at.desc()),
+    check('accountant_access_events_action', sql`${table.action} in ('invited', 'accepted', 'revoked', 'viewed', 'downloaded')`),
+    check('accountant_access_events_detail_len', sql`char_length(${table.detail}) <= 60`),
+  ],
+);
+
 /** Max stored logo: a data URL, already downscaled in the browser (≈ 200 KB of image). */
 export const LOGO_MAX_STORED_CHARS = 280_000;
 

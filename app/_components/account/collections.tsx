@@ -1,5 +1,6 @@
 'use client';
 
+import { PromisesCard, ReminderSettingsCard } from './follow-up-cards';
 import { ReceivablesCard } from './receivables-card';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from './account-shell';
@@ -124,6 +125,8 @@ export function Collections() {
   return (
     <div className="space-y-8" aria-busy={loading}>
       <ReceivablesCard today={today} currency={chosenCurrency ?? data.currency} />
+      <PromisesCard />
+      <ReminderSettingsCard />
 
       {/* Filters */}
       <section aria-label="Filters" className="flex flex-wrap items-end gap-4">

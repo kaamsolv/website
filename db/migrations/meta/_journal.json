@@ -99,6 +99,34 @@
       "when": 1793109561503,
       "tag": "0013_notification_prefs",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793793677420,
+      "tag": "0014_reminders_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793794980573,
+      "tag": "0015_recurring_automation",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793795782138,
+      "tag": "0016_accountant_connect",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793797007302,
+      "tag": "0017_accountant_access",
+      "breakpoints": true
     }
   ]
 }

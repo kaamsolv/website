@@ -83,7 +83,7 @@ test('plans: customers free up to 3, items free, dashboard and currency rates Pr
   assert.equal(pro.can('invoice_dashboard'), true);
   assert.equal(pro.can('invoice_fx_rates'), true);
   const proKeys = (await db.select().from(planFeatures).where(eq(planFeatures.planKey, 'invoice_pro'))).length;
-  assert.equal(proKeys, 14, '13 invoice keys + invoice_payments (Stage C)');
+  assert.equal(proKeys, 15, '13 invoice keys + invoice_payments (Stage C) + invoice_reminders');
 });
 
 test('customers: a free account saves 3; the 4th is refused; Pro limit null is fine', async () => {
