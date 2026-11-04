@@ -1,108 +1,145 @@
 # Competitor Research Report
 
-Research date: YYYY-MM-DD  
-Tool/category: [Name]  
-Decision to support: [Build / improve / defer / reject]  
-Scope: [Geography, audience, constraints]
+**Research date:** YYYY-MM-DD  
+**Decision:** [Build next / Improve an existing tool / Validate further / Defer / Do not build]  
+**Scope:** [Tool/category, audience, geography, constraints]
 
-## 1. Recommendation
+## 1. Executive recommendation
 
-**Recommendation:** Build now / Improve an existing tool / Validate further / Defer / Do not build
+- **Decision:**
+- **Winner and rationale:**
+- **Why this beats the alternatives:**
+- **Confidence:** High / Medium / Low — explain the evidence and limitations.
+- **What evidence could change the decision:**
 
-**Why:** [Short evidence-backed summary.]
+## 2. User problem and assumptions
 
-**Confidence:** High / Medium / Low — explain why.
+- **Primary user and job to be done:**
+- **Current workaround or alternatives:**
+- **Desired outcome:**
+- **Key assumptions:**
+- **Decision constraints:**
 
-## 2. User problem and job to be done
+## 3. Repository audit
 
-- **Primary user:**
-- **Job they need to complete:**
-- **Current workaround:**
-- **Success looks like:**
-- **Assumptions that still need validation:**
+For each candidate, report whether it is already live, partial, planned, overlapping, or not found. Cite exact paths inspected.
 
-## 3. Research method and limits
+| Candidate | Existing status | Relevant routes/files inspected | Reusable logic/components/tests | Duplication or gap |
+|---|---|---|---|---|
+| | | | | |
 
-- Search queries / discovery approach:
-- Products inspected directly:
-- Products reviewed only through public descriptions or secondary sources:
-- Browser/access limitations:
-- Research limitations and freshness caveats:
+Do not claim a repository audit based on filenames alone. Note any files or implementation details you could not inspect.
 
-## 4. Competitor shortlist
+## 4. Research method and limits
 
-For each competitor:
+- **Research date and discovery approach:**
+- **Searches/sources used:**
+- **Products directly exercised:**
+- **Products visually inspected but not exercised:**
+- **Products reviewed only through public descriptions or secondary sources:**
+- **Browser/access limitations:**
+- **Demand-data limitations:**
+
+## 5. Competitor shortlist and evidence
+
+For each relevant competitor:
 
 ### [Product name](https://example.com)
 
 - **Role:** Direct / Adjacent / Specialist / Substitute
 - **Best-fit user/job:**
-- **Observed strengths:**
-- **Observed friction:**
-- **Relevant features and limits:**
-- **Pricing/free-tier notes:** Include date and direct source if relevant.
+- **Inspection level:** Exercised / Visually inspected / Public descriptions only
 - **Evidence labels:** Observed / Source-stated / User-reported / Hypothesis
-- **Sources:**
+- **Strengths and relevant features:**
+- **Friction or limitations:**
+- **Pricing/free-tier notes:** Dated and sourced where applicable.
 - **Unverified points:**
+- **Sources:** Direct URLs, access dates, and claims supported.
 
-## 5. Comparison matrix
+## 6. Competitor comparison matrix
 
-Use category-relevant criteria. Use Yes, Partial, No, or Unknown/not verified only when the evidence supports that distinction.
+Choose criteria relevant to this category. Use Unknown/not verified when evidence is missing; unknown does not mean absent.
 
-| Product | Core task | Input/output quality | Differentiator | Share/export | Mobile | Trust/privacy | Pricing/limits | Evidence confidence |
+| Product | Core task/output | Input friction | Differentiator | Share/export | Mobile | Trust/privacy | Pricing/limits | Inspection level/confidence |
 |---|---|---|---|---|---|---|---|---|
-| Competitor A | | | | | | | | |
-| Competitor B | | | | | | | | |
+| | | | | | | | | |
 
-Do not interpret unknown as no.
+Add brief source-backed notes for comparisons that materially influence the recommendation.
 
-## 6. Friction and opportunity map
+## 7. Demand and opportunity assessment
 
-| User friction / unmet need | Evidence | User impact | Confidence | Potential KaamSolv response |
-|---|---|---|---|---|
-| | | | | |
+For each serious candidate, assess separately:
 
-## 7. Feature prioritisation
+| Candidate | User need/frequency | Demand evidence and proxies | Competitive intensity | Acquisition potential | Repeat/share/portfolio value | Confidence and gaps |
+|---|---|---|---|---|---|---|
+| | | | | | | |
 
-Classify each idea as Table stakes, Experience improvement, Differentiator, or Potential distraction.
+Clearly separate measured demand from qualitative proxies. Do not invent search volume, traffic, market share, or numeric scores.
 
-| Idea | Category | User value | Evidence/confidence | Build effort | Maintenance burden | Risk | Priority |
+## 8. Ranked shortlist: opportunity versus execution
+
+| Rank | Candidate | Opportunity rationale | Differentiation opportunity | Initial effort + rationale | Ongoing maintenance | Key risks | Decision confidence |
+|---|---|---|---|---|---|---|---|
+| 1 | | | | | | | |
+| 2 | | | | | | | |
+| 3 | | | | | | | |
+
+Explain opportunity and execution separately. If a weighted score is used, show the criteria, weights, and rationale; do not let a score hide uncertainty.
+
+## 9. KaamSolv-specific feature opportunities
+
+Classify each proposal as **Table stakes**, **Experience improvement**, **Differentiator**, or **Potential distraction**.
+
+| Idea | Category | User benefit | Evidence | Build effort | Maintenance | Risk | Priority |
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-## 8. Recommended KaamSolv experience
+Avoid generic "better UI" or "AI-powered" claims. Tie each differentiator to a concrete user problem and supporting evidence.
 
+## 10. Winning candidate: proposed product brief
+
+- **Target user and core job:**
 - **Core promise:**
+- **Minimum useful v1:**
 - **Happy path (Find → Do → Done):**
-- **Primary inputs and defaults:**
-- **Output/result experience:**
-- **Value-added differentiator:**
-- **Share/export approach:**
-- **Mobile and accessibility considerations:**
-- **Trust/privacy considerations:**
+- **One or two value-add features:**
+- **UI/UX improvements and supporting evidence:**
+- **Sharing/export behaviour:**
+- **Privacy and trust boundaries:**
+- **Existing KaamSolv components/logic to reuse:**
 - **What not to build in v1:**
-
-## 9. Fit with the existing KaamSolv product
-
-- Relevant existing tools/components:
-- Relevant project documentation:
-- Existing capabilities to reuse:
-- Potential duplication or conflicts:
-- Product/architecture constraints:
-
-## 10. Effort, risks and validation
-
-- **Initial build effort:** Small / Medium / Large — rationale.
-- **Ongoing maintenance:** Low / Medium / High — rationale.
-- **Critical correctness/privacy/legal risks:**
-- **Changing external rules or dependencies:**
+- **Initial effort and rationale:**
+- **Ongoing maintenance:**
+- **Risks and mitigations:**
 - **Cheapest next validation step:**
 - **Success criteria:**
 
-## 11. Final decision
+## 11. Correctness and rules review (when applicable)
 
-State the recommended decision, why alternatives were not selected, what would change the recommendation, and the next action requiring product-owner approval.
+For financial, tax, legal, health, or changing-rule tools, include:
+- Applicable jurisdiction and date/period.
+- Official primary sources and effective dates.
+- Assumptions, exclusions, and unresolved rules.
+- Calculation/logic edge cases and proposed test cases.
+- Recurring maintenance needed.
+- Claims that must not be made until validated.
 
-## 12. Sources
+If not applicable, state why briefly.
 
-List direct URLs, source type, access/research date, and the claims each source supports. Put citations next to material claims throughout the report as well as listing sources here.
+## 12. Final decision and unknowns
+
+State exactly one decision: Build next / Improve an existing tool / Validate further before building / Defer / Do not build.
+
+Explain:
+- Why it wins over the alternatives.
+- What remains unverified.
+- What would change the recommendation.
+- The next action requiring product-owner approval.
+
+## 13. Quality rubric
+
+Score each dimension from the linked rubric (0–2). Give a short justification for every score, identify any critical zero, and list unresolved gaps. Treat this as a self-check, not independent validation.
+
+## 14. Sources
+
+List direct URLs, source type, access date, and claims supported. Keep citations next to material claims in the report as well.
