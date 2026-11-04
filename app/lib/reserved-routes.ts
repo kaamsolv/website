@@ -40,6 +40,7 @@ const ROUTE_SEGMENTS = [
   'pdf-to-word',
   'rent-receipt-generator',
   'gratuity-calculator',
+  'hra-calculator',
   'sip-calculator',
   'fd-calculator',
   'rd-calculator',

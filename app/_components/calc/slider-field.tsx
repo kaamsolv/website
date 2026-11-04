@@ -53,13 +53,13 @@ export function SliderField({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <label htmlFor={id} className="text-sm font-semibold text-ink">
             {label}
           </label>
           {infoButton}
         </div>
-        <div className="relative w-36 shrink-0">
+        <div className="relative w-32 shrink-0 min-[360px]:w-36">
           {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted">{prefix}</span>}
           <input
             id={id}

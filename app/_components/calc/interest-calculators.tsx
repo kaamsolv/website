@@ -74,13 +74,13 @@ function Split({ invested, earned, earnedLabel }: { invested: number; earned: nu
   );
 }
 
-const Problem = ({ children }: { children: React.ReactNode }) => (
+export const Problem = ({ children }: { children: React.ReactNode }) => (
   <p role="status" className="text-sm font-medium text-danger-700" data-testid="calc-error">
     {children}
   </p>
 );
 
-const Note = ({ children }: { children: React.ReactNode }) => <p className="text-xs leading-relaxed text-muted">{children}</p>;
+export const Note = ({ children }: { children: React.ReactNode }) => <p className="text-xs leading-relaxed text-muted">{children}</p>;
 
 const yearsText = (months: number) => {
   const y = Math.floor(months / 12);
@@ -111,7 +111,7 @@ function nudge(text: (diff: string) => string, base: number | null, better: numb
  * The page frame for a slider calculator: the inputs on the left, the answer and the picture on the right, stacked on a
  * phone. On a phone the answer also rides along at the top of the inputs while you drag, so you never lose it.
  */
-function Frame({ inputs, results, stickyLabel, stickyValue }: { inputs: React.ReactNode; results: React.ReactNode; stickyLabel: string; stickyValue: string | null }) {
+export function Frame({ inputs, results, stickyLabel, stickyValue }: { inputs: React.ReactNode; results: React.ReactNode; stickyLabel: string; stickyValue: string | null }) {
   return (
     <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
       <div className={`min-w-0 space-y-5 ${CARD}`} data-print-hide>

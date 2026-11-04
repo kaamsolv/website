@@ -984,3 +984,8 @@ Approved 2026-11-04. At kickoff (§46) and again before any tool is committed, p
 # 49. Explain Every Input, Test on a Real Phone Width
 
 Approved 2026-11-04. Every input that a non-expert might not understand (rates, assumptions, tax, compounding, "market-linked") gets a small "i" (`useInfo` / `SliderField info`) with a plain-words note: what it is, why it matters, no advice, no jargon. Before calling a tool UI done, test at 360px and 320px with every view open (tables, charts, open notes), not only the default view and 375px.
+
+
+# 50. Local Preview Before Commit and Deploy
+
+Approved 2026-11-04. Before asking to commit or deploy any user-facing change, start the local dev server (`kaamsolv-dev` in `.claude/launch.json`, port 3000) and give the owner the exact local link(s) to the changed page(s), e.g. `http://localhost:3000/hra-calculator`. Include that link in the same message as the commit/deploy question, and leave the server running so the owner can check it. Never deploy without the owner having had the chance to look locally.

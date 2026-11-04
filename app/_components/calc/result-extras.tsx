@@ -18,6 +18,22 @@ export const HELP = {
   goal: "The amount you want to have at the end. The calculator works backwards to tell you what to put in.",
 } as const;
 
+/** Print / save as PDF, for results that must not go into a link. */
+export function PrintAction() {
+  return (
+    <div className="flex flex-wrap items-center gap-2.5" data-print-hide data-testid="result-actions">
+      <button
+        type="button"
+        onClick={() => window.print()}
+        data-testid="print-result"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-hair bg-surface px-4 text-sm font-semibold text-strong transition-colors hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2"
+      >
+        Print / save as PDF
+      </button>
+    </div>
+  );
+}
+
 export type CalcMode = 'value' | 'goal';
 
 /** "Find my value | Reach a goal". */

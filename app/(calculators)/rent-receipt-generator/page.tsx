@@ -22,7 +22,7 @@ const FAQ = [
 
 export default function Page() {
   return (
-    <ToolPageShell slug="rent-receipt-generator" h1="Rent receipt generator" intro="Rent receipts for every month, ready for your landlord to sign. Made in your browser." steps={STEPS} faq={FAQ} related={['salary-calculator', 'indian-number-to-words', 'invoice-generator']}>
+    <ToolPageShell slug="rent-receipt-generator" h1="Rent receipt generator" intro="Rent receipts for every month, ready for your landlord to sign. Made in your browser." steps={STEPS} faq={FAQ} related={['hra-calculator', 'salary-calculator', 'indian-number-to-words', 'invoice-generator']}>
       <RentReceiptGenerator />
     </ToolPageShell>
   );

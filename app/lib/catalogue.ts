@@ -215,6 +215,7 @@ export const TOOLS: Tool[] = [
   { name: 'Indian Currency Converter', slug: 'indian-currency-converter', url: '/calculators/indian-currency-converter', category: 'India', blurb: 'Between lakh/crore and million/billion.', keywords: ['lakh to million', 'crore to million', 'convert'], status: 'planned' },
   { name: 'Salary Calculator', slug: 'salary-calculator', url: '/salary-calculator', category: 'India', blurb: 'Your CTC, turned into monthly in-hand salary.', keywords: ['ctc', 'in hand salary', 'take home', 'net pay', 'salary', 'pf', 'hra', 'gross', 'new tax regime', 'old tax regime', 'income tax'], status: 'live' },
   { name: 'Gratuity Calculator', slug: 'gratuity-calculator', url: '/gratuity-calculator', category: 'India', blurb: 'What you’re owed at the end of a long stint.', keywords: ['gratuity', 'gratuity calculator', 'payment of gratuity act', 'end of service', '15/26', 'resignation', 'retirement'], status: 'live' },
+  { name: 'HRA Calculator', slug: 'hra-calculator', url: '/hra-calculator', category: 'India', blurb: 'How much of your HRA is tax-free, and what limits it.', keywords: ['hra', 'hra exemption', 'house rent allowance', '10(13a)', 'rent', 'metro cities', 'old regime', 'tax free hra'], status: 'live' },
 
   // Creators
   { name: 'Instagram Image Resizer', slug: 'instagram-image-resizer', url: '/image-tools/instagram-image-resizer', category: 'Creators', blurb: 'Crop to post, story and reel sizes without guessing.', keywords: ['instagram', 'resize', 'story', 'reel', 'aspect ratio'], status: 'planned' },

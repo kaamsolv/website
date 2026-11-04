@@ -45,7 +45,7 @@ export default function Page() {
       intro="Your CTC, turned into what actually lands in your account each month."
       steps={STEPS}
       faq={FAQ}
-      related={['emi-calculator', 'gst-calculator', 'percentage-calculator']}
+      related={['hra-calculator', 'gratuity-calculator', 'emi-calculator', 'gst-calculator']}
     >
       <SalaryCalculator />
     </ToolPageShell>

@@ -856,3 +856,9 @@ live configuration):
 
 ## 2026-11-04 — Interest calculators: value-add pack and standing rules
 Added goal mode, today's money, tax estimate, what-if nudges, result-carrying share links, print, and a SIP vs FD vs RD compare page (details in `docs/products/interest-calculators.md`). New standing rules: CLAUDE.md §47 (tool UI standard: sliders, chart, green WhatsApp, design shown first) and §48 (offer ranked value-add ideas for every tool). Tax rate is chosen by the user rather than hard-coded, so no regulation is invented.
+
+## 2026-11-04 — HRA Calculator (India)
+**Decided by:** product owner (research report and plan approved). Detail: [`products/hra-calculator.md`](./products/hra-calculator.md).
+- Chosen over the EMI upgrade, PPF and a separate Income Tax Calculator because the opportunity evidence was strongest: the 50% city list changed from FY 2026-27 (official rule 279) and two of three competitor pages checked were out of date. EMI stays next in line; PPF is already well covered by competitors; a separate income-tax page would duplicate the Salary Calculator's engine.
+- No result-carrying share link: salary details must not go into URLs. Share is the page link only.
+- Regime comparison reuses `incomeTax()` and is shown for FY 2026-27 only.
