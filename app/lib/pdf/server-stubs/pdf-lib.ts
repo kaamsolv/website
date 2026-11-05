@@ -25,3 +25,7 @@ export const PDFNumber = BrowserOnly;
 export const PDFRawStream = BrowserOnly;
 export const PDFRef = BrowserOnly;
 export const PDFStream = BrowserOnly;
+// Helpers the page-organizing and page-stamping tools import (organize.ts, stamp.ts).
+export const degrees = browserOnly;
+export const rgb = browserOnly;
+export const StandardFonts = BrowserOnly;

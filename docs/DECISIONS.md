@@ -5,6 +5,17 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-11-05 — PDF suite completion: page tools, numbers, watermark, protect, hub sections (built locally, not deployed)
+
+**Decided by:** product owner (audit and plan approved 2026-11-05, with additions: PDF to Text, picture watermarks, editor with multi-select, undo, reset and confirmations, protection tested with independent readers, sectioned hub).
+- **Free, in the browser, nothing uploaded**, no new dependency, no entitlement, billing or database change. The reserved Pro keys stay unused (ranges, every N and ZIP split are free).
+- **New:** Rotate, Delete pages, Rearrange (one page editor), Split ranges / every N / one per page, Page numbers, PDF to PNG, PDF to Text, Watermark (words or picture), Protect PDF (AES-256).
+- **Protect PDF** tells people the opening password is the lock and the permission switches are only requests. Password length 4 to 32 (some tools take no more).
+- **Watermark words are English letters only** (built-in font); a picture covers other scripts.
+- **Hub** is sectioned at `/pdf-tools`; planned tools show as "Coming soon", never as links. The in-page picker is two steps (group, then tool).
+- **Left out on purpose:** Word to PDF, Unlock, Sign, Fill forms, Redact, OCR, tables, Office conversions, Compare, target-size compression (see the roadmap in `products/pdf-tools.md`).
+- **Verification:** unit tests on real PDFs; Playwright with downloaded files re-opened; protected files opened by Xpdf and qpdf as well as pdf.js. Not tested in Acrobat or the browsers' built-in viewers.
+
 ## 2026-10-27 — Billing M1: selling KaamSolv plans through Razorpay (built locally, not deployed)
 Approved plan (read-only audit first): a verified Razorpay webhook, never the browser, switches a plan on; one-time **Orders first**
 (Subscriptions auto-renew later); idempotent by Razorpay's event id; payment claim and plan grant in one SQL statement

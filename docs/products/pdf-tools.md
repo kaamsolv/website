@@ -1,9 +1,12 @@
 # PDF tools
 
 **Routes:** `/pdf-tools` (hub), `/compress-pdf`, `/merge-pdf`, `/split-pdf`,
-`/pdf-to-jpg`, `/jpg-to-pdf` · **Category:** Documents · **Status:** Stage 1
+`/pdf-to-jpg`, `/jpg-to-pdf`, `/pdf-to-word`, and, added in the PDF suite completion
+(built locally on `feature/pdf-suite-completion`, **not deployed**): `/rotate-pdf`,
+`/delete-pdf-pages`, `/rearrange-pdf-pages`, `/add-page-numbers-to-pdf`, `/pdf-to-png`,
+`/pdf-to-text`, `/watermark-pdf`, `/protect-pdf` · **Category:** Documents · **Status:** Stage 1
 (free tools) **live** since 2026-10-25. Decisions: [`DECISIONS.md`](../DECISIONS.md)
-(2026-10-25 entry).
+(2026-10-25 and 2026-11-05 entries).
 
 ## What it is
 
@@ -90,6 +93,33 @@ pdf.js in Node) and `tests/e2e/pdf-to-word.spec.ts` (real files in the browser, 
 scan / password / not-a-PDF / too-big refusals, nothing uploaded, screenshots).
 **Not verified by any test: how Microsoft Word, Google Docs or Pages display the file** — open real converted files there.
 
+## PDF suite completion (2026-11-05) — what was added
+
+All free, all in the browser, no upload, no new dependency, no entitlement or database change. The registry of tools
+(`app/lib/pdf/tools.ts`) drives the hub grid, the in-page picker and the task-to-address mapping, so a tool is "live" in one place.
+
+| Tool | What it does | Engine (pure, unit-tested) | UI |
+|---|---|---|---|
+| **Rotate / Delete pages / Rearrange** (`/rotate-pdf`, `/delete-pdf-pages`, `/rearrange-pdf-pages`) | One page editor: tick several pages, rotate (single or ticked or all), delete (with a confirmation), keep only the ticked pages, drag or use arrow buttons to reorder, Undo (50 steps), Reset (with a confirmation, itself undoable). Nothing is built until Save. Leaving with unsaved changes asks first. The three pages share one editor, so changes carry across them | `page-edit.ts` (reducer), `organize.ts` (`buildFromPages`) | `page-editor.tsx` |
+| **Split, upgraded** (`/split-pdf`) | Type ranges (`1-3, 5, 8-`) that stay in step with the ticks, Odd / Even helpers; **Every N pages** and **One PDF per page** make a ZIP of PDFs | `ranges.ts`, `organize.ts` (`extractGroups`) | `split-panel.tsx` |
+| **Page numbers** (`/add-page-numbers-to-pdf`) | Six positions, four styles ("1", "Page 1", "1 of 10", "Page 1 of 10"), start number, start page (skip a cover), three sizes, live preview. Upright on turned pages and inside the crop box | `numbering.ts`, `stamp.ts` | `numbers-panel.tsx` |
+| **PDF to PNG** (`/pdf-to-png`) | Same as PDF to JPG, lossless, 150 or 300 DPI, ZIP | `pdfjs.ts` (`renderPagePng`) | existing workspace |
+| **PDF to Text** (`/pdf-to-text`) | Re-uses PDF to Word's text reading; plain text with a blank line between paragraphs, optional page marks; preview, Copy, Download .txt | `to-text.ts` (re-uses `to-word/extract.ts` and `paragraphs.ts`) | `results.tsx` (`TextResult`) |
+| **Watermark** (`/watermark-pdf`) | Words (diagonal or straight, 3 sizes, 3 colours) or a picture (JPG, PNG, WebP, HEIC via the existing image prep), opacity, all pages or ranges, live preview. **English letters only for words** (built-in font); other scripts are refused with a message and the FAQ suggests using a picture | `watermark.ts`, `stamp.ts` | `watermark-panel.tsx` |
+| **Protect PDF** (`/protect-pdf`) | Opening password, typed twice, AES-256 (PDF 2.0, revision 6) through pdf-lib's `encrypt()`. A random owner password nobody sees. Optional permission requests (no printing, copying, editing); accessibility is always allowed | `protect-rules.ts`, `protect.ts` | `protect-panel.tsx` |
+
+**Opening password versus permissions** (said in plain words on the page and in the FAQ): the opening password is the lock. Permissions
+are requests that PDF apps are asked to honour; anyone who can open the file can use tools that ignore them. The page does not call them security.
+Password length is 4 to 32 characters: the format allows more, but Xpdf's command line takes only 32 bytes, and a protected file that a tool can't open is worse than a shorter password.
+
+**Hub** (`/pdf-tools`): the drop zone first, then `HubGrid` (server-rendered) with five sections — Organize PDF, Compress and Optimize, Convert PDF,
+Secure and Sign, Scan and Extract. Live tools are links; planned ones (Word to PDF, Unlock, Sign, OCR, Extract tables, Compare) are greyed, dashed,
+marked "Coming soon", and never links. The in-workspace picker is two steps: a group (Organize, Compress, Convert, Secure), then that group's tools; opening a
+group doesn't change the tool. Only live tools appear in it.
+
+**Moved, not rewritten:** `pdf-workspace.tsx` shrank (935 → 780 lines) because its result cards moved to `results.tsx`, its picker to `tool-picker.tsx`
+and its split grid to `split-panel.tsx`, unchanged. The existing tools' logic was not touched.
+
 ## Libraries and the Worker
 
 | Library | Role | Size (gzip, lazy) |
@@ -118,8 +148,12 @@ never run) and `cmaps` (only for non-embedded CJK fonts).
 | `app/_components/pdf/pdf-workspace.tsx` | The workspace: drop zone, action picker, panels, results |
 | `app/_components/pdf/order-list.tsx` | Reorderable list (Move up/down, drag on desktop, remove) |
 | `app/_components/pdf/pdf-thumb.tsx` | Lazy page previews (IntersectionObserver, 2 at a time) |
-| `app/_components/pdf/pdf-tool-page.tsx` | Copy, FAQ and metadata for the six pages |
-| `app/(pdf-tools)/*/page.tsx` | The six routes |
+| `app/_components/pdf/pdf-tool-page.tsx` | Copy, FAQ and metadata for every page |
+| `app/(pdf-tools)/*/page.tsx` | The routes (one-liners) |
+| `app/lib/pdf/tools.ts` | The tool registry: live and planned tools, sections, address of each |
+| `app/_components/pdf/{page-editor,split-panel,numbers-panel,watermark-panel,protect-panel,tool-picker,hub-grid,results,pdf-styles}.tsx` | The panels and cards (see the suite section above) |
+| `app/lib/pdf/{organize,page-edit,ranges,numbering,stamp,watermark,protect,protect-rules,to-text}.ts` | The new engines and rules (pure, unit-tested) |
+| `app/lib/pdf/server-stubs/pdf-lib.ts` | Must export every pdf-lib name a tool imports (`degrees`, `rgb`, `StandardFonts`, …) or the page fails to build |
 
 ## Tests
 
@@ -131,9 +165,21 @@ never run) and `cmaps` (only for non-embedded CJK fonts).
   locked PDF, a fake and an oversized file, six photos) and checks every tool's
   download. Run beside another dev server with `KK_E2E_PORT=3103`.
 
-## Not doing (v1)
+- `npm test` also runs `test/pdf-organize.test.mts` (page-editor rules, ranges, rotate / delete / reorder / split against real PDFs),
+  `test/pdf-stamp.test.mts` (page numbers on turned and cropped pages, PDF to text), `test/pdf-watermark.test.mts` (text and picture placement on turned pages)
+  and `test/pdf-protect.test.mts`, which opens the protected file with **Xpdf's `pdftotext`** and **qpdf via `pikepdf`** as well as pdf.js (those two are
+  skipped, with a message, on a machine that doesn't have them).
+- Playwright: `pdf-organize.spec.ts`, `pdf-convert.spec.ts`, `pdf-secure.spec.ts` — every download is opened again (page count, order, rotation, PNG size,
+  text, numbers and watermark position, protected files by three engines); no POST/PUT/PATCH leaves the page; console errors fail the test; 360 / 320 px, light and dark.
+- **Not tested:** Acrobat, Chrome's and Edge's built-in viewers, Preview, Word / Pages opening the .docx. Open real files there before announcing the tools.
 
-Editing, e-signatures, PDF → PowerPoint, unlocking passwords, any server upload,
-PDF → Word/Excel (good layout needs a server — separate decision), OCR
-(tesseract.js is feasible in the browser but heavy — separate decision),
-"compress to under N KB".
+## Roadmap (not built)
+
+Needs a decision or a bigger piece: Word to PDF (no browser library renders Word faithfully; needs a server), Unlock PDF (scope and wording), Sign PDF, Fill forms,
+Redact (must remove the content, not draw a box), OCR / scanned PDF to Word / Hindi OCR (tesseract.js is feasible but heavy, key `pdf_ocr` is reserved),
+Extract tables, PDF to Excel / PowerPoint, Compare PDFs, Compress to a target size, compression levels, batch compression (Pro keys `pdf_batch_compress`,
+`pdf_unlimited_merge`, `pdf_advanced_split` stay reserved and unused: ranges, every N and ZIP are free for now), Extract images, PDF to WebP, Hindi text watermarks (needs a font file).
+
+## Not doing
+
+Any server upload, and anything that needs a paid API.

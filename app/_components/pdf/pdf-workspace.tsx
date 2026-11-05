@@ -3,15 +3,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageDropzone } from '../image/image-dropzone';
 import { OnDeviceNote } from '../image/on-device-note';
-import { Chips, Segmented } from '../choice';
-import { Icon } from '../icons';
+import { Chips } from '../choice';
 import { OrderList } from './order-list';
+import { NumbersPanel } from './numbers-panel';
+import { PageEditor } from './page-editor';
 import { PdfThumb } from './pdf-thumb';
+import { ProtectPanel } from './protect-panel';
+import { WatermarkPanel, type WatermarkJob } from './watermark-panel';
+import { DocxResult, JpgResult, PdfResult, PdfZipResult, TextResult, type DocxDone, type JpgFile, type JpgsDone, type PdfDone, type PdfZipDone, type TextDone } from './results';
+import { LINK, PRIMARY, SECONDARY } from './pdf-styles';
+import { SplitPanel } from './split-panel';
+import { ToolPicker } from './tool-picker';
 import { useEntitlements } from '@/app/lib/me-client';
 import { downloadBlob } from '@/app/lib/image/export';
 import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
-import { formatBytes, sizeDeltaLabel } from '@/app/lib/image/validate';
-import { compressVerdict, compressedPdfName, extractedPdfName } from '@/app/lib/pdf/outcome';
+import { formatBytes } from '@/app/lib/image/validate';
+import { compressVerdict, compressedPdfName, editedPdfName, extractedPdfName, splitPartName, splitZipName } from '@/app/lib/pdf/outcome';
+import { numberedPdfName, type NumberOptions } from '@/app/lib/pdf/numbering';
+import type { PagePlan } from '@/app/lib/pdf/organize';
+import { protectedPdfName, type ProtectOptions } from '@/app/lib/pdf/protect-rules';
+import { watermarkedPdfName } from '@/app/lib/pdf/watermark';
+import { initialAction, pathOf, taskOf, type Action, type ConvertMode, type PdfTask } from '@/app/lib/pdf/tools';
 import { toPdfToolError } from '@/app/lib/pdf/errors';
 import { MAX_RENDER_PAGES, MAX_TEXT_PAGES, maxFileBytes, maxImagesToPdf, maxMergeFiles, sizeLimitLabel } from '@/app/lib/pdf/limits';
 import type { MarginMode, PageSizeMode } from '@/app/lib/pdf/image-layout';
@@ -20,47 +32,12 @@ import type { PDFDocumentProxy } from '@/app/lib/pdf/pdfjs';
 import { IMAGE_ACCEPT, IMAGE_INPUT_LABELS } from '@/app/lib/pdf/prepare-image';
 import { assertImageSize, looksLikePdf, pdfBaseName, readPdfFile } from '@/app/lib/pdf/validate';
 
-export type PdfTask = 'hub' | 'compress' | 'merge' | 'split' | 'pdf-to-jpg' | 'pdf-to-word' | 'jpg-to-pdf';
-type Action = 'compress' | 'merge' | 'split' | 'convert';
-type ConvertMode = 'to-jpg' | 'to-word' | 'from-images';
-
-const TASK_PATH: Record<Exclude<PdfTask, 'hub'>, string> = {
-  compress: '/compress-pdf',
-  merge: '/merge-pdf',
-  split: '/split-pdf',
-  'pdf-to-jpg': '/pdf-to-jpg',
-  'pdf-to-word': '/pdf-to-word',
-  'jpg-to-pdf': '/jpg-to-pdf',
-};
-
-function initialAction(task: PdfTask): { action: Action; mode: ConvertMode } {
-  if (task === 'pdf-to-jpg') return { action: 'convert', mode: 'to-jpg' };
-  if (task === 'pdf-to-word') return { action: 'convert', mode: 'to-word' };
-  if (task === 'jpg-to-pdf') return { action: 'convert', mode: 'from-images' };
-  return { action: task === 'hub' ? 'compress' : task, mode: 'to-jpg' };
-}
-
-function taskOf(action: Action, mode: ConvertMode): Exclude<PdfTask, 'hub'> {
-  if (action !== 'convert') return action;
-  return mode === 'to-jpg' ? 'pdf-to-jpg' : mode === 'to-word' ? 'pdf-to-word' : 'jpg-to-pdf';
-}
-
-const ACTIONS: { value: Action; label: string; hint: string }[] = [
-  { value: 'compress', label: 'Compress', hint: 'Make it smaller' },
-  { value: 'merge', label: 'Merge', hint: 'Join PDFs' },
-  { value: 'split', label: 'Split', hint: 'Pick pages' },
-  { value: 'convert', label: 'Convert', hint: 'JPG or Word' },
-];
+export type { PdfTask };
 
 type PdfItem = { id: string; file: File; bytes: Uint8Array; pages: number; doc: Promise<PDFDocumentProxy> };
 type ImageItem = { id: string; file: File; url: string };
-type JpgFile = { blob: Blob; url: string; filename: string; width: number; height: number };
 
-type Done =
-  | { kind: 'pdf'; blob: Blob; filename: string; bytes: number; inputBytes: number | null; pages: number | null; note?: string; again: string }
-  | { kind: 'jpgs'; files: JpgFile[]; zipName: string }
-  | { kind: 'docx'; blob: Blob; filename: string; bytes: number; pages: number; sparse: boolean }
-  | { kind: 'not-smaller'; inputBytes: number; outputBytes: number };
+type Done = PdfDone | JpgsDone | DocxDone | PdfZipDone | TextDone | { kind: 'not-smaller'; inputBytes: number; outputBytes: number };
 
 type Busy = { label: string; done?: number; total?: number };
 
@@ -69,14 +46,6 @@ const closeDoc = (d: PDFDocumentProxy) => void d.loadingTask.destroy().catch(() 
 
 let idCounter = 0;
 const nextId = () => `f${++idCounter}`;
-
-const PRIMARY =
-  'h-12 w-full rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 hover:bg-coral-400 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas';
-const SECONDARY =
-  'inline-flex h-11 items-center justify-center rounded-full border border-hair bg-surface px-4 text-sm font-semibold text-strong hover:bg-wash disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
-// Text links with a 44 px tap height for phones.
-const LINK =
-  'inline-flex min-h-11 items-center rounded px-1 text-sm font-semibold text-coral-600 hover:underline disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 
 export function PdfWorkspace({ task }: { task: PdfTask }) {
   const ent = useEntitlements();
@@ -91,6 +60,7 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
   const [done, setDone] = useState<Done | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dpi, setDpi] = useState<150 | 300>(150);
+  const [pageMarks, setPageMarks] = useState(false);
   const [pageSize, setPageSize] = useState<PageSizeMode>('a4');
   const [margin, setMargin] = useState<MarginMode>('none');
 
@@ -124,7 +94,15 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
     });
   }, []);
 
+  // Page edits (rotate, delete, rearrange) live in the editor until saved: don't lose them by accident.
+  const dirty = useRef(false);
+  const setDirty = useCallback((d: boolean) => void (dirty.current = d), []);
+  const discardOk = () => !dirty.current || window.confirm('Discard your page changes? They haven’t been saved.');
+  const EDITORS: Action[] = ['rotate', 'delete', 'rearrange'];
+
   function choose(nextAction: Action, nextMode: ConvertMode = mode) {
+    if (!EDITORS.includes(nextAction) && EDITORS.includes(action) && !discardOk()) return;
+    if (!EDITORS.includes(nextAction)) dirty.current = false;
     setAction(nextAction);
     setMode(nextMode);
     setNotice([]);
@@ -133,10 +111,12 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
     // workspace and drop the loaded file. replaceState only changes the address
     // (Next.js keeps its router in step), so a refresh or a shared link opens
     // the right tool.
-    if (task !== 'hub') window.history.replaceState(null, '', TASK_PATH[taskOf(nextAction, nextMode)]);
+    if (task !== 'hub') window.history.replaceState(null, '', pathOf(taskOf(nextAction, nextMode)));
   }
 
   function startAgain() {
+    if (!discardOk()) return;
+    dirty.current = false;
     pdfs.forEach((p) => p.doc.then(closeDoc, () => {}));
     images.forEach((i) => release(i.url));
     clearResult();
@@ -211,6 +191,8 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
   }
 
   function removePdf(id: string) {
+    if (!discardOk()) return;
+    dirty.current = false;
     const item = pdfs.find((p) => p.id === id);
     item?.doc.then(closeDoc, () => {});
     clearResult();
@@ -301,23 +283,91 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
     });
   }
 
-  async function doToJpg() {
+  async function doEdit(plan: PagePlan[], summary: string) {
     if (!first) return;
-    const { renderPageJpeg, scaleForDpi } = await import('@/app/lib/pdf/pdfjs');
+    const { editPages, pdfBlob } = await import('@/app/lib/pdf/client');
+    const bytes = await run('Making your new PDF', () => editPages(first.bytes, plan));
+    if (!bytes) return;
+    dirty.current = false;
+    setDone({ kind: 'pdf', blob: pdfBlob(bytes), filename: editedPdfName(pdfBaseName(first.file.name)), bytes: bytes.length, inputBytes: null, pages: plan.length, note: summary || undefined, again: 'Edit another' });
+  }
+
+  async function doSplitGroups(groups: number[][]) {
+    if (!first || groups.length < 2) return;
+    const { splitGroups, pdfBlob } = await import('@/app/lib/pdf/client');
+    const parts = await run('Splitting your PDF', (p) => splitGroups(first.bytes, groups, p));
+    if (!parts) return;
+    const base = pdfBaseName(first.file.name);
+    const single = groups.every((g) => g.length === 1);
+    setDone({
+      kind: 'pdf-zip',
+      files: parts.map((b, i) => ({ blob: pdfBlob(b), filename: splitPartName(base, i + 1, parts.length, single), pages: groups[i].length })),
+      zipName: splitZipName(base),
+      again: 'Split another',
+    });
+  }
+
+  async function doToImages(format: 'JPG' | 'PNG') {
+    if (!first) return;
+    const { renderPageJpeg, renderPagePng, scaleForDpi } = await import('@/app/lib/pdf/pdfjs');
     const base = pdfBaseName(first.file.name);
     const width = String(first.pages).length;
-    const files = await run('Turning pages into JPGs', async (progress) => {
+    const ext = format.toLowerCase();
+    const files = await run(`Turning pages into ${format}s`, async (progress) => {
       const doc = await first.doc;
       const out: JpgFile[] = [];
       progress(0, first.pages);
       for (let n = 1; n <= first.pages; n++) {
-        const page = await renderPageJpeg(doc, n, scaleForDpi(dpi), 0.9);
-        out.push({ ...page, url: track(URL.createObjectURL(page.blob)), filename: `${base}-page-${String(n).padStart(width, '0')}.jpg` });
+        const page = format === 'PNG' ? await renderPagePng(doc, n, scaleForDpi(dpi)) : await renderPageJpeg(doc, n, scaleForDpi(dpi), 0.9);
+        out.push({ ...page, url: track(URL.createObjectURL(page.blob)), filename: `${base}-page-${String(n).padStart(width, '0')}.${ext}` });
         progress(n, first.pages);
       }
       return out;
     });
-    if (files) setDone({ kind: 'jpgs', files, zipName: `${base}-jpg.zip` });
+    if (files) setDone({ kind: 'jpgs', files, zipName: `${base}-${ext}.zip`, format });
+  }
+
+  async function doToText() {
+    if (!first) return;
+    const { pdfToText, textFileName } = await import('@/app/lib/pdf/to-text');
+    const res = await run('Reading the text', async (progress) => pdfToText(await first.doc, progress, pageMarks));
+    if (!res) return;
+    setDone({ kind: 'text', text: res.text, filename: textFileName(pdfBaseName(first.file.name)), pages: res.pages, chars: res.chars, sparse: res.sparse });
+  }
+
+  async function doWatermark(job: WatermarkJob) {
+    if (!first) return;
+    const client = await import('@/app/lib/pdf/client');
+    const bytes = await run('Adding the watermark', async () => {
+      if (job.kind === 'text') return client.watermarkText(first.bytes, job.mark);
+      try {
+        assertImageSize(job.file, maxBytes);
+        const { prepareImageForPdf } = await import('@/app/lib/pdf/prepare-image');
+        return client.watermarkImage(first.bytes, await prepareImageForPdf(job.file), job.mark);
+      } catch (err) {
+        throw Object.assign(toPdfToolError(err), { message: `${job.file.name}: ${toPdfToolError(err).message}` });
+      }
+    });
+    if (!bytes) return;
+    const count = job.mark.pages ? job.mark.pages.length : first.pages;
+    setDone({ kind: 'pdf', blob: client.pdfBlob(bytes), filename: watermarkedPdfName(pdfBaseName(first.file.name)), bytes: bytes.length, inputBytes: null, pages: first.pages, note: `Watermark added to ${count} ${count === 1 ? 'page' : 'pages'}.`, again: 'Watermark another' });
+  }
+
+  async function doProtect(options: ProtectOptions) {
+    if (!first) return;
+    const { protectPdf, pdfBlob } = await import('@/app/lib/pdf/client');
+    const bytes = await run('Locking your PDF', () => protectPdf(first.bytes, options));
+    if (!bytes) return;
+    setDone({ kind: 'pdf', blob: pdfBlob(bytes), filename: protectedPdfName(pdfBaseName(first.file.name)), bytes: bytes.length, inputBytes: null, pages: first.pages, note: 'It opens only with the password you chose. We can’t recover it, so keep it somewhere safe.', again: 'Protect another' });
+  }
+
+  async function doNumbers(options: NumberOptions) {
+    if (!first) return;
+    const { numberPages, pdfBlob } = await import('@/app/lib/pdf/client');
+    const bytes = await run('Adding page numbers', () => numberPages(first.bytes, options));
+    if (!bytes) return;
+    const count = first.pages - options.fromPage + 1;
+    setDone({ kind: 'pdf', blob: pdfBlob(bytes), filename: numberedPdfName(pdfBaseName(first.file.name)), bytes: bytes.length, inputBytes: null, pages: first.pages, note: `Numbers added to ${count} ${count === 1 ? 'page' : 'pages'}.`, again: 'Number another' });
   }
 
   async function doToWord() {
@@ -369,8 +419,11 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
   const hasAnything = pdfs.length > 0 || images.length > 0;
   const working = busy !== null || reading;
   const toWord = action === 'convert' && mode === 'to-word';
-  const pageCap = toWord ? MAX_TEXT_PAGES : MAX_RENDER_PAGES;
-  const tooManyPages = (action === 'split' || (action === 'convert' && (mode === 'to-jpg' || toWord))) && first && first.pages > pageCap;
+  const toText = action === 'convert' && mode === 'to-text';
+  const toPng = action === 'convert' && mode === 'to-png';
+  const readsText = toWord || toText;
+  const pageCap = readsText ? MAX_TEXT_PAGES : MAX_RENDER_PAGES;
+  const tooManyPages = (action === 'split' || EDITORS.includes(action) || (action === 'convert' && (mode === 'to-jpg' || toPng || readsText))) && first && first.pages > pageCap;
   const limitLabel = sizeLimitLabel(maxBytes);
 
   const pdfDrop = (
@@ -493,7 +546,7 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
         )}
         {tooManyPages ? (
           <p className="rounded-xl border border-yellow-300 bg-yellowx-100 px-4 py-3 text-sm text-strong" role="status">
-            This PDF has {first!.pages} pages. {toWord ? 'Text can be read here' : 'Pages can be shown here'} for PDFs up to {pageCap} pages — try splitting it in your PDF app first.
+            This PDF has {first!.pages} pages. {readsText ? 'Text can be read here' : 'Pages can be shown here'} for PDFs up to {pageCap} pages — try splitting it in your PDF app first.
           </p>
         ) : action === 'compress' ? (
           <>
@@ -505,13 +558,31 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
             )}
           </>
         ) : action === 'split' ? (
-          <SplitPicker
+          <SplitPanel
             item={first!}
             selected={selected}
             onChange={(s) => (clearResult(), setSelected(s))}
             onExtract={doSplit}
+            onGroups={doSplitGroups}
             disabled={working}
           />
+        ) : action === 'rotate' || action === 'delete' || action === 'rearrange' ? (
+          <PageEditor
+            key={first!.id}
+            fileName={first!.file.name}
+            pages={first!.pages}
+            doc={first!.doc}
+            focus={action}
+            disabled={working}
+            onSave={doEdit}
+            onDirtyChange={setDirty}
+          />
+        ) : action === 'numbers' ? (
+          <NumbersPanel key={first!.id} item={first!} disabled={working} onApply={doNumbers} />
+        ) : action === 'watermark' ? (
+          <WatermarkPanel key={first!.id} item={first!} disabled={working} onApply={doWatermark} />
+        ) : action === 'protect' ? (
+          <ProtectPanel disabled={working} onApply={doProtect} />
         ) : toWord ? (
           <>
             <p className="text-sm text-muted">Gets the text out of your PDF into a Word file you can edit. Best for letters, reports and other text documents.</p>
@@ -521,6 +592,27 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
             {!done && (
               <button type="button" className={PRIMARY} onClick={doToWord} disabled={working}>
                 Convert {pagesLabel(first!.pages)} to Word
+              </button>
+            )}
+          </>
+        ) : toText ? (
+          <>
+            <p className="text-sm text-muted">Gets the text out of your PDF as plain text you can copy or save. Best for letters, reports and other text documents.</p>
+            <Chips
+              legend="Page breaks"
+              options={[
+                { value: false, label: 'Leave them out' },
+                { value: true, label: 'Mark each page' },
+              ]}
+              value={pageMarks}
+              onChange={(v) => (clearResult(), setPageMarks(v))}
+            />
+            <p className="rounded-xl border border-hair bg-surface px-4 py-3 text-sm text-strong">
+              Only the text comes across, in reading order. Tables and columns can mix, and scanned pages can&apos;t be read.
+            </p>
+            {!done && (
+              <button type="button" className={PRIMARY} onClick={doToText} disabled={working}>
+                Get the text from {pagesLabel(first!.pages)}
               </button>
             )}
           </>
@@ -538,10 +630,11 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
               />
               <p className="mt-1.5 text-xs text-muted">
                 {dpi === 150 ? '150 DPI — good for screens, sharing and most forms.' : '300 DPI — for printing. Bigger files.'}
+                {toPng ? ' PNG keeps every pixel, so the files are larger than JPG. Best for screenshots, diagrams and text.' : ''}
               </p>
             </div>
-            <button type="button" className={PRIMARY} onClick={doToJpg} disabled={working}>
-              Convert {pagesLabel(first!.pages)} to JPG
+            <button type="button" className={PRIMARY} onClick={() => doToImages(toPng ? 'PNG' : 'JPG')} disabled={working}>
+              Convert {pagesLabel(first!.pages)} to {toPng ? 'PNG' : 'JPG'}
             </button>
           </>
         )}
@@ -554,19 +647,12 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
       <OnDeviceNote subject="files" />
 
       {hasAnything && (
-        <ActionPicker value={action} onChange={(a) => choose(a)} disabled={working} />
-      )}
-      {hasAnything && action === 'convert' && (
-        <Segmented
-          legend="Convert"
-          hideLegend
-          options={[
-            { value: 'to-jpg' as const, label: 'PDF → JPG' },
-            { value: 'to-word' as const, label: 'PDF → Word' },
-            { value: 'from-images' as const, label: 'JPG → PDF' },
-          ]}
-          value={mode}
-          onChange={(m) => choose('convert', m)}
+        <ToolPicker
+          value={taskOf(action, mode)}
+          onChange={(t) => {
+            const n = initialAction(t);
+            choose(n.action, n.mode);
+          }}
           disabled={working}
         />
       )}
@@ -602,6 +688,8 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
       )}
       {done?.kind === 'pdf' && <PdfResult done={done} onAgain={startAgain} />}
       {done?.kind === 'docx' && <DocxResult done={done} onAgain={startAgain} />}
+      {done?.kind === 'text' && <TextResult done={done} onAgain={startAgain} />}
+      {done?.kind === 'pdf-zip' && <PdfZipResult done={done} onAgain={startAgain} />}
       {done?.kind === 'jpgs' && <JpgResult done={done} onZip={() => downloadZip(done.files, done.zipName)} onAgain={startAgain} />}
 
       {hasAnything && !done && (
@@ -619,45 +707,8 @@ function HubDrop({ drop }: { drop: React.ReactNode }) {
   return (
     <div className="space-y-3">
       {drop}
-      <p className="text-center text-sm text-muted">Then pick what to do: compress, merge, split or convert.</p>
+      <p className="text-center text-sm text-muted">Then pick what to do: compress, merge, split, turn pages or convert.</p>
     </div>
-  );
-}
-
-/** The four actions — a radio group, 2 × 2 on phones, one row on wider screens. */
-function ActionPicker({ value, onChange, disabled }: { value: Action; onChange: (a: Action) => void; disabled?: boolean }) {
-  return (
-    <fieldset disabled={disabled}>
-      <legend className="mb-2 text-sm font-semibold text-ink">What do you want to do?</legend>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {ACTIONS.map((a) => {
-          const on = value === a.value;
-          return (
-            <label key={a.value} className="relative">
-              <input
-                type="radio"
-                name="pdf-action"
-                value={a.value}
-                checked={on}
-                onChange={() => onChange(a.value)}
-                className="peer sr-only"
-              />
-              <span
-                className={`flex min-h-14 cursor-pointer flex-col justify-center rounded-xl border px-4 py-2.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-coral-500 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-canvas peer-disabled:cursor-not-allowed peer-disabled:opacity-60 ${
-                  on ? 'border-activebg bg-activebg text-activetext shadow-soft' : 'border-hair bg-surface text-ink hover:border-muted'
-                }`}
-              >
-                <span className="flex items-center gap-1.5 font-display text-sm font-bold">
-                  {on && <Icon name="check" className="-ml-0.5 h-4 w-4" />}
-                  {a.label}
-                </span>
-                <span className={`text-xs ${on ? 'opacity-80' : 'text-muted'}`}>{a.hint}</span>
-              </span>
-            </label>
-          );
-        })}
-      </div>
-    </fieldset>
   );
 }
 
@@ -674,70 +725,6 @@ function PdfFileCard({ item, onRemove }: { item: PdfItem; onRemove: () => void }
       <button type="button" onClick={onRemove} className={SECONDARY} aria-label={`Remove ${item.file.name}`}>
         Remove
       </button>
-    </div>
-  );
-}
-
-function SplitPicker({
-  item,
-  selected,
-  onChange,
-  onExtract,
-  disabled,
-}: {
-  item: PdfItem;
-  selected: Set<number>;
-  onChange: (s: Set<number>) => void;
-  onExtract: () => void;
-  disabled: boolean;
-}) {
-  const toggle = (i: number) => {
-    const next = new Set(selected);
-    if (next.has(i)) next.delete(i);
-    else next.add(i);
-    onChange(next);
-  };
-  const count = selected.size;
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">Tick the pages you want. They&apos;ll be saved as a new PDF.</p>
-        <div className="flex gap-4">
-          <button type="button" className={LINK} onClick={() => onChange(new Set(Array.from({ length: item.pages }, (_, i) => i)))}>
-            Select all
-          </button>
-          <button type="button" className={LINK} onClick={() => onChange(new Set())} disabled={count === 0}>
-            Clear
-          </button>
-        </div>
-      </div>
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5" aria-label={`Pages of ${item.file.name}`}>
-        {Array.from({ length: item.pages }, (_, i) => {
-          const on = selected.has(i);
-          return (
-            <li key={i}>
-              <label className={`group block cursor-pointer rounded-lg p-1.5 transition-colors ${on ? 'bg-coralx-100 ring-2 ring-coral-500' : 'hover:bg-wash'}`}>
-                <span className="relative block">
-                  <PdfThumb doc={item.doc} pageNumber={i + 1} alt="" className="aspect-[3/4] w-full" />
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={() => toggle(i)}
-                    className="absolute left-1.5 top-1.5 h-5 w-5 cursor-pointer accent-coral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2"
-                    aria-label={`Page ${i + 1}`}
-                  />
-                </span>
-                <span className={`mt-1 block text-center text-xs ${on ? 'font-semibold text-ink' : 'text-muted'}`}>Page {i + 1}</span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="sticky bottom-3 z-10">
-        <button type="button" className={`${PRIMARY} shadow-lift`} onClick={onExtract} disabled={disabled || count === 0}>
-          {count === 0 ? 'Pick at least one page' : `Extract ${pagesLabel(count)}`}
-        </button>
-      </div>
     </div>
   );
 }
@@ -789,147 +776,5 @@ function Progress({ busy }: { busy: Busy }) {
         />
       </div>
     </div>
-  );
-}
-
-function ResultShell({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl2 border border-teal-300 bg-tealx-100 p-5" role="status">
-      <div className="flex items-center gap-2">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-teal-500 text-xs font-bold text-white" aria-hidden="true">
-          ✓
-        </span>
-        <p className="font-display text-lg font-bold text-ink">{title}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function PdfResult({ done, onAgain }: { done: Extract<Done, { kind: 'pdf' }>; onAgain: () => void }) {
-  const delta = done.inputBytes ? sizeDeltaLabel(done.inputBytes, done.bytes) : '';
-  return (
-    <ResultShell title="Done. Your PDF is ready.">
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <div className="col-span-2">
-          <dt className="text-xs text-faint">Filename</dt>
-          <dd className="truncate font-medium text-ink">{done.filename}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-faint">Size</dt>
-          <dd className="font-medium text-strong">{formatBytes(done.bytes)}</dd>
-        </div>
-        {done.inputBytes ? (
-          <div>
-            <dt className="text-xs text-faint">Original</dt>
-            <dd className="font-medium text-strong">
-              {formatBytes(done.inputBytes)}
-              {delta ? ` · ${delta}` : ''}
-            </dd>
-          </div>
-        ) : done.pages ? (
-          <div>
-            <dt className="text-xs text-faint">Pages</dt>
-            <dd className="font-medium text-strong">{done.pages}</dd>
-          </div>
-        ) : null}
-      </dl>
-      {done.note && <p className="mt-3 text-sm text-strong">{done.note}</p>}
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={() => downloadBlob(done.blob, done.filename)}
-          className="h-11 flex-1 rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-        >
-          Download PDF
-        </button>
-        <button type="button" onClick={onAgain} className={SECONDARY}>
-          {done.again}
-        </button>
-      </div>
-    </ResultShell>
-  );
-}
-
-function DocxResult({ done, onAgain }: { done: Extract<Done, { kind: 'docx' }>; onAgain: () => void }) {
-  return (
-    <ResultShell title="Done. Your Word file is ready.">
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <div className="col-span-2">
-          <dt className="text-xs text-faint">Filename</dt>
-          <dd className="truncate font-medium text-ink">{done.filename}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-faint">Size</dt>
-          <dd className="font-medium text-strong">{formatBytes(done.bytes)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-faint">Pages read</dt>
-          <dd className="font-medium text-strong">{done.pages}</dd>
-        </div>
-      </dl>
-      {done.sparse && (
-        <p className="mt-3 rounded-lg border border-yellow-300 bg-yellowx-100 px-3 py-2 text-sm text-strong">
-          Very little text was found. This PDF may be a scan, so check the Word file before you rely on it.
-        </p>
-      )}
-      <p className="mt-3 text-sm text-strong">Text and paragraphs came across. Page layout, tables and images didn&apos;t, so look it over in Word.</p>
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={() => downloadBlob(done.blob, done.filename)}
-          className="h-11 flex-1 rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-        >
-          Download Word file
-        </button>
-        <button type="button" onClick={onAgain} className={SECONDARY}>
-          Convert another
-        </button>
-      </div>
-    </ResultShell>
-  );
-}
-
-function JpgResult({ done, onZip, onAgain }: { done: Extract<Done, { kind: 'jpgs' }>; onZip: () => void; onAgain: () => void }) {
-  const one = done.files.length === 1;
-  const total = done.files.reduce((n, f) => n + f.blob.size, 0);
-  return (
-    <ResultShell title={one ? 'Done. Your JPG is ready.' : `Done. ${done.files.length} JPGs are ready.`}>
-      <p className="mt-2 text-sm text-strong">
-        {formatBytes(total)} in total · {done.files[0].width} × {done.files[0].height} px{one ? '' : ' for page 1'}
-      </p>
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={one ? () => downloadBlob(done.files[0].blob, done.files[0].filename) : onZip}
-          className="h-11 flex-1 rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-        >
-          {one ? 'Download JPG' : 'Download all (ZIP)'}
-        </button>
-        <button type="button" onClick={onAgain} className={SECONDARY}>
-          Convert another
-        </button>
-      </div>
-      {!one && (
-        <ul className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-          {done.files.map((f, i) => (
-            <li key={f.filename}>
-              <a
-                href={f.url}
-                download={f.filename}
-                className="group block rounded-lg p-1 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
-                <img src={f.url} alt="" className="aspect-[3/4] w-full rounded-md border border-hair bg-white object-contain" />
-                <span className="mt-1 block text-center text-xs font-semibold text-coral-600 group-hover:underline">
-                  Page {i + 1}
-                  <span className="sr-only"> — download {f.filename}</span>
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-    </ResultShell>
   );
 }

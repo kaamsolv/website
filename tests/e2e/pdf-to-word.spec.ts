@@ -133,12 +133,14 @@ test('errors: password, not a PDF, over 10 MB (same messages as the other PDF to
 test('switching between PDF tools keeps the file and the address follows', async ({ page }) => {
   await page.goto('/compress-pdf');
   await dropInput(page).setInputFiles(letter);
-  await page.locator('label').filter({ has: page.getByRole('radio', { name: /Convert/ }) }).click();
+  // The picker has groups (Organize, Compress, Convert) and then the tools of the open group.
+  await page.locator('label').filter({ has: page.getByRole('radio', { name: 'Convert', exact: true }) }).click();
+  await page.locator('label').filter({ has: page.getByRole('radio', { name: /PDF to JPG/ }) }).click();
   await expect(page).toHaveURL(/\/pdf-to-jpg$/);
-  await page.locator('label').filter({ has: page.getByRole('radio', { name: 'PDF → Word' }) }).click();
+  await page.locator('label').filter({ has: page.getByRole('radio', { name: /PDF to Word/ }) }).click();
   await expect(page).toHaveURL(/\/pdf-to-word$/);
   await expect(page.getByRole('button', { name: /^Convert 2 pages to Word$/ })).toBeVisible();
-  await page.locator('label').filter({ has: page.getByRole('radio', { name: 'PDF → JPG' }) }).click();
+  await page.locator('label').filter({ has: page.getByRole('radio', { name: /PDF to JPG/ }) }).click();
   await expect(page).toHaveURL(/\/pdf-to-jpg$/);
   await expect(page.getByRole('button', { name: /to JPG$/ })).toBeVisible();
 });

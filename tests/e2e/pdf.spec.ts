@@ -202,12 +202,12 @@ test('hub: photos go to JPG → PDF, several PDFs go to Merge', async ({ page })
   await page.goto('/pdf-tools');
   await expect(page).toHaveTitle(/PDF tools/);
   await dropInput(page).setInputFiles(fx.images.slice(0, 2));
-  await expect(page.getByRole('radio', { name: /Convert/ })).toBeChecked();
-  await expect(page.getByRole('radio', { name: 'JPG → PDF' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Convert', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /JPG to PDF/ })).toBeChecked();
   await expect(page).toHaveURL(/\/pdf-tools$/);
 
   await page.getByRole('button', { name: 'Start again' }).click();
-  await page.getByRole('radio', { name: 'PDF → JPG' }).waitFor({ state: 'detached' });
+  await page.getByRole('radio', { name: /PDF to JPG/ }).waitFor({ state: 'detached' });
   await page.reload();
   await dropInput(page).setInputFiles([fx.a2, fx.c1]);
   await expect(page.getByRole('radio', { name: /Merge/ })).toBeChecked({ timeout: 30_000 });
@@ -217,18 +217,24 @@ test('hub: photos go to JPG → PDF, several PDFs go to Merge', async ({ page })
 test('switching action keeps the file and updates the URL', async ({ page }) => {
   await page.goto('/compress-pdf');
   await dropInput(page).setInputFiles(fx.doc12);
-  await pick(page, /Split/);
+  // Two steps, like a person: open the group, then pick the tool.
+  await pick(page, 'Organize');
+  await pick(page, /Split PDF/);
   await expect(page).toHaveURL(/\/split-pdf$/);
   await expect(page.getByRole('checkbox', { name: 'Page 12', exact: true })).toBeVisible();
-  await pick(page, /Convert/);
+  await pick(page, 'Convert');
+  await pick(page, /PDF to JPG/);
   await expect(page).toHaveURL(/\/pdf-to-jpg$/);
   await expect(page.getByRole('button', { name: 'Convert 12 pages to JPG' })).toBeVisible();
 
-  // Keyboard: the actions are one radio group, so arrow keys move between them.
-  await page.getByRole('radio', { name: /Convert/ }).focus();
-  await page.keyboard.press('ArrowLeft');
-  await expect(page.getByRole('radio', { name: /Split/ })).toBeChecked();
-  await expect(page).toHaveURL(/\/split-pdf$/);
+  // Keyboard: the tools of a group are one radio group, so arrow keys move between them.
+  await page.getByRole('radio', { name: /PDF to JPG/ }).focus();
+  // PDF to JPG, PDF to PNG, JPG to PDF, PDF to Word: three steps along.
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: /PDF to Word/ })).toBeChecked();
+  await expect(page).toHaveURL(/\/pdf-to-word$/);
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Remove report-12-pages.pdf' })).toBeFocused();
 });
@@ -252,12 +258,13 @@ for (const scheme of ['light', 'dark'] as const) {
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(sideways, 'no horizontal scroll').toBe(false);
 
-    await pick(page, /Split/);
+    await pick(page, /Split PDF/);
     await page.getByRole('checkbox', { name: 'Page 1', exact: true }).check();
     await page.waitForTimeout(800);
     await page.screenshot({ path: `${SHOTS}/pdf-split-375-${scheme}.png`, fullPage: true });
 
-    await pick(page, /Compress/);
+    await pick(page, 'Compress');
+    await pick(page, /Compress PDF/);
     await page.getByRole('button', { name: 'Compress PDF' }).click();
     await expect(page.getByText(/Done\. Your PDF is ready\.|already about as small/)).toBeVisible({ timeout: 60_000 });
     await page.screenshot({ path: `${SHOTS}/pdf-compress-result-375-${scheme}.png`, fullPage: true });

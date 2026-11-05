@@ -48,10 +48,10 @@ const MAX_CANVAS_PIXELS = 16_000_000;
 export type RenderedPage = { blob: Blob; width: number; height: number };
 
 /**
- * Draws one page (1-based) on white and returns a JPEG. `scale` 1 = 72 DPI;
+ * Draws one page (1-based) on white and returns it as a JPEG or PNG. `scale` 1 = 72 DPI;
  * it's reduced automatically for pages that would exceed the canvas limit.
  */
-export async function renderPageJpeg(doc: PDFDocumentProxy, pageNumber: number, scale: number, quality = 0.85): Promise<RenderedPage> {
+async function renderPage(doc: PDFDocumentProxy, pageNumber: number, scale: number, mime: 'image/jpeg' | 'image/png', quality: number): Promise<RenderedPage> {
   const page = await doc.getPage(pageNumber);
   try {
     let viewport = page.getViewport({ scale });
@@ -62,16 +62,25 @@ export async function renderPageJpeg(doc: PDFDocumentProxy, pageNumber: number, 
     canvas.width = Math.max(1, Math.round(viewport.width));
     canvas.height = Math.max(1, Math.round(viewport.height));
     await page.render({ canvas, viewport, background: '#ffffff' }).promise;
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, mime === 'image/png' ? undefined : quality));
     const out = { blob: blob!, width: canvas.width, height: canvas.height };
     canvas.width = canvas.height = 0; // free the pixels now, not at GC
-    if (!blob) throw new Error('Canvas could not make a JPEG');
+    if (!blob) throw new Error('Canvas could not make an image');
     return out;
   } catch (err) {
     throw toPdfToolError(err);
   } finally {
     page.cleanup();
   }
+}
+
+export function renderPageJpeg(doc: PDFDocumentProxy, pageNumber: number, scale: number, quality = 0.85): Promise<RenderedPage> {
+  return renderPage(doc, pageNumber, scale, 'image/jpeg', quality);
+}
+
+/** The same page as a PNG (lossless, white background). */
+export function renderPagePng(doc: PDFDocumentProxy, pageNumber: number, scale: number): Promise<RenderedPage> {
+  return renderPage(doc, pageNumber, scale, 'image/png', 1);
 }
 
 /** A small preview: `cssWidth` wide on screen, sharp on high-density displays. */

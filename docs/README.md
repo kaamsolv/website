@@ -18,6 +18,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | Image tools (12: converters, compressor, resize to KB) | **Live** — [`products/image-kit.md`](products/image-kit.md) |
 | URL Shortener | **Live** — [`products/url-shortener.md`](products/url-shortener.md) |
 | PDF tools (Compress, Merge, Split, PDF↔JPG) | **Live** (Stage 1, free) — [`products/pdf-tools.md`](products/pdf-tools.md) |
+| PDF suite completion (Rotate, Delete, Rearrange, Split by range, Page numbers, PDF to PNG / Text, Watermark, Protect, sectioned hub) | **Built locally, not deployed** (2026-11-05) — [`products/pdf-tools.md`](products/pdf-tools.md) |
 | PDF to Word (`/pdf-to-word`) | **Live** (2026-10-27) — text first, in the browser — [`products/pdf-tools.md`](products/pdf-tools.md) |
 | Invoice Generator | **Live** — free tier, accounts and saving, workspace, GST tax invoice; Pro Stage 2C-1 (templates, multi-page, quotations) live but hidden until payments; payment ledger and partial payments (Stage C) the Pro Payments & Collections page (Stage D) and the invoice workspace (Stage E: list search and paging, customer pages) and Reports & exports (Stage F, Pro: CSV reports of invoices, payments and what's owed) built, not deployed — [`products/invoice-generator.md`](products/invoice-generator.md) |
 | Accounts (Google + email link, entitlements, `/app` hub) | **Live** — [`products/accounts.md`](products/accounts.md) |

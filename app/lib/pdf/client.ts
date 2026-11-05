@@ -14,6 +14,10 @@ import { PdfToolError, toPdfToolError, type PdfErrorCode } from './errors';
 import type { CompressResponse } from './worker/compress.worker';
 import type { MarginMode, PageSizeMode } from './image-layout';
 import type { PreparedImage } from './pages';
+import type { PagePlan } from './organize';
+import type { NumberOptions } from './numbering';
+import type { ProtectOptions } from './protect-rules';
+import type { ImageWatermark, TextWatermark } from './watermark';
 
 let worker: Worker | null = null;
 let jobCounter = 0;
@@ -100,6 +104,60 @@ export function extractPages(input: Uint8Array, pageIndices: number[]): Promise<
 
 export function imagesToPdf(images: PreparedImage[], size: PageSizeMode, margin: MarginMode): Promise<Uint8Array> {
   return withPdfLib((p) => p.imagesToPdf(images, size, margin));
+}
+
+/** Rotate, delete and reorder in one go: the planned pages, in order (see organize.ts). */
+export async function editPages(input: Uint8Array, plan: PagePlan[]): Promise<Uint8Array> {
+  try {
+    return await (await import('./organize')).buildFromPages(input, plan);
+  } catch (err) {
+    throw toPdfToolError(err);
+  }
+}
+
+/** One new PDF per group of pages (every N pages, one per page). */
+export async function splitGroups(input: Uint8Array, groups: number[][], onProgress?: (done: number, total: number) => void): Promise<Uint8Array[]> {
+  try {
+    return await (await import('./organize')).extractGroups(input, groups, onProgress);
+  } catch (err) {
+    throw toPdfToolError(err);
+  }
+}
+
+/** Writes page numbers on a PDF (see stamp.ts). */
+export async function numberPages(input: Uint8Array, options: NumberOptions): Promise<Uint8Array> {
+  try {
+    return await (await import('./stamp')).addPageNumbers(input, options);
+  } catch (err) {
+    throw toPdfToolError(err);
+  }
+}
+
+/** Stamps words on the chosen pages (see stamp.ts). */
+export async function watermarkText(input: Uint8Array, mark: TextWatermark): Promise<Uint8Array> {
+  try {
+    return await (await import('./stamp')).addTextWatermark(input, mark);
+  } catch (err) {
+    throw toPdfToolError(err);
+  }
+}
+
+/** Places a picture on the chosen pages (see stamp.ts). */
+export async function watermarkImage(input: Uint8Array, image: PreparedImage, mark: ImageWatermark): Promise<Uint8Array> {
+  try {
+    return await (await import('./stamp')).addImageWatermark(input, image, mark);
+  } catch (err) {
+    throw toPdfToolError(err);
+  }
+}
+
+/** Locks a PDF with a password, AES-256 (see protect.ts). The password stays in this tab. */
+export async function protectPdf(input: Uint8Array, options: ProtectOptions): Promise<Uint8Array> {
+  try {
+    return await (await import('./protect')).protectPdf(input, options);
+  } catch (err) {
+    throw toPdfToolError(err);
+  }
 }
 
 /** A finished PDF as a Blob for download. */
