@@ -223,7 +223,7 @@ test('protect: Show the password reveals what was typed', async ({ page }) => {
 test('the picker has a Secure group with both tools, and moving between them keeps the file', async ({ page }) => {
   await page.goto('/watermark-pdf');
   await dropInput(page).setInputFiles(six);
-  await expect(page.getByRole('radio', { name: 'Secure', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Secure & enhance', exact: true })).toBeChecked();
   await pick(page, /Protect PDF/);
   await expect(page).toHaveURL(/\/protect-pdf$/);
   await expect(page.getByRole('button', { name: 'Protect PDF' })).toBeVisible();

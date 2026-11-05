@@ -28,6 +28,8 @@ export function ToolPageShell({
   faq,
   related,
   tool: toolOverride,
+  hero,
+  afterHero,
   children,
 }: {
   /** Catalogue slug — name, URL and category come from the catalogue. */
@@ -40,6 +42,10 @@ export function ToolPageShell({
   faq: ToolFaq[];
   /** Related tool slugs; defaults to other tools in the same category. Live first. */
   related?: string[];
+  /** A page with its own top (e.g. the /pdf-tools studio): replaces the default breadcrumb / H1 / tool block. It must contain `<h1 id="tool-title">`. */
+  hero?: React.ReactNode;
+  /** Sections between a custom `hero` and "How it works"; the share card follows them. */
+  afterHero?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const tool = toolOverride ?? TOOLS.find((t) => t.slug === slug)!;
@@ -101,39 +107,50 @@ export function ToolPageShell({
       <ToolOpen slug={tool.slug} />
 
       <main id="main">
-        <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
-          <div className="kk-container py-10 sm:py-14">
-            <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
-
-            <div className="mt-6 max-w-2xl">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${accent.tint} ${accent.fg}`}
-              >
-                <Icon name={cat.icon} className="h-3.5 w-3.5" />
-                {cat.name} · Free tool
-              </span>
-              <h1
-                id="tool-title"
-                className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
-              >
-                {h1}
-              </h1>
-              <p className="mt-3 text-pretty text-lg text-muted">{intro}</p>
-            </div>
-
-            <noscript>
-              <p className="mt-4 rounded-lg border border-danger-400 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700">
-                This tool needs JavaScript. Please turn it on in your browser.
-              </p>
-            </noscript>
-
-            <div className="mt-8">{children}</div>
-
-            <div className="mt-8">
+        {hero ? (
+          <>
+            {hero}
+            {afterHero}
+            <div className="kk-container pb-2 pt-8 sm:pt-10">
               <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />
             </div>
-          </div>
-        </section>
+          </>
+        ) : (
+          <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
+            <div className="kk-container py-10 sm:py-14">
+              <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+
+              <div className="mt-6 max-w-2xl">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${accent.tint} ${accent.fg}`}
+                >
+                  <Icon name={cat.icon} className="h-3.5 w-3.5" />
+                  {cat.name} · Free tool
+                </span>
+                <h1
+                  id="tool-title"
+                  className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
+                >
+                  {h1}
+                </h1>
+                <p className="mt-3 text-pretty text-lg text-muted">{intro}</p>
+              </div>
+
+              <noscript>
+                <p className="mt-4 rounded-lg border border-danger-400 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700">
+                  This tool needs JavaScript. Please turn it on in your browser.
+                </p>
+              </noscript>
+
+              <div className="mt-8">{children}</div>
+
+              <div className="mt-8">
+                <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />
+              </div>
+            </div>
+          </section>
+
+        )}
 
         <section aria-labelledby="how-title" className="kk-container py-12 sm:py-16">
           <h2 id="how-title" className="font-display text-2xl font-bold text-ink">

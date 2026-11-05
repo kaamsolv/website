@@ -218,7 +218,7 @@ test('switching action keeps the file and updates the URL', async ({ page }) => 
   await page.goto('/compress-pdf');
   await dropInput(page).setInputFiles(fx.doc12);
   // Two steps, like a person: open the group, then pick the tool.
-  await pick(page, 'Organize');
+  await pick(page, 'Organise');
   await pick(page, /Split PDF/);
   await expect(page).toHaveURL(/\/split-pdf$/);
   await expect(page.getByRole('checkbox', { name: 'Page 12', exact: true })).toBeVisible();

@@ -327,40 +327,12 @@ for (const path of ['/rotate-pdf', '/delete-pdf-pages', '/rearrange-pdf-pages'])
   });
 }
 
-test('the hub groups every tool; ready tools link, coming-soon tools are plain text', async ({ page }) => {
+// The hub's structure, links and look are covered in pdf-hub.spec.ts; this keeps the click-through from the directory.
+test('a card in the hub directory opens its tool', async ({ page }) => {
   await page.goto('/pdf-tools');
-  await expect(page).toHaveTitle(/PDF tools/);
-  const grid = page.locator('#hub-tools').locator('..');
-  await expect(page.getByRole('heading', { name: 'All PDF tools' })).toBeVisible();
-  for (const h of ['Organize PDF', 'Compress and Optimize', 'Convert PDF', 'Secure and Sign', 'Scan and Extract']) {
-    await expect(grid.getByRole('heading', { name: h })).toBeVisible();
-  }
-  const links: Record<string, string> = {
-    'Merge PDF': '/merge-pdf',
-    'Split PDF': '/split-pdf',
-    'Rotate PDF': '/rotate-pdf',
-    'Delete pages': '/delete-pdf-pages',
-    'Rearrange pages': '/rearrange-pdf-pages',
-    'Page numbers': '/add-page-numbers-to-pdf',
-    'PDF to PNG': '/pdf-to-png',
-    'PDF to Text': '/pdf-to-text',
-    'Watermark PDF': '/watermark-pdf',
-    'Protect PDF': '/protect-pdf',
-    'Compress PDF': '/compress-pdf',
-    'PDF to JPG': '/pdf-to-jpg',
-    'JPG to PDF': '/jpg-to-pdf',
-    'PDF to Word': '/pdf-to-word',
-  };
-  for (const [name, href] of Object.entries(links)) {
-    await expect(grid.getByRole('link', { name: new RegExp(`^${name}`) })).toHaveAttribute('href', href);
-  }
-  for (const name of ['Word to PDF', 'Unlock PDF', 'Sign PDF', 'OCR PDF', 'Extract tables', 'Compare PDFs']) {
-    await expect(grid.getByText(name, { exact: true })).toBeVisible();
-    await expect(grid.getByRole('link', { name: new RegExp(name) })).toHaveCount(0);
-  }
-  expect(await grid.getByText('Coming soon', { exact: true }).count()).toBe(6);
-  await grid.getByRole('link', { name: /^Rotate PDF/ }).click();
+  await page.locator('#pdf-directory').getByRole('link', { name: /^Rotate PDF/ }).click();
   await expect(page).toHaveURL(/\/rotate-pdf$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Rotate a PDF');
 });
 
 test('the sitemap lists the new pages', async ({ request }) => {
@@ -378,7 +350,7 @@ for (const [path, h1] of [
   ['/pdf-to-text', 'PDF to Text'],
   ['/watermark-pdf', 'Watermark a PDF'],
   ['/protect-pdf', 'Protect a PDF with a password'],
-  ['/pdf-tools', 'PDF tools'],
+  ['/pdf-tools', 'PDF tools, right in your browser'],
 ] as const) {
   test(`${path}: title, description, canonical, H1, FAQ and breadcrumb data, related tools`, async ({ page }) => {
     await page.goto(path);
@@ -428,6 +400,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.screenshot({ path: `${SHOTS}/pdf-split-modes-${width}-${scheme}.png`, fullPage: true });
 
       await page.goto('/pdf-tools');
+      await page.waitForLoadState('networkidle');
       await noSideways('hub');
       await page.screenshot({ path: `${SHOTS}/pdf-hub-${width}-${scheme}.png`, fullPage: true });
       expect(w.problems).toEqual([]);

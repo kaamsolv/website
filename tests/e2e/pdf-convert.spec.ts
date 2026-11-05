@@ -210,7 +210,7 @@ test('the picker lists the new tools and moving between them keeps the file', as
   await pick(page, /PDF to Text/);
   await expect(page).toHaveURL(/\/pdf-to-text$/);
   await expect(page.getByRole('button', { name: 'Get the text from 6 pages' })).toBeVisible();
-  await pick(page, 'Organize');
+  await pick(page, 'Secure & enhance');
   await pick(page, /Page numbers/);
   await expect(page).toHaveURL(/\/add-page-numbers-to-pdf$/);
   await expect(page.getByRole('button', { name: 'Add page numbers' })).toBeVisible();

@@ -5,6 +5,18 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-11-05 — /pdf-tools redesigned as a PDF Studio page (built locally on `design/pdf-hub-redesign`, not deployed)
+
+**Decided by:** product owner (redesign brief 2026-11-05). Visual only: no change to PDF processing, validation, limits, routes, entitlements, analytics or privacy.
+- Hero with the real upload workspace, popular tasks, a grouped directory with per-group colour and a distinct icon per task, a short trust note.
+- Groups and names as briefed: Organise PDF, Compress & Optimise, Convert PDF, Secure & Enhance, Scan & Extract. Page numbers now sits under Secure & Enhance.
+- Deviation from `ToolCard`: a PDF variant with accent per section and an icon per task (reasons in DESIGN-SYSTEM.md §6a); same shell otherwise.
+- The hub reads its tools from the catalogue; a unit test fails if the registry and catalogue ever disagree.
+
+## 2026-11-05 — /pdf-tools directory, round 2 (visual only)
+
+**Decided by:** product owner. Groups lose the left rail and use the full width: heading row, then a full-width grid; short last rows stretch; a one-tool group (Compress) is a wide feature card. Cards got more padding, a larger icon tile and title, and an arrow cue. No change to hero, popular tasks, colours, trust, share, SEO or any behaviour.
+
 ## 2026-11-05 — PDF suite completion: page tools, numbers, watermark, protect, hub sections (built locally, not deployed)
 
 **Decided by:** product owner (audit and plan approved 2026-11-05, with additions: PDF to Text, picture watermarks, editor with multi-select, undo, reset and confirmations, protection tested with independent readers, sectioned hub).

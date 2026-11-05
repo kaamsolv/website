@@ -67,6 +67,23 @@ category's `*x-100 / *x-600` tint pair, Sora-bold name, `text-muted` blurb.
 Hover: `-translate-y-0.5` + `shadow-lift`. This replaces the earlier idea of
 full-bleed tinted category panels — those go muddy in dark mode.
 
+### 6a. The PDF directory variant (/pdf-tools)
+
+`app/_components/pdf/pdf-tool-card.tsx` (`PdfToolCard`, `PopularCard`, `PdfSoonCard`) uses the card shell above **unchanged**
+(rounded-xl2, hairline border, accent strip, tinted icon tile, Sora-bold name, muted blurb, hover lift, coral focus ring,
+dashed "Coming soon"). It exists because `ToolCard` is fixed to the catalogue *category*, and every PDF tool is in "Documents"
+(one purple, one icon, everywhere). Two deliberate differences:
+
+- **Accent per PDF section**, from the same `ACCENT` map: Organise purple, Compress coral, Convert teal, Secure & Enhance yellow, Scan & Extract navy.
+- **One icon per task** (`pdf-icons.tsx`, same 24px / 2px outline language as `icons.tsx`).
+- On phones the card lies on its side (icon beside the words) so a 14-tool directory isn't a mile long; from `sm` it stands like `ToolCard`.
+
+Directory layout (round 2): each group is a heading row (icon, title, count, one line) then a full-width card grid (2 across on a tablet, 3 on a desktop, one lying-down card per row on a phone). A short last row stretches to share the row, so there's never a hole. A group with a single tool gets one wide feature card (`PdfFeatureCard`: the catalogue blurb plus the group's plain-words note, nothing extra).
+
+Everything else (section headings, popular row, hero) is composition built from the existing tokens, `kk-container`, `kk-dotgrid` and `kk-rise`.
+The page's data comes from the catalogue, so a tool that isn't live there cannot appear as a link (`app/lib/pdf/hub-data.ts`, tested in `test/pdf-hub.test.mts`).
+`ToolPageShell` gained two optional slots (`hero`, `afterHero`) for pages with their own top; every other tool page renders exactly as before.
+
 ## 7. Motion
 
 - One entrance only, on the hero (`.kk-rise`, staggered). Everything else is

@@ -643,8 +643,8 @@ export function PdfWorkspace({ task }: { task: PdfTask }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <OnDeviceNote subject="files" />
+    <div className={task === 'hub' ? 'w-full space-y-5' : 'mx-auto max-w-3xl space-y-5'} data-pdf-active={hasAnything ? 'true' : 'false'}>
+      {task !== 'hub' && <OnDeviceNote subject="files" />}
 
       {hasAnything && (
         <ToolPicker
@@ -707,7 +707,7 @@ function HubDrop({ drop }: { drop: React.ReactNode }) {
   return (
     <div className="space-y-3">
       {drop}
-      <p className="text-center text-sm text-muted">Then pick what to do: compress, merge, split, turn pages or convert.</p>
+      <p className="text-center text-sm text-muted">Then choose what to do with it, or pick a tool below.</p>
     </div>
   );
 }

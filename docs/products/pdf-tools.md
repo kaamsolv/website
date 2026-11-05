@@ -112,10 +112,15 @@ All free, all in the browser, no upload, no new dependency, no entitlement or da
 are requests that PDF apps are asked to honour; anyone who can open the file can use tools that ignore them. The page does not call them security.
 Password length is 4 to 32 characters: the format allows more, but Xpdf's command line takes only 32 bytes, and a protected file that a tool can't open is worse than a shorter password.
 
-**Hub** (`/pdf-tools`): the drop zone first, then `HubGrid` (server-rendered) with five sections — Organize PDF, Compress and Optimize, Convert PDF,
-Secure and Sign, Scan and Extract. Live tools are links; planned ones (Word to PDF, Unlock, Sign, OCR, Extract tables, Compare) are greyed, dashed,
-marked "Coming soon", and never links. The in-workspace picker is two steps: a group (Organize, Compress, Convert, Secure), then that group's tools; opening a
-group doesn't change the tool. Only live tools appear in it.
+**Hub** (`/pdf-tools`, redesigned as a "PDF Studio" page): a hero with the headline, a privacy cue and the real upload workspace beside it
+(upload is optional: "Browse all tools" jumps to the directory; once a file is loaded the hero drops to one column so the tool has the full width);
+then **Popular PDF tasks** (Merge, Split, Compress as larger cards); then the **directory** in five groups, each with a rail (accent icon, title, count) and
+its cards — Organise PDF (Merge, Split, Rotate, Delete pages, Rearrange pages), Compress & Optimise, Convert PDF (PDF to JPG / PNG, JPG to PDF,
+PDF to Word / Text), Secure & Enhance (Protect, Watermark, Page numbers), Scan & Extract (OCR PDF, Extract tables, Compare PDFs: planned, greyed, dashed,
+"Coming soon", never links); then a short privacy-and-limits note, share card, how it works, questions and three neighbouring tools.
+Cards take their name, blurb and live status from the catalogue (`hub-data.ts`). The in-workspace picker has four groups (Organise, Compress, Convert, Secure & enhance);
+opening a group doesn't change the tool. Word to PDF, Unlock and Sign were shown as planned on the first hub; they are not in the redesigned directory (the brief's groups
+didn't list them) and stay on the roadmap below.
 
 **Moved, not rewritten:** `pdf-workspace.tsx` shrank (935 → 780 lines) because its result cards moved to `results.tsx`, its picker to `tool-picker.tsx`
 and its split grid to `split-panel.tsx`, unchanged. The existing tools' logic was not touched.

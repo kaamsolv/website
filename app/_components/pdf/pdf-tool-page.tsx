@@ -1,5 +1,6 @@
 import { ToolPageShell, type ToolFaq, type ToolStep } from '../tool-page-shell';
-import { HubGrid } from './hub-grid';
+import { HubDirectory, HubTrust, PopularTasks } from './hub-grid';
+import { HubHero } from './hub-hero';
 import { PdfWorkspace } from './pdf-workspace';
 import type { PdfTask } from '@/app/lib/pdf/tools';
 import { toolMetadata } from '@/app/lib/tool-metadata';
@@ -61,7 +62,7 @@ const PAGES: Record<PdfTask, PageDef> = {
       },
       ...COMMON_FAQ,
     ],
-    related: ['compress-pdf', 'merge-pdf', 'rotate-pdf'],
+    related: ['image-compressor', 'invoice-generator', 'rent-receipt-generator'],
   },
   rotate: {
     slug: 'rotate-pdf',
@@ -530,6 +531,8 @@ export function PdfToolPage({ task }: { task: PdfTask }) {
   const p = PAGES[task];
   return (
     <ToolPageShell
+      hero={task === 'hub' ? <HubHero limit={LIMIT}><PdfWorkspace task="hub" /></HubHero> : undefined}
+      afterHero={task === 'hub' ? <><PopularTasks /><HubDirectory /><HubTrust /></> : undefined}
       slug={p.slug}
       tool={task === 'hub' ? HUB_TOOL : undefined}
       h1={p.h1}
@@ -538,8 +541,7 @@ export function PdfToolPage({ task }: { task: PdfTask }) {
       faq={p.faq}
       related={p.related}
     >
-      <PdfWorkspace task={task} />
-      {task === 'hub' && <HubGrid />}
+      {task === 'hub' ? null : <PdfWorkspace task={task} />}
     </ToolPageShell>
   );
 }
