@@ -11,7 +11,7 @@ const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 
 /** The application name shown in the top bar, from where you are. Pages can pass `appName` to override it. */
 function appNameFor(pathname: string): string {
-  const product = /^/app/products/([a-z]+)/.exec(pathname);
+  const product = /^\/app\/products\/([a-z]+)/.exec(pathname);
   if (product) return PRODUCTS.find((p) => p.slug === product[1])?.name ?? 'Products';
   if (pathname.startsWith('/app/invoices')) return 'Invoices';
   if (pathname.startsWith('/app/qr')) return 'QR codes';

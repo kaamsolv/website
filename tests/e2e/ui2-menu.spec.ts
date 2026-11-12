@@ -63,6 +63,7 @@ test('the product page: features, subscribe goes to the plan, the free product s
   await row(page, 'qr').click();
   await expect(page).toHaveURL(/\/app\/products\/qr$/);
   await expect(page.getByRole('heading', { level: 1, name: 'QR codes' })).toBeVisible();
+  await expect(page.getByTestId('workspace-app-name')).toHaveText('QR codes');
   const prod = page.getByTestId('product-page');
   await expect(prod.getByText('You get with QR Pro')).toBeVisible();
   await expect(prod.getByText('Campaigns that group codes')).toBeVisible();
