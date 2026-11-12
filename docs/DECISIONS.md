@@ -13,6 +13,15 @@ infrastructure. Newest first. Detail lives in the linked docs.
 - Deviation from `ToolCard`: a PDF variant with accent per section and an icon per task (reasons in DESIGN-SYSTEM.md §6a); same shell otherwise.
 - The hub reads its tools from the catalogue; a unit test fails if the registry and catalogue ever disagree.
 
+## 2026-11-12 — KaamSolv UI 2.0 (branch feat/kaamsolv-ui-2, built locally, not deployed)
+
+**Decided by:** product owner (master brief). Visual and layout only: no change to business logic, billing, auth, entitlements, APIs, schema, QR tracking or PDF engines.
+- Header nav: "Tools" and "Categories" became one **Products** mega menu; About stays.
+- Homepage: new hero copy, a **Featured Applications** section (typed `apps.ts`), then popular tools and categories. "Recently added" is not shown: the catalogue has no dates, so there is no real data for it.
+- **WorkspaceShell** for /app pages; per-page auth unchanged. The workspace top bar has no tool search for now (it clashed with in-page "Search" fields); it links to All tools instead.
+- Public editors (invoice, QR) stay public and anonymous, in a tinted "stage". PDF tool pages get a tool sidebar.
+- Test change: `accounts.spec.ts` now matches the word "Pro" (the new "Products" menu contains the letters).
+
 ## 2026-11-05 — /pdf-tools directory, round 2 (visual only)
 
 **Decided by:** product owner. Groups lose the left rail and use the full width: heading row, then a full-width grid; short last rows stretch; a one-tool group (Compress) is a wide feature card. Cards got more padding, a larger icon tile and title, and an arrow cue. No change to hero, popular tasks, colours, trust, share, SEO or any behaviour.

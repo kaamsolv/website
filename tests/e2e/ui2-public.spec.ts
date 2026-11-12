@@ -204,3 +204,47 @@ for (const scheme of ['light', 'dark'] as const) {
     });
   }
 }
+
+// PDF tool pages: the same workspace, now framed with a sidebar of the live PDF tools.
+test.describe('PDF workspace frame', () => {
+  test('desktop: sidebar lists the live PDF tools, marks the current one, never links a planned tool', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/rotate-pdf');
+    await settle(page);
+    const side = page.getByRole('navigation', { name: 'PDF tools', exact: true });
+    await expect(side).toBeVisible();
+    await expect(side.getByRole('link', { name: 'Rotate PDF' })).toHaveAttribute('aria-current', 'page');
+    await expect(side.getByRole('link', { name: 'PDF workspace' })).toHaveAttribute('href', '/pdf-tools');
+    expect(await side.getByRole('link').count()).toBe(15); // the hub plus 14 live tools
+    for (const planned of ['OCR PDF', 'Extract tables', 'Compare PDFs']) await expect(side.getByText(planned)).toHaveCount(0);
+    await side.getByRole('link', { name: 'Merge PDF' }).click();
+    await expect(page).toHaveURL(/\/merge-pdf$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Merge PDF files');
+    // The workspace is still there and still takes a file.
+    await expect(page.locator('input[type=file]').first()).toBeAttached();
+  });
+
+  test('phone: the tool list folds into one disclosure above the workspace', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/compress-pdf');
+    await settle(page);
+    await expect(page.getByRole('navigation', { name: 'PDF tools', exact: true })).toHaveCount(0);
+    await page.getByText('All PDF tools').click();
+    const menu = page.getByRole('navigation', { name: 'PDF tools menu' });
+    await expect(menu.getByRole('link', { name: 'Compress PDF' })).toHaveAttribute('aria-current', 'page');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+});
+
+for (const scheme of ['light', 'dark'] as const) {
+  for (const width of WIDTHS) {
+    test(`${width}px ${scheme}: PDF workspace frame fits; screenshots`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.setViewportSize({ width, height: width >= 1024 ? 900 : 812 });
+      await page.goto('/split-pdf');
+      await settle(page);
+      await page.screenshot({ path: `${SHOTS}/ui2-pdf-workspace-${width}-${scheme}.png`, fullPage: false });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+}

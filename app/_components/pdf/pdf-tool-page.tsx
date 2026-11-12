@@ -1,6 +1,7 @@
 import { ToolPageShell, type ToolFaq, type ToolStep } from '../tool-page-shell';
 import { HubDirectory, HubTrust, PopularTasks } from './hub-grid';
 import { HubHero } from './hub-hero';
+import { PdfStage } from './pdf-stage';
 import { PdfWorkspace } from './pdf-workspace';
 import type { PdfTask } from '@/app/lib/pdf/tools';
 import { toolMetadata } from '@/app/lib/tool-metadata';
@@ -540,8 +541,13 @@ export function PdfToolPage({ task }: { task: PdfTask }) {
       steps={p.steps}
       faq={p.faq}
       related={p.related}
+      stage={task !== 'hub'}
     >
-      {task === 'hub' ? null : <PdfWorkspace task={task} />}
+      {task === 'hub' ? null : (
+        <PdfStage current={p.path}>
+          <PdfWorkspace task={task} />
+        </PdfStage>
+      )}
     </ToolPageShell>
   );
 }

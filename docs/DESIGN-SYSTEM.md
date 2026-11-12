@@ -84,6 +84,17 @@ Everything else (section headings, popular row, hero) is composition built from 
 The page's data comes from the catalogue, so a tool that isn't live there cannot appear as a link (`app/lib/pdf/hub-data.ts`, tested in `test/pdf-hub.test.mts`).
 `ToolPageShell` gained two optional slots (`hero`, `afterHero`) for pages with their own top; every other tool page renders exactly as before.
 
+## 6b. UI 2.0: two UI languages (public and application)
+
+One brand (navy and coral, Sora and Inter, the same tokens, light and dark), two frames:
+
+- **Public UI** (home, discovery, tool pages, SEO pages): `MarketingShell` (skip link, header, page, footer; `app/_components/shell/marketing-shell.tsx`) and `ToolPageShell`. Spacious, editorial. `ToolPageShell` takes `stage` for a tool that is really an application (invoice editor, QR generator, PDF tools): a tinted work area and a compact heading, same page and SEO content.
+- **Application UI** (signed-in invoice and QR management): `WorkspaceShell` (`shell/workspace-shell.tsx` + `workspace-chrome.tsx`): compact top bar (logo, application name, All tools, theme, Help, account), a sidebar that is a drawer below `lg`, full-width content, no marketing footer. It does not check who you are: each page keeps its own `getCurrentUser` + redirect, `force-dynamic` and `noindex`. `AccountShell` is a thin wrapper over it (`workspace` pages) and keeps its exports; `WorkspaceNav` (entitlement-aware) is the sidebar (`stacked` mode).
+- **Applications** (`app/lib/apps.ts`): the few substantial products (Invoice Generator, PDF Bundle, QR Studio) shown larger on the homepage and in the Products menu. Separate from `Tool`; an app shows only while the catalogue says its tools are live.
+- **Products menu** (`shell/products-menu.tsx`): an accessible disclosure (click, Escape, outside click; no ARIA menu) with categories, featured products and popular tools plus a search that reuses `searchTools`. Only live tools are links. A phone gets an accordion in the mobile menu. It replaced the "Tools" and "Categories" header links.
+- `BTN`, `PRIMARY`, `SECONDARY`, `INPUT` now live in `app/lib/ui-classes.ts` and are re-exported from `account-shell.tsx`.
+- PDF tool pages: `PdfStage` frames the unchanged workspace with a sidebar of the live PDF tools (a disclosure on phones).
+
 ## 7. Motion
 
 - One entrance only, on the hero (`.kk-rise`, staggered). Everything else is
