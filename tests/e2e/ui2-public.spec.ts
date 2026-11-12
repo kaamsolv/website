@@ -173,3 +173,34 @@ for (const scheme of ['light', 'dark'] as const) {
     });
   }
 }
+
+// The two public editors keep working without an account, in the new work-area presentation.
+test('the public invoice editor and QR generator work signed out', async ({ page }) => {
+  await page.goto('/invoice-generator');
+  await expect(page).toHaveURL(/\/invoice-generator$/);
+  await page.getByLabel('Item 1 description').fill('Design');
+  await page.getByLabel('Item 1 rate').fill('1000');
+  await expect(page.getByTestId('invoice-total')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invoice generator');
+  await expect(page.getByRole('heading', { name: 'How it works' })).toBeVisible(); // SEO content intact
+
+  await page.goto('/qr-code-generator');
+  await expect(page).toHaveURL(/\/qr-code-generator$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Make a QR code');
+  await expect(page.getByRole('heading', { name: /^Three steps/ })).toBeVisible();
+});
+
+for (const scheme of ['light', 'dark'] as const) {
+  for (const width of WIDTHS) {
+    test(`${width}px ${scheme}: public editors fit; screenshots`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.setViewportSize({ width, height: width >= 1024 ? 900 : 812 });
+      for (const [label, path] of [['invoice-editor', '/invoice-generator'], ['qr-editor', '/qr-code-generator']]) {
+        await page.goto(path);
+        await settle(page);
+        await page.screenshot({ path: `${SHOTS}/ui2-${label}-${width}-${scheme}.png`, fullPage: false });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${label}: no sideways scroll`).toBe(true);
+      }
+    });
+  }
+}

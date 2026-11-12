@@ -49,6 +49,7 @@ export default function InvoiceGeneratorPage() {
   return (
     <ToolPageShell
       slug="invoice-generator"
+      stage
       h1="Invoice generator"
       intro="Type straight onto the invoice. Download a clean PDF. No sign-up."
       steps={STEPS}

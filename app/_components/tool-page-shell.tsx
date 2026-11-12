@@ -30,6 +30,7 @@ export function ToolPageShell({
   tool: toolOverride,
   hero,
   afterHero,
+  stage = false,
   children,
 }: {
   /** Catalogue slug — name, URL and category come from the catalogue. */
@@ -46,6 +47,8 @@ export function ToolPageShell({
   hero?: React.ReactNode;
   /** Sections between a custom `hero` and "How it works"; the share card follows them. */
   afterHero?: React.ReactNode;
+  /** For a tool that is really an application (the invoice editor): a tinted work area and a compact heading, so the editor gets the screen. Same page, same SEO content. */
+  stage?: boolean;
   children: React.ReactNode;
 }) {
   const tool = toolOverride ?? TOOLS.find((t) => t.slug === slug)!;
@@ -116,11 +119,11 @@ export function ToolPageShell({
             </div>
           </>
         ) : (
-          <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
-            <div className="kk-container py-10 sm:py-14">
+          <section aria-labelledby="tool-title" className={`overflow-x-clip border-b border-hair ${stage ? 'bg-wash' : ''}`}>
+            <div className={`kk-container ${stage ? 'py-6 sm:py-8' : 'py-10 sm:py-14'}`}>
               <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
 
-              <div className="mt-6 max-w-2xl">
+              <div className={`max-w-2xl ${stage ? 'mt-4' : 'mt-6'}`}>
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${accent.tint} ${accent.fg}`}
                 >
@@ -129,11 +132,11 @@ export function ToolPageShell({
                 </span>
                 <h1
                   id="tool-title"
-                  className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
+                  className={`mt-3 font-display font-extrabold tracking-tight text-ink ${stage ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}
                 >
                   {h1}
                 </h1>
-                <p className="mt-3 text-pretty text-lg text-muted">{intro}</p>
+                <p className={`mt-2 text-pretty text-muted ${stage ? 'text-base' : 'text-lg'}`}>{intro}</p>
               </div>
 
               <noscript>
@@ -142,7 +145,7 @@ export function ToolPageShell({
                 </p>
               </noscript>
 
-              <div className="mt-8">{children}</div>
+              <div className={stage ? 'mt-5' : 'mt-8'}>{children}</div>
 
               <div className="mt-8">
                 <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />

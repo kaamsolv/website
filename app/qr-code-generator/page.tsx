@@ -129,8 +129,8 @@ export default function QrCodeGeneratorPage() {
       <ToolOpen slug="qr-code-generator" type="generator" />
 
       <main id="main">
-        <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
-          <div className="kk-container py-10 sm:py-14">
+        <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair bg-wash">
+          <div className="kk-container py-6 sm:py-8">
             <Breadcrumb
               items={[
                 { label: 'Home', href: '/' },
@@ -138,18 +138,18 @@ export default function QrCodeGeneratorPage() {
               ]}
             />
 
-            <div className="mt-6 max-w-2xl">
+            <div className="mt-4 max-w-2xl">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-purplex-100 px-2.5 py-1 text-xs font-semibold text-purplex-600">
                 <Icon name="business" className="h-3.5 w-3.5" />
                 Business · Free tool
               </span>
               <h1
                 id="tool-title"
-                className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
+                className="mt-3 font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl"
               >
                 Make a QR code
               </h1>
-              <p className="mt-3 text-pretty text-lg text-muted">
+              <p className="mt-2 text-pretty text-base text-muted">
                 Links, Wi-Fi, contacts, and more — customise it, download it, done.
               </p>
             </div>
@@ -159,7 +159,7 @@ export default function QrCodeGeneratorPage() {
                 JavaScript is required to generate QR codes. Please enable JavaScript in your browser.
               </p>
             </noscript>
-            <div className="mt-8">
+            <div className="mt-5">
               <QrGenerator />
             </div>
           </div>
