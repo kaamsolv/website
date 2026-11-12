@@ -266,7 +266,7 @@ test('Pro quotation: QUOTATION, Valid until, QT-0001, no UPI QR; Convert makes a
   await expect(page.getByRole('link', { name: 'Record payment' })).toHaveCount(0); // quotations take no payments
   await expect(page.getByRole('radio', { name: 'Quotation', exact: true })).toHaveCount(0); // saved: the type is fixed
   await page.getByRole('button', { name: 'Convert to invoice' }).click();
-  await page.waitForURL(/invoice-generator\?id=/);
+  await page.waitForURL(/(invoice-generator|app\/invoices\/editor)\?id=/); // converting stays on the page you are on (workspace or public)
   await expect(page.getByRole('heading', { name: 'TAX INVOICE' })).toBeVisible();
   await expect(page.getByLabel('Invoice number')).toHaveValue('INV-0002');
   await expect(page.getByLabel('Item 1 description')).toHaveValue('Website redesign');
