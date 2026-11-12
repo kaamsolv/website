@@ -89,3 +89,9 @@ export function entitlementsFrom(resolved: ResolvedEntitlements | Iterable<strin
 
 /** Anonymous visitors, and the server's answer for no user. */
 export const NO_ENTITLEMENTS: ResolvedEntitlements = { keys: [], limits: {} };
+
+/**
+ * A paid account sees no ads. "Paid" = holds any one of these Pro-only keys (Invoice Pro's dashboard,
+ * QR Pro's campaigns). Free accounts hold neither; add a key here when another product gets a Pro plan.
+ */
+export const AD_FREE_KEYS: readonly EntitlementKey[] = ['invoice_dashboard', 'qr_campaigns'];

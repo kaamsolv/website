@@ -22,8 +22,9 @@ export function SiteHeader() {
     const measure = () => {
       frame = 0;
       const anchor = document.getElementById('hero-search-anchor');
-      const bottom = anchor?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY;
-      setCondensed(bottom < 72);
+      // No hero search on this page (a tool page, say): the header carries the search all the time.
+      if (!anchor) return setCondensed(true);
+      setCondensed(anchor.getBoundingClientRect().bottom < 72);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(measure);

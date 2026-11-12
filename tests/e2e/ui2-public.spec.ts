@@ -248,3 +248,47 @@ for (const scheme of ['light', 'dark'] as const) {
     });
   }
 }
+
+// Search is prominent on the tools directory and always in the header on a tool page.
+test('the tools directory has a big search that opens a tool', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/tools');
+  await settle(page);
+  const box = page.locator('#tools-search');
+  await expect(box).toBeVisible();
+  await box.fill('emi');
+  await expect(page.getByRole('option').first()).toContainText('EMI');
+  await box.press('Enter');
+  await expect(page).toHaveURL(/\/emi-calculator$/);
+});
+
+test('a tool page carries the search in the header (desktop) and in the phone menu', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/gst-calculator');
+  await settle(page);
+  const header = page.locator('header').getByRole('combobox', { name: 'Search for a tool' });
+  await expect(header).toBeVisible();
+  await header.fill('pdf to word');
+  await header.press('Enter');
+  await expect(page).toHaveURL(/\/pdf-to-word$/);
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/gst-calculator');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await expect(page.locator('#mobile-menu').getByRole('combobox', { name: 'Search for a tool' })).toBeVisible();
+});
+
+test('ads: anonymous visitors see the house promo slots, outside the tool itself', async ({ page }) => {
+  await page.goto('/gst-calculator');
+  await settle(page);
+  const below = page.locator('[data-ad-slot="gst-calculator-below-tool"]');
+  await expect(below).toBeVisible();
+  // The slot sits after the tool block, never inside it.
+  expect(await page.evaluate(() => {
+    const ad = document.querySelector('[data-ad-slot="gst-calculator-below-tool"]')!;
+    const tool = document.querySelector('#tool-title')!.closest('section')!;
+    return !!(tool.compareDocumentPosition(ad) & Node.DOCUMENT_POSITION_FOLLOWING) && !tool.contains(ad);
+  })).toBe(true);
+  await page.goto('/tools');
+  await expect(page.locator('[data-ad-slot="tools-promo"]')).toBeVisible();
+});

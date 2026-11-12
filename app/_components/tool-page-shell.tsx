@@ -155,6 +155,19 @@ export function ToolPageShell({
 
         )}
 
+        {!hero && (
+          <aside aria-label="Promotion" className="kk-container pt-8">
+            <AdSlot
+              slotId={`${slug}-below-tool`}
+              size="leaderboard"
+              mode="house"
+              enabled
+              label="From KaamSolv"
+              houseAd={{ eyebrow: 'Small problems. Solved.', title: 'Browse every KaamSolv tool', body: 'Calculators, converters and generators. Free, no sign-up.', ctaLabel: 'See all tools', href: '/tools' }}
+            />
+          </aside>
+        )}
+
         <section aria-labelledby="how-title" className="kk-container py-12 sm:py-16">
           <h2 id="how-title" className="font-display text-2xl font-bold text-ink">
             How it works

@@ -117,3 +117,29 @@ for (const scheme of ['light', 'dark'] as const) {
     });
   }
 }
+
+test.describe('ads follow the plan', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('a free account sees the slots; a Pro account sees none, on tool pages and in the workspace', async ({ page }) => {
+    await signIn(page, email('free-ads'));
+    await page.goto('/app/invoices');
+    await expect(page.locator('[data-ad-slot="workspace-footer"]')).toBeVisible();
+    await page.goto('/gst-calculator');
+    await expect(page.locator('[data-ad-slot="gst-calculator-below-tool"]')).toBeVisible();
+
+    await page.context().clearCookies();
+    await page.evaluate(() => localStorage.clear());
+    await signIn(page, email('pro-ads'));
+    await page.goto('/app/invoices/overview');
+    await expect(page.getByRole('heading', { level: 1, name: 'Invoices overview' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-ad-slot]')).toHaveCount(0);
+    await page.goto('/gst-calculator');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-ad-slot]')).toHaveCount(0);
+    await page.goto('/tools');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-ad-slot]')).toHaveCount(0);
+  });
+});

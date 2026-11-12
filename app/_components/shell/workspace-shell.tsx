@@ -1,3 +1,4 @@
+import AdSlot from '@/app/components/AdSlot';
 import { WorkspaceChrome } from './workspace-chrome';
 
 /**
@@ -28,7 +29,20 @@ export function WorkspaceShell({
   children: React.ReactNode;
 }) {
   return (
-    <WorkspaceChrome nav={nav} appName={appName}>
+    <WorkspaceChrome
+      nav={nav}
+      appName={appName}
+      after={
+        <AdSlot
+          slotId="workspace-footer"
+          size="leaderboard"
+          mode="house"
+          enabled
+          label="From KaamSolv"
+          houseAd={{ title: 'More small tools', body: 'Calculators, converters and generators. Free, no sign-up.', ctaLabel: 'See all tools', href: '/tools' }}
+        />
+      }
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>

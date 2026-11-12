@@ -59,7 +59,19 @@ function requestGoogleAd(_slotId: string): boolean {
   return false;
 }
 
-export default function AdSlot({
+import { AdGate } from './AdGate';
+
+/** Every slot is hidden for paid accounts: see AdGate. */
+export default function AdSlot(props: AdSlotProps) {
+  if (props.enabled === false) return null;
+  return (
+    <AdGate>
+      <AdSlotUnit {...props} />
+    </AdGate>
+  );
+}
+
+function AdSlotUnit({
   slotId,
   size,
   mode = 'house',

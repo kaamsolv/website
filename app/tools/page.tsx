@@ -5,6 +5,8 @@ import { Icon } from '../_components/icons';
 import { SiteFooter } from '../_components/site-footer';
 import { SiteHeader } from '../_components/site-header';
 import { ToolCard } from '../_components/tool-card';
+import { ToolSearch } from '../_components/tool-search';
+import AdSlot from '../components/AdSlot';
 import { CATEGORIES, LIVE_TOOL_COUNT, LIVE_TOOLS, toolsInCategory } from '../lib/catalogue';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
@@ -48,6 +50,11 @@ export default function ToolsPage() {
               {LIVE_TOOL_COUNT} tools ready to use — free, no sign-up. More are on the way.
             </p>
 
+            <div className="mt-6 max-w-xl">
+              <ToolSearch variant="hero" inputId="tools-search" />
+              <span id="hero-search-anchor" aria-hidden="true" className="block h-px" />
+            </div>
+
             <nav aria-label="Jump to a category" className="mt-6 flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
                 <a
@@ -74,6 +81,17 @@ export default function ToolsPage() {
             ))}
           </ul>
         </section>
+
+        <aside aria-label="Promotion" className="kk-container">
+          <AdSlot
+            slotId="tools-promo"
+            size="billboard"
+            mode="house"
+            enabled
+            label="From KaamSolv"
+            houseAd={{ eyebrow: 'Small problems. Solved.', title: 'Missing a tool?', body: 'Tell us what you keep doing by hand. If enough people need it, we build it.', ctaLabel: 'Suggest a tool', href: '/contact#suggest' }}
+          />
+        </aside>
 
         <section aria-labelledby="by-category-title" className="kk-container border-t border-hair py-12 sm:py-14">
           <h2 id="by-category-title" className="font-display text-2xl font-bold text-ink">

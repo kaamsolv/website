@@ -23,7 +23,7 @@ function appNameFor(pathname: string): string {
  * full-width main area. No marketing footer, no width cap. The sidebar is one element (so there is one
  * "Your workspace" navigation, not two): off-screen and hidden from assistive tech while the drawer is closed.
  */
-export function WorkspaceChrome({ nav, appName, children }: { nav: React.ReactNode; appName?: string; children: React.ReactNode }) {
+export function WorkspaceChrome({ nav, appName, after, children }: { nav: React.ReactNode; appName?: string; /** Shown under the page content (an ad slot for free accounts). */ after?: React.ReactNode; children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const [open, setOpen] = useState(false);
   const name = appName ?? appNameFor(pathname);
@@ -89,6 +89,7 @@ export function WorkspaceChrome({ nav, appName, children }: { nav: React.ReactNo
         </aside>
         <main id="main" className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
+          {after && <div className="mt-10">{after}</div>}
         </main>
       </div>
     </div>
