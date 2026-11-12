@@ -1,0 +1,175 @@
+import { mkdirSync } from 'node:fs';
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * UI 2.0, public side: the homepage and the header's Products menu.
+ * Screenshots go to test-results/screenshots/ui2-*.png.
+ */
+
+const SHOTS = 'test-results/screenshots';
+const settle = async (page: Page) => page.waitForLoadState('networkidle');
+
+test.describe('homepage', () => {
+  test('hero, featured applications, popular tools and categories', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your Digital Toolkit for Everyday Kaam.');
+    await expect(page.getByText('Simple, useful tools for business, documents, work and everyday life.')).toBeVisible();
+    await expect(page.getByText('Small tools. Less kaam.')).toBeAttached();
+    await expect(page.locator('#hero-search-anchor')).toBeAttached();
+
+    const apps = page.getByRole('region', { name: 'Featured Applications' });
+    await expect(apps.getByRole('link')).toHaveCount(3);
+    await expect(apps.getByTestId('app-invoice')).toHaveAttribute('href', '/invoice-generator');
+    await expect(apps.getByTestId('app-pdf')).toHaveAttribute('href', '/pdf-tools');
+    await expect(apps.getByTestId('app-qr')).toHaveAttribute('href', '/qr-code-generator');
+    for (const href of ['/invoice-generator', '/pdf-tools', '/qr-code-generator']) {
+      expect((await page.request.get(href)).status(), `${href} opens`).toBe(200);
+    }
+
+    await expect(page.getByRole('heading', { name: 'Popular tools' })).toBeVisible();
+    const cats = page.locator('#categories').getByRole('link');
+    await expect(cats).toHaveCount(10);
+    await expect(cats.first()).toHaveAttribute('href', '/tools#money');
+    // The order on the page: hero, featured applications, popular tools, categories.
+    const order = await page.locator('main h1, main h2').allTextContents();
+    expect(order.slice(0, 4)).toEqual(['Your Digital Toolkit for Everyday Kaam.', 'Featured Applications', 'Popular tools', 'Explore tools by category']);
+  });
+
+  test('the hero search finds a tool and opens it', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    const box = page.locator('#hero-search');
+    await box.fill('gst');
+    await expect(page.getByRole('option').first()).toContainText('GST');
+    await box.press('Enter');
+    await expect(page).toHaveURL(/\/gst-calculator$/);
+  });
+
+  test('the compact header search still appears once the hero search scrolls away', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await settle(page);
+    await expect(page.locator('header').getByRole('combobox')).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, 1200));
+    await expect(page.locator('header').getByRole('combobox')).toBeVisible();
+  });
+});
+
+test.describe('Products menu, desktop', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('opens on click, shows categories, featured products and live popular tools; closes with Escape and outside click', async ({ page }) => {
+    await page.goto('/tools');
+    await settle(page);
+    const button = page.getByRole('button', { name: 'Products' });
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    const before = await page.evaluate(() => ({ h: document.documentElement.scrollHeight, top: document.querySelector('main')!.getBoundingClientRect().top }));
+    await button.click();
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    const menu = page.getByTestId('products-menu');
+    await expect(menu).toBeVisible();
+    expect(await page.evaluate(() => ({ h: document.documentElement.scrollHeight, top: document.querySelector('main')!.getBoundingClientRect().top }))).toEqual(before); // no layout shift
+
+    await expect(menu.getByRole('link', { name: /^(Money|Work|Business|Documents|Images & Files|Writing|Career|Everyday|India|Creators)\b/ })).toHaveCount(10);
+    await expect(menu.getByRole('link', { name: /Invoice Generator/ })).toHaveAttribute('href', '/invoice-generator');
+    await expect(menu.getByRole('link', { name: /PDF Bundle/ })).toHaveAttribute('href', '/pdf-tools');
+    await expect(menu.getByRole('link', { name: /QR Studio/ })).toHaveAttribute('href', '/qr-code-generator');
+    await expect(menu.getByRole('link', { name: /Explore all products/ })).toHaveAttribute('href', '/tools');
+    for (const href of await menu.locator('[data-tool-link]').evaluateAll((els) => els.map((e) => e.getAttribute('href')))) {
+      expect(href, 'popular tools are live pages, never a "coming soon" anchor').not.toMatch(/#/);
+    }
+
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(button).toBeFocused();
+
+    await button.click();
+    await expect(menu).toBeVisible();
+    await page.mouse.click(40, 700);
+    await expect(menu).toHaveCount(0);
+  });
+
+  test('search reuses the catalogue: live tools only, arrow keys move, a planned tool is not offered', async ({ page }) => {
+    await page.goto('/tools');
+    await settle(page);
+    await page.getByRole('button', { name: 'Products' }).click();
+    const menu = page.getByTestId('products-menu');
+    const search = menu.getByRole('searchbox', { name: 'Search tools' });
+    await search.fill('pdf');
+    const links = menu.locator('[data-tool-link]');
+    expect(await links.count()).toBeGreaterThan(1);
+    for (const href of await links.evaluateAll((els) => els.map((e) => e.getAttribute('href')))) expect(href).not.toMatch(/#/);
+    await search.press('ArrowDown');
+    await expect(links.nth(0)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(links.nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(links.nth(0)).toBeFocused();
+
+    await search.fill('resume builder'); // planned, not live
+    await expect(menu.getByText('No tool for “resume builder” yet.')).toBeVisible();
+    await expect(links).toHaveCount(0);
+
+    await search.fill('gst');
+    await menu.getByRole('link', { name: /GST Calculator/ }).click();
+    await expect(page).toHaveURL(/\/gst-calculator$/);
+  });
+
+  test('a category link opens that group on /tools', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await page.getByRole('button', { name: 'Products' }).click();
+    await page.getByTestId('products-menu').getByRole('link', { name: /^Documents/ }).click();
+    await expect(page).toHaveURL(/\/tools#documents$/);
+  });
+});
+
+test.describe('Products menu, phone', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test('the accordion lives in the phone menu', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    const toggle = page.getByRole('button', { name: 'Products' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const panel = page.getByTestId('products-accordion');
+    await expect(panel.getByRole('link', { name: 'PDF Bundle' })).toHaveAttribute('href', '/pdf-tools');
+    await expect(panel.getByRole('link', { name: 'Documents' })).toHaveAttribute('href', '/tools#documents');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await panel.getByRole('link', { name: 'QR Studio' }).click();
+    await expect(page).toHaveURL(/\/qr-code-generator$/);
+  });
+});
+
+const WIDTHS = [1440, 768, 375];
+for (const scheme of ['light', 'dark'] as const) {
+  for (const width of WIDTHS) {
+    test(`${width}px ${scheme}: homepage and menu fit; screenshots`, async ({ page }) => {
+      mkdirSync(SHOTS, { recursive: true });
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.setViewportSize({ width, height: width >= 1024 ? 900 : 812 });
+      const problems: string[] = [];
+      page.on('pageerror', (e) => problems.push(e.message));
+      page.on('console', (m) => m.type() === 'error' && problems.push(m.text()));
+      await page.goto('/');
+      await settle(page);
+      await page.screenshot({ path: `${SHOTS}/ui2-home-${width}-${scheme}.png`, fullPage: true });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no sideways scroll').toBe(true);
+      // Featured cards never run off the screen.
+      const outside = await page.locator('[data-testid^="app-"]').evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().right > window.innerWidth + 0.5).length);
+      expect(outside).toBe(0);
+      if (width >= 1024) {
+        await page.getByRole('button', { name: 'Products' }).click();
+        await page.screenshot({ path: `${SHOTS}/ui2-menu-${width}-${scheme}.png` });
+      } else {
+        await page.getByRole('button', { name: 'Open menu' }).click();
+        await page.getByRole('button', { name: 'Products' }).click();
+        await page.screenshot({ path: `${SHOTS}/ui2-menu-${width}-${scheme}.png` });
+      }
+      expect(problems).toEqual([]);
+    });
+  }
+}

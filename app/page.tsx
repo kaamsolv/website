@@ -1,7 +1,7 @@
 import AdSlot from './components/AdSlot';
 import { Icon } from './_components/icons';
-import { SiteHeader } from './_components/site-header';
-import { SiteFooter } from './_components/site-footer';
+import { FeaturedApps } from './_components/home/featured-apps';
+import { MarketingShell } from './_components/shell/marketing-shell';
 import { ToolSearch } from './_components/tool-search';
 import { ACCENT } from './_components/accent';
 import { ToolCard } from './_components/tool-card';
@@ -67,13 +67,7 @@ const JSON_LD = {
 
 export default function HomePage() {
   return (
-    <>
-      <a href="#main" className="skip-link">
-        Skip to content
-      </a>
-      <SiteHeader />
-
-      <main id="main">
+    <MarketingShell>
         {/* ---------- HERO ---------- */}
         <section aria-labelledby="hero-title" className="relative overflow-hidden border-b border-hair bg-surface">
           <div className="kk-dotgrid" aria-hidden="true" />
@@ -83,11 +77,11 @@ export default function HomePage() {
                 id="hero-title"
                 className="kk-rise text-balance font-display text-[2rem] font-extrabold leading-[1.08] tracking-tight text-ink sm:text-4xl lg:text-5xl xl:text-6xl"
               >
-                What do you need to{' '}
-                <span className="kk-underline-coral whitespace-nowrap text-coral-500">get done</span>?
+                Your Digital Toolkit for Everyday{' '}
+                <span className="kk-underline-coral whitespace-nowrap text-coral-500">Kaam</span>.
               </h1>
               <p className="kk-rise kk-rise-2 mt-4 max-w-xl text-base text-muted sm:mt-5 sm:text-lg">
-                Small tools for everyday problems. Calculate, convert, create — and get on with your day.
+                Simple, useful tools for business, documents, work and everyday life.
               </p>
 
               <div className="kk-rise kk-rise-3 mt-6 max-w-xl sm:mt-7">
@@ -145,31 +139,13 @@ export default function HomePage() {
                 })}
               </ul>
               <p className="font-hand ml-auto mt-3 max-w-[17rem] pr-4 text-right text-2xl text-coral-600 lg:max-w-xs" aria-hidden="true">
-                Small problems. Less kaam.
+                Small tools. Less kaam.
               </p>
             </nav>
           </div>
         </section>
 
-        {/* ---------- PROMO BANNER (AdSlot) — between the hero and tool discovery.
-             House promo now; the same slot can switch to an external provider
-             later without touching this page. ---------- */}
-        <aside aria-label="Promotion" className="kk-container pt-10 sm:pt-12">
-          <AdSlot
-            slotId="home-hero-promo"
-            size="billboard"
-            mode="house"
-            enabled
-            label="From KaamSolv"
-            houseAd={{
-              eyebrow: 'Small problems. Solved.',
-              title: 'Need to get something done?',
-              body: 'KaamSolv is a growing collection of quick, useful tools for everyday work and life — no sign-up, no clutter.',
-              ctaLabel: 'Explore KaamSolv',
-              href: '#categories',
-            }}
-          />
-        </aside>
+        <FeaturedApps />
 
         {/* ---------- POPULAR ---------- */}
         <section aria-labelledby="popular-title" className="kk-container py-14 sm:py-16">
@@ -204,7 +180,7 @@ export default function HomePage() {
           className="kk-container scroll-mt-20 border-t border-hair pt-16 sm:pt-20"
         >
           <h2 id="categories-title" className="font-display text-2xl font-bold text-ink sm:text-3xl">
-            Browse by category
+            Explore tools by category
           </h2>
           <p className="mt-1 max-w-2xl text-muted">
             Ten groups, one job each — from money and work to documents, images and everyday maths.
@@ -233,6 +209,26 @@ export default function HomePage() {
             })}
           </ul>
         </section>
+
+        {/* ---------- PROMO BANNER (AdSlot) — between the hero and tool discovery.
+             House promo now; the same slot can switch to an external provider
+             later without touching this page. ---------- */}
+        <aside aria-label="Promotion" className="kk-container pt-10 sm:pt-12">
+          <AdSlot
+            slotId="home-hero-promo"
+            size="billboard"
+            mode="house"
+            enabled
+            label="From KaamSolv"
+            houseAd={{
+              eyebrow: 'Small problems. Solved.',
+              title: 'Need to get something done?',
+              body: 'KaamSolv is a growing collection of quick, useful tools for everyday work and life — no sign-up, no clutter.',
+              ctaLabel: 'Explore KaamSolv',
+              href: '#categories',
+            }}
+          />
+        </aside>
 
         {/* ---------- BRAND + THREE STEPS + TRUST ---------- */}
         <section aria-labelledby="brand-title" className="kk-container py-16 sm:py-20">
@@ -316,9 +312,6 @@ export default function HomePage() {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD).replace(/</g, '\\u003c') }}
         />
-      </main>
-
-      <SiteFooter />
-    </>
+    </MarketingShell>
   );
 }

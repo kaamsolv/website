@@ -4,13 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { HeaderAccount, MobileAccountLinks } from './account/header-account';
 import { Icon } from './icons';
 import { ThemeToggle } from './theme-toggle';
+import { ProductsAccordion, ProductsMenu } from './shell/products-menu';
 import { ToolSearch } from './tool-search';
 
-const NAV = [
-  { label: 'Tools', href: '/tools' },
-  { label: 'Categories', href: '/#categories' },
-  { label: 'About', href: '/about' },
-];
+const NAV = [{ label: 'About', href: '/about' }];
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,6 +57,7 @@ export function SiteHeader() {
         </a>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 text-sm font-medium text-strong lg:flex">
+          <ProductsMenu />
           {NAV.map((item) => (
             <a
               key={item.label}
@@ -112,6 +110,7 @@ export function SiteHeader() {
             <div className="pb-2">
               <ToolSearch variant="compact" />
             </div>
+            <ProductsAccordion onNavigate={() => setMenuOpen(false)} />
             {NAV.map((item) => (
               <a
                 key={item.label}
