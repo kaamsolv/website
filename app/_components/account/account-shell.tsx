@@ -1,8 +1,12 @@
 import { SiteFooter } from '../site-footer';
 import { SiteHeader } from '../site-header';
+import { WorkspaceShell } from '../shell/workspace-shell';
 import { WorkspaceNav } from './workspace-nav';
 
-/** Shell for /login and the signed-in /app pages: header, a title, the content. */
+/**
+ * Shell for /login and the signed-in /app pages. Kept as a thin wrapper so its many callers don't change:
+ * signed-in pages (`workspace`) now sit in the full-screen WorkspaceShell; /login keeps the public frame.
+ */
 export function AccountShell({
   title,
   intro,
@@ -19,6 +23,13 @@ export function AccountShell({
   workspace?: boolean;
   children: React.ReactNode;
 }) {
+  if (workspace) {
+    return (
+      <WorkspaceShell nav={<WorkspaceNav stacked />} title={title} intro={intro} actions={actions} narrow={narrow}>
+        {children}
+      </WorkspaceShell>
+    );
+  }
   const heading = (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -35,20 +46,10 @@ export function AccountShell({
       </a>
       <SiteHeader />
       <main id="main" className="min-h-[70vh] bg-canvas">
-        {workspace ? (
-          <div className="kk-container py-8 sm:py-12 md:grid md:grid-cols-[11rem_1fr] md:gap-10">
-            <WorkspaceNav />
-            <div className="min-w-0">
-              {heading}
-              <div className={`mt-8 ${narrow ? 'max-w-xl' : ''}`}>{children}</div>
-            </div>
-          </div>
-        ) : (
-          <div className={`kk-container py-10 sm:py-14 ${narrow ? 'max-w-md' : ''}`}>
-            {heading}
-            <div className="mt-8">{children}</div>
-          </div>
-        )}
+        <div className={`kk-container py-10 sm:py-14 ${narrow ? 'max-w-md' : ''}`}>
+          {heading}
+          <div className="mt-8">{children}</div>
+        </div>
       </main>
       <SiteFooter />
     </>

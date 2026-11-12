@@ -176,7 +176,7 @@ test(`free save limit (test-only override: ${E2E_SAVE_LIMIT}) — Save off, clea
   await page.goto('/invoice-generator');
   await expect(page.getByText(`You’ve saved ${E2E_SAVE_LIMIT} invoices — the free limit.`)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
-  await expect(page.getByText(/Pro/)).toHaveCount(0); // no Pro mention in Stage 1
+  await expect(page.getByText(/Pro/)).toHaveCount(0); // no Pro mention in Stage 1 (word match: the "Products" menu is fine)
   await expect(page.getByRole('button', { name: 'Download PDF' }).first()).toBeEnabled();
 });
 
