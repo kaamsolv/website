@@ -5,11 +5,14 @@ import { useEffect, useState } from 'react';
 import { HeaderAccount } from '../account/header-account';
 import { Icon } from '../icons';
 import { ThemeToggle } from '../theme-toggle';
+import { PRODUCTS } from '@/app/lib/products';
 
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 
 /** The application name shown in the top bar, from where you are. Pages can pass `appName` to override it. */
 function appNameFor(pathname: string): string {
+  const product = /^/app/products/([a-z]+)/.exec(pathname);
+  if (product) return PRODUCTS.find((p) => p.slug === product[1])?.name ?? 'Products';
   if (pathname.startsWith('/app/invoices')) return 'Invoices';
   if (pathname.startsWith('/app/qr')) return 'QR codes';
   if (pathname.startsWith('/app/business')) return 'Business profile';

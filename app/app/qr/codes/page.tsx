@@ -18,7 +18,7 @@ export default async function AllQrCodesPage() {
       title="All QR codes"
       intro="Find a code, download it again, or pause it. Nothing here changes where a code sends people."
       actions={
-        <a href="/qr-code-generator" className={PRIMARY}>
+        <a href="/app/qr/new" className={PRIMARY}>
           + New QR code
         </a>
       }

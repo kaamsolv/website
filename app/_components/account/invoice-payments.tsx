@@ -295,7 +295,7 @@ export function InvoicePayments({ id }: { id: string }) {
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <a href={`/invoice-generator?id=${inv.id}`} className={SECONDARY}>
+          <a href={`/app/invoices/editor?id=${inv.id}`} className={SECONDARY}>
             Open invoice
           </a>
           <a href="/app/invoices" className={SECONDARY}>

@@ -80,7 +80,7 @@ export function Dashboard() {
         <ul aria-label="Recent invoices" className="divide-y divide-hair overflow-hidden rounded-xl2 border border-hair bg-surface">
           {data.recent.map((inv) => (
             <li key={inv.id}>
-              <a href={`/invoice-generator?id=${inv.id}`} className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
+              <a href={`/app/invoices/editor?id=${inv.id}`} className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
                 <span className="min-w-0">
                   <span className="font-semibold text-ink">{inv.number || 'Untitled'}</span>{' '}
                   <span className="text-strong">{inv.clientName || 'No client'}</span>
@@ -97,7 +97,7 @@ export function Dashboard() {
       </section>
 
       <div className="flex flex-wrap gap-3">
-        <a href="/invoice-generator" className={SECONDARY}>
+        <a href="/app/invoices/editor" className={SECONDARY}>
           + New invoice
         </a>
         <a href="/app/business/customers" className={SECONDARY}>

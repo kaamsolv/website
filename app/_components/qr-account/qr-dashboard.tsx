@@ -28,7 +28,7 @@ export function QrDashboard() {
         <p className="mx-auto mt-2 max-w-md text-muted">
           Make a QR for a link, press “Save tracked QR”, and its scans show up here — how many, when, and which code did best.
         </p>
-        <a href="/qr-code-generator" className={`${PRIMARY} mt-5`}>
+        <a href="/app/qr/new" className={`${PRIMARY} mt-5`}>
           Make a QR code
         </a>
       </div>
@@ -93,7 +93,7 @@ export function QrDashboard() {
             Quick actions
           </h2>
           <div className="mt-3 flex flex-wrap gap-3">
-            <a href="/qr-code-generator" className={PRIMARY}>
+            <a href="/app/qr/new" className={PRIMARY}>
               + New QR code
             </a>
             <a href="/app/qr/codes" className={SECONDARY}>

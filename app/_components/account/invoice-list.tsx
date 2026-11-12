@@ -310,7 +310,7 @@ export function InvoiceList() {
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
         <p className="font-display text-xl font-bold text-ink">No saved invoices yet</p>
         <p className="mt-2 text-muted">Make one, press Save, and it’ll be here next time.</p>
-        <a href="/invoice-generator" className={`${PRIMARY} mt-5`}>
+        <a href="/app/invoices/editor" className={`${PRIMARY} mt-5`}>
           Make an invoice
         </a>
       </div>
@@ -412,7 +412,7 @@ export function InvoiceList() {
               go(hrefWith({ kind: k === 'all' ? null : k }));
             }}
           />
-          <a href="/invoice-generator?type=quote" className={SECONDARY}>
+          <a href="/app/invoices/editor?type=quote" className={SECONDARY}>
             + New quotation
           </a>
         </div>
@@ -502,7 +502,7 @@ export function InvoiceList() {
               />
             )}
             <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-[1fr_auto] md:items-center md:gap-4">
-            <a href={`/invoice-generator?id=${inv.id}`} className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
+            <a href={`/app/invoices/editor?id=${inv.id}`} className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
               <span className="flex flex-wrap items-baseline gap-x-3">
                 <span className="font-semibold text-ink group-hover:underline">
                   {inv.number || (inv.kind === 'quote' ? 'Untitled quotation' : 'Untitled invoice')}
@@ -561,7 +561,7 @@ export function InvoiceList() {
                   Customer
                 </a>
               )}
-              <a href={`/invoice-generator?id=${inv.id}`} className={ROW_BTN} aria-label={`Open ${inv.number}`}>
+              <a href={`/app/invoices/editor?id=${inv.id}`} className={ROW_BTN} aria-label={`Open ${inv.number}`}>
                 Open
               </a>
               <button type="button" className={ROW_BTN} disabled={busy !== null} onClick={() => act(inv.id, 'download', inv.number)} aria-label={`Download ${inv.number} as PDF`}>
@@ -586,7 +586,7 @@ export function InvoiceList() {
       </ul>
       {data.matched > 0 && <Pager page={data.page} pages={data.pages} pageSize={data.pageSize} matched={data.matched} hrefFor={baseHref} onGo={intercept} label="Invoice pages" />}
       <p className="mt-6">
-        <a href="/invoice-generator" className={SECONDARY}>
+        <a href="/app/invoices/editor" className={SECONDARY}>
           + New invoice
         </a>
       </p>

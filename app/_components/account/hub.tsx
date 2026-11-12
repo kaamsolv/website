@@ -49,7 +49,7 @@ export function Hub() {
             <a href={pro ? '/app/invoices/overview' : '/app/invoices'} className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coral-600">
               Open invoices <Icon name="arrow-right" className="h-4 w-4" />
             </a>
-            <a href="/invoice-generator" className="text-strong underline underline-offset-2 hover:text-coral-600">
+            <a href="/app/invoices/editor" className="text-strong underline underline-offset-2 hover:text-coral-600">
               New invoice
             </a>
           </div>
@@ -66,7 +66,7 @@ export function Hub() {
             <a href="/app/qr" className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coral-600">
               Open QR codes <Icon name="arrow-right" className="h-4 w-4" />
             </a>
-            <a href="/qr-code-generator" className="text-strong underline underline-offset-2 hover:text-coral-600">
+            <a href="/app/qr/new" className="text-strong underline underline-offset-2 hover:text-coral-600">
               New QR code
             </a>
           </div>

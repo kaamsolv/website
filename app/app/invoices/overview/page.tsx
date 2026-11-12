@@ -24,7 +24,7 @@ export default async function InvoicesOverviewPage() {
       title="Invoices overview"
       intro="What you’ve billed, and what’s still to come in."
       actions={
-        <a href="/invoice-generator" className={PRIMARY}>
+        <a href="/app/invoices/editor" className={PRIMARY}>
           + New invoice
         </a>
       }

@@ -60,7 +60,7 @@ export function Analytics() {
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
         <p className="font-display text-xl font-bold text-ink">Nothing to measure yet</p>
         <p className="mt-2 text-muted">Save a tracked QR code and its scans will be analysed here.</p>
-        <a href="/qr-code-generator" className="mt-4 inline-block font-semibold text-ink underline underline-offset-2">
+        <a href="/app/qr/new" className="mt-4 inline-block font-semibold text-ink underline underline-offset-2">
           Make a QR code
         </a>
       </div>

@@ -111,7 +111,11 @@ function switchKind(cur: Invoice, toQuote: boolean, p: Profile | null): Invoice 
   };
 }
 
-export function InvoiceEditor() {
+/**
+ * `basePath` is the page the editor lives on (it rewrites its own address as you save). The public page is
+ * /invoice-generator; the signed-in workspace uses /app/invoices/editor. Nothing else about the editor differs.
+ */
+export function InvoiceEditor({ basePath = '/invoice-generator' }: { basePath?: string } = {}) {
   const me = useMe();
   const { can, limit } = useEntitlements();
   const signedIn = me.status === 'signed-in';
@@ -158,11 +162,11 @@ export function InvoiceEditor() {
           return;
         }
         setSaveMsg('That invoice isn’t in your account any more — here’s a new one instead.');
-        window.history.replaceState(null, '', '/invoice-generator');
+        window.history.replaceState(null, '', basePath);
       }
       // "New quotation" (Pro) from All invoices.
       const wantQuote = new URLSearchParams(window.location.search).get('type') === 'quote' && can('invoice_quote_mode');
-      if (window.location.search.includes('type=')) window.history.replaceState(null, '', '/invoice-generator');
+      if (window.location.search.includes('type=')) window.history.replaceState(null, '', basePath);
       const designOk = can('invoice_templates') || can('invoice_brand_color');
       // Carried over from before signing in? Keep it; otherwise start from the profile.
       if (draft && hasContent(draft)) {
@@ -193,7 +197,7 @@ export function InvoiceEditor() {
     const newId = r.body.id;
     if (!savedId && newId) {
       setSavedId(newId);
-      window.history.replaceState(null, '', `/invoice-generator?id=${newId}`);
+      window.history.replaceState(null, '', `${basePath}?id=${newId}`);
       clearInvoiceDraft();
       void refreshMe();
     }
@@ -458,7 +462,7 @@ export function InvoiceEditor() {
       return;
     }
     void refreshMe();
-    window.location.assign(`/invoice-generator?id=${r.body.id}`);
+    window.location.assign(`${basePath}?id=${r.body.id}`);
   }
 
   function openRecur() {
@@ -488,7 +492,7 @@ export function InvoiceEditor() {
     setMessage(null);
     setLogoError(null);
     lastSaved.current = '';
-    if (savedId) window.history.replaceState(null, '', '/invoice-generator');
+    if (savedId) window.history.replaceState(null, '', basePath);
     if (!signedIn) {
       setInv(newInvoice());
       return;

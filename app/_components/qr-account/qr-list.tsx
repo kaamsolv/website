@@ -154,7 +154,7 @@ export function QrList() {
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
         <p className="font-display text-xl font-bold text-ink">No tracked QR codes yet</p>
         <p className="mt-2 text-muted">Make a QR for a link, press “Save tracked QR”, and its scans are counted here.</p>
-        <a href="/qr-code-generator" className={`${PRIMARY} mt-5`}>
+        <a href="/app/qr/new" className={`${PRIMARY} mt-5`}>
           Make a QR code
         </a>
       </div>
@@ -314,7 +314,7 @@ export function QrList() {
         </nav>
       )}
       <p className="mt-6">
-        <a href="/qr-code-generator" className={SECONDARY}>
+        <a href="/app/qr/new" className={SECONDARY}>
           + New QR code
         </a>
       </p>

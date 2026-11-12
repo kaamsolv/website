@@ -208,7 +208,7 @@ export function BillingPanel() {
               const price = priceOf(planKey);
               if (!price) return null;
               return (
-                <article key={planKey} className="flex flex-col rounded-xl2 border border-hair bg-surface p-5">
+                <article key={planKey} id={`plan-${planKey}`} className="flex scroll-mt-24 flex-col rounded-xl2 border border-hair bg-surface p-5">
                   <h3 className="font-display text-base font-bold text-ink">{price.name}</h3>
                   <p className="mt-1 text-sm text-muted">{BLURB[planKey]}</p>
                   <p className="mt-auto pt-4 font-display text-3xl font-extrabold text-ink">

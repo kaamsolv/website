@@ -106,7 +106,7 @@ export function Collections() {
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">
         <p className="font-display text-xl font-bold text-ink">Nothing to measure yet</p>
         <p className="mt-2 text-muted">Save an invoice, record what you’re paid, and your collections show up here.</p>
-        <a href="/invoice-generator" className={`${PRIMARY} mt-5`}>
+        <a href="/app/invoices/editor" className={`${PRIMARY} mt-5`}>
           Make an invoice
         </a>
       </div>

@@ -18,7 +18,7 @@ export default async function MyInvoicesPage() {
       title="All invoices"
       intro="Open one to keep editing, make a copy for next month, or download it again."
       actions={
-        <a href="/invoice-generator" className={PRIMARY}>
+        <a href="/app/invoices/editor" className={PRIMARY}>
           + New invoice
         </a>
       }

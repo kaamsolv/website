@@ -19,7 +19,7 @@ export default async function QrDashboardPage() {
       title="QR codes"
       intro="How your tracked codes are doing."
       actions={
-        <a href="/qr-code-generator" className={PRIMARY}>
+        <a href="/app/qr/new" className={PRIMARY}>
           + New QR code
         </a>
       }

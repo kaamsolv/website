@@ -118,7 +118,7 @@ export function CustomerLinkReview({
               />
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-3">
-                  <a href={`/invoice-generator?id=${c.id}`} className="font-semibold text-ink underline-offset-2 hover:underline">
+                  <a href={`/app/invoices/editor?id=${c.id}`} className="font-semibold text-ink underline-offset-2 hover:underline">
                     {c.number || 'Untitled'}
                   </a>
                   {c.kind === 'quote' && <span className="rounded-full border border-hair bg-wash px-2 py-0.5 text-xs font-semibold text-strong">Quote</span>}
