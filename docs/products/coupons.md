@@ -1,12 +1,12 @@
 # Coupons: the free generator, then tracked redemption (paid)
 
-**Status (2026-11-13):** Phase 1 is built locally on `feat/coupon-generator` (not committed, not deployed): the engine, the page at `/coupon-code-generator` (design approved by the owner in chat), its Business catalogue entry, search phrase and tests. No database change. Phase 2 onwards is not started. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
+**Status (2026-11-13):** Phase 1 is **live** (committed as `3c1bc67` on `main` and deployed 2026-11-13, version `18bc1ced`): the engine, the page at `/coupon-code-generator` (design approved by the owner in chat), its Business catalogue entry, search phrase and tests. No database change. Phase 2 onwards is not started. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
 
 ## The plan (approved by the owner, 2026-11-13)
 
 | Phase | What | Account | Status |
 |---|---|---|---|
-| 1 | **Free Coupon Code Generator**: make one or many codes, optional discount and expiry labels, copy / CSV / TXT. Runs in the browser; nothing is uploaded. | none | built locally; awaits commit and deploy approval |
+| 1 | **Free Coupon Code Generator**: make one or many codes, optional discount and expiry labels, copy / CSV / TXT. Runs in the browser; nothing is uploaded. | none | **live** (2026-11-13) |
 | 2 | **Coupons Pro (paid): tracked redemption.** Saved batches; codes that are single-use or limited-use and expire on the server; a hosted redeem page (staff / till mode) and QR coupons; redemption counts and CSV export. Works for shops with no online store. | account; Pro | not started; needs approval of schema, entitlement keys and the redemption data we keep |
 | 3 | A small API so a shop's own checkout can ask "is this code good?" and "redeem it". Needs merchant API keys (none exist in the repo today). | Pro | later |
 | 4 | Store connectors: WooCommerce first (REST API, free to use), Shopify only if people ask (app review, protected customer data). | Pro | later, on demand |
