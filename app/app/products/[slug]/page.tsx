@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const p = productBySlug((await params).slug);
-  return { title: p ? p.name : 'Products' };
+  return { title: p ? (p.pageTitle ?? p.name) : 'Products' };
 }
 
 /** A product's page in the workspace: what it gives you, and how to get it. Signed-in only, like the rest of /app. */
@@ -22,7 +22,11 @@ export default async function ProductRoute({ params }: { params: Promise<{ slug:
   if (!user) redirect(`/login?next=${encodeURIComponent(`/app/products/${slug}`)}`);
 
   return (
-    <AccountShell workspace title={product.name} intro={product.status === 'soon' ? 'Not available yet.' : 'What it gives you, and how to get it.'}>
+    <AccountShell
+      workspace
+      title={product.pageTitle ?? product.name}
+      intro={product.pageTitle ? undefined : product.status === 'soon' ? 'Not available yet.' : 'What it gives you, and how to get it.'}
+    >
       <ProductPage product={product} />
     </AccountShell>
   );

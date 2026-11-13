@@ -13,6 +13,10 @@ infrastructure. Newest first. Detail lives in the linked docs.
 - Deviation from `ToolCard`: a PDF variant with accent per section and an icon per task (reasons in DESIGN-SYSTEM.md §6a); same shell otherwise.
 - The hub reads its tools from the catalogue; a unit test fails if the registry and catalogue ever disagree.
 
+## 2026-11-13 — QR Pro page (built locally on feat/kaamsolv-ui-2, not deployed)
+
+**Decided by:** product owner. Heading "QR Pro" (top bar keeps "QR codes"); feature list shown in every checkout state; price and Subscribe only when checkout is available, else "QR Pro subscriptions aren't available yet" with the free path prominent; the 50,000-scan export limit is secondary detail; the per-account code and campaign ceilings, "no ads", the Invoice + QR bundle and yearly savings are not on this page (the bundle line on the Invoice Pro page is unchanged). The sample QR is static and illustrative. No billing, entitlement, navigation, shell or invoice code changed.
+
 ## 2026-11-13 — Workspace menu frozen: products, upgrade rows, product pages, editors in the workspace
 
 **Decided by:** product owner (design approved in chat). Free accounts now see Pro products as highlighted "Upgrade" rows (reverses the Stage 1 rule that free accounts see no Pro mentions; two e2e assertions were about the hub page and still hold). Coupons are not shown: there is no such product. PDF Bundle shows "Soon" because no PDF plan exists. Pro-only pages inside a product stay hidden for free accounts, with one "Unlock … Pro" line instead. Signed-in users create and edit invoices at `/app/invoices/editor` and QR codes at `/app/qr/new`; `/invoice-generator` and `/qr-code-generator` stay public. No billing logic changed (the plan cards on Plans and billing just gained anchors).

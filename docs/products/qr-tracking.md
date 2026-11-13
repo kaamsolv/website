@@ -71,7 +71,7 @@ deletes its link (its printed copies then show "not found") and its scans.
 
 `/app/qr` is now a small workspace. Pro parts are checked with the existing
 `can()` keys **on the server** (a free account's responses omit them) and are
-hidden — never a teaser or an upgrade button. The 25 Oct split stands.
+hidden from the pages themselves. (Since 2026-11-13 the workspace menu has a highlighted "Upgrade" row that opens the QR Pro page, `/app/products/qr`; the pages stay as described here. See DECISIONS.md.)
 
 | Page | Everyone (free account) | QR Pro (`qr_pro`, hidden until payments) |
 |---|---|---|

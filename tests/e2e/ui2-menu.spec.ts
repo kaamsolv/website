@@ -57,22 +57,17 @@ test('an Invoice Pro account: Invoices is Pro with all its pages; QR is still an
   await expect(row(page, 'qr')).toHaveAttribute('data-state', 'upgrade');
 });
 
-test('the product page: features, subscribe goes to the plan, the free product stays reachable', async ({ page }) => {
+// The QR Pro page itself is covered in qr-pro-page.spec.ts; here: the way in from the menu.
+test('the QR row opens the QR Pro page; the top bar still says QR codes and the free product stays reachable', async ({ page }) => {
   await signIn(page, email('free-prod'));
   await page.goto('/app/invoices');
   await row(page, 'qr').click();
   await expect(page).toHaveURL(/\/app\/products\/qr$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'QR codes' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'QR Pro' })).toBeVisible();
   await expect(page.getByTestId('workspace-app-name')).toHaveText('QR codes');
   const prod = page.getByTestId('product-page');
-  await expect(prod.getByText('You get with QR Pro')).toBeVisible();
-  await expect(prod.getByText('Campaigns that group codes')).toBeVisible();
-  await expect(prod.getByText('You keep for free')).toBeVisible();
-  await expect(prod.getByTestId('subscribe')).toHaveAttribute('href', '/app/billing#plan-qr_pro');
-  await expect(prod.getByRole('link', { name: 'Open QR codes (free)' })).toHaveAttribute('href', '/app/qr');
+  await expect(prod.getByTestId('free-link')).toHaveAttribute('href', '/app/qr');
   await expect(row(page, 'qr')).toHaveAttribute('aria-current', 'page');
-  await prod.getByTestId('subscribe').click();
-  await expect(page).toHaveURL(/\/app\/billing#plan-qr_pro$/);
 });
 
 test('a subscribed product page says so and has no subscribe button; the PDF page is honest about being early', async ({ page }) => {

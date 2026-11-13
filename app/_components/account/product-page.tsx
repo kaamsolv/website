@@ -5,13 +5,14 @@ import { Icon } from '../icons';
 import { PRIMARY, SECONDARY } from '@/app/lib/ui-classes';
 import { useEntitlements } from '@/app/lib/me-client';
 import type { Product } from '@/app/lib/products';
+import { QrProPage } from './qr-pro-page';
 
 /**
  * /app/products/<slug>: what a product gives you and how to get it. A product you have: "you're on it" and
  * a way in. A product with a plan: its paid features, what stays free, and a button to Plans and billing
  * (where the price and checkout already live). A product with no plan yet: what is free now, no subscribe button.
  */
-export function ProductPage({ product: p }: { product: Product }) {
+function GenericProductPage({ product: p }: { product: Product }) {
   const { can, loading } = useEntitlements();
   const a = ACCENT[p.accent];
   const subscribed = !!p.proKey && can(p.proKey);
@@ -107,4 +108,12 @@ export function ProductPage({ product: p }: { product: Product }) {
       )}
     </div>
   );
+}
+
+/**
+ * The page for a product. QR codes has its own page (QrProPage); every other product uses the generic one above,
+ * unchanged, including its "also sold together as a bundle" line.
+ */
+export function ProductPage({ product }: { product: Product }) {
+  return product.slug === 'qr' ? <QrProPage product={product} /> : <GenericProductPage product={product} />;
 }

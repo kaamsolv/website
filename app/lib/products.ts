@@ -26,6 +26,8 @@ export type Product = {
   icon: IconKey | 'toolbox';
   /** One line under the name. */
   promise: string;
+  /** A product with its own page (the heading says this instead of `name`, and no intro is shown). */
+  pageTitle?: string;
   /** The workspace pages live under this path. */
   prefix: string;
   /** Where "open it" goes. */
@@ -72,16 +74,12 @@ export const PRODUCTS: Product[] = [
     accent: 'teal',
     icon: 'toolbox',
     promise: 'Know which QR code is doing its job.',
+    pageTitle: 'QR Pro',
     prefix: '/app/qr',
     home: '/app/qr',
-    pro: [
-      'Campaigns that group codes and show one set of results',
-      'Scans by country, device and referrer, with a 90-day range',
-      'CSV export of your codes and scans',
-      'No limit on tracked codes (free accounts get 3)',
-      'No ads anywhere on KaamSolv',
-    ],
-    free: ['Make and download QR codes, no account needed', '3 tracked codes with scan counts'],
+    // QR's page copy lives in app/lib/qr/pro-facts.ts (its numbers come from code), not here.
+    pro: [],
+    free: [],
   },
   {
     slug: 'pdf',
