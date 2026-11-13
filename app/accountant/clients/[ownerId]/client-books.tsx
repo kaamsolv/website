@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ACCESS_VIEWS, VIEW_LABELS, type AccessView } from '@/app/lib/invoice/accountant-access';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Meta = { businessName: string; today: string; lastMonth: { period: string; label: string }; currencies: string[]; can: string[] };
 type Table = { columns: string[]; rows: string[][]; matched: number; page: number; pages: number };
@@ -80,7 +81,7 @@ export function ClientBooks({ ownerId }: { ownerId: string }) {
       </main>
     );
   }
-  if (!meta) return <main id="main" className="kk-container py-10"><div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" /></main>;
+  if (!meta) return <main id="main" className="kk-container py-10"><Skeleton className="h-40" /></main>;
 
   return (
     <main id="main" className="kk-container py-10" data-testid="client-books">

@@ -505,7 +505,7 @@ export function ResizeKbWorkspace() {
                   type="button"
                   onClick={resizeAll}
                   disabled={!valid || batchRunning || pending.length === 0}
-                  className="h-11 flex-1 rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-11 flex-1 rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:cursor-not-allowed disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted"
                 >
                   {batchRunning ? 'Resizing…' : pending.length ? `Resize all ${items.length}` : 'All done'}
                 </button>

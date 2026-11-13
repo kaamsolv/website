@@ -8,6 +8,7 @@ import { formatMoney } from '@/app/lib/invoice/money';
 import { MAX_REMINDER_NOTE } from '@/app/lib/invoice/reminders';
 import { MAX_PROMISE_NOTE, type PromiseStatus } from '@/app/lib/invoice/followup';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type State = 'sending' | 'retrying' | 'failed' | 'waiting' | 'sent' | 'skipped';
 type Reminder = { id: string; kind: 'manual' | 'scheduled'; step: number | null; state: State; reason: string; createdAt: string; finishedAt: string | null; attempts: number; nextAttemptAt: string | null };
@@ -138,7 +139,7 @@ export function ReminderPanel({ id }: { id: string }) {
       </section>
     );
   }
-  if (!data) return <div className="h-24 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!data) return <Skeleton className="h-24" />;
 
   const f = data.followup;
   const hasPromise = !!f?.promisedOn;

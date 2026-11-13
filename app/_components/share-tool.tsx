@@ -17,7 +17,7 @@ export function ShareTool({ name, blurb, url }: { name: string; blurb: string; u
     <section aria-labelledby="share-title" data-testid="share-tool" className="rounded-xl2 border border-hair bg-surface p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
       <div className="min-w-0">
         <h2 id="share-title" className="font-display text-lg font-bold text-ink sm:text-xl">
-          Saved you some <span className="text-coral-600">kaam</span>? Pass it on.
+          Saved you some <span className="text-coralx-600">kaam</span>? Pass it on.
         </h2>
         <p className="mt-1 text-sm text-muted">Know someone still doing this by hand? Send them {name}. It&apos;s free and takes seconds.</p>
       </div>

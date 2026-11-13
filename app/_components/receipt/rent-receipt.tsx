@@ -358,7 +358,7 @@ export function RentReceiptGenerator() {
           type="button"
           onClick={download}
           disabled={busy}
-          className="h-12 w-full rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-12 w-full rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted"
         >
           {busy ? 'Making your PDF…' : set ? `Download PDF (${set.receipts.length} ${set.receipts.length === 1 ? 'receipt' : 'receipts'})` : 'Download PDF'}
         </button>

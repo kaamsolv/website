@@ -20,6 +20,7 @@ import { invoicesHref } from '@/app/lib/invoice/filters';
 import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 import type { Collections as Data } from '@/db/collections';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Customer = { id: string; name: string };
 
@@ -99,7 +100,7 @@ export function Collections() {
       </div>
     );
   }
-  if (!data) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!data) return <Skeleton className="h-64" />;
 
   if (data.currencies.length === 0 && !customer) {
     return (

@@ -20,6 +20,7 @@ import { RECUR_SHORT, isRecurEvery } from '@/app/lib/invoice/recurring';
 import { computeTotals } from '@/app/lib/invoice/totals';
 import type { CurrencyCode, Invoice } from '@/app/lib/invoice/types';
 import { refreshMe, useEntitlements, useMe } from '@/app/lib/me-client';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Summary = {
   id: string;
@@ -303,7 +304,7 @@ export function InvoiceList() {
       </p>
     );
   }
-  if (!data) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!data) return <Skeleton className="h-40" />;
 
   if (data.matched === 0 && !narrowed) {
     return (

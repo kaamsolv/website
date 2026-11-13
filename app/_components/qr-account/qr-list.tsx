@@ -5,6 +5,8 @@ import { PRIMARY, SECONDARY } from '../account/account-shell';
 import { KIND_SHORT, fmtDate, plural } from './stats-data';
 import { DEFAULT_EXPORT_OPTIONS } from '@/app/lib/qr/design';
 import { refreshMe, useEntitlements } from '@/app/lib/me-client';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Item = {
   id: string;
@@ -146,8 +148,8 @@ export function QrList() {
     }
   }
 
-  if (error) return <p role="alert" className="text-strong">{error}</p>;
-  if (!list) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (error) return <Notice role="alert">{error}</Notice>;
+  if (!list) return <Skeleton className="h-40" />;
 
   if (list.length === 0) {
     return (

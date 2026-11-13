@@ -7,6 +7,8 @@ import { Kpi } from './kpi';
 import { RangePicker } from './range-picker';
 import { ScanChart } from './scan-chart';
 import { KIND_SHORT, fmtDateOnly, plural, useQrStats } from './stats-data';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Code = { id: string; name: string; campaignId: string | null; campaignName: string | null };
 
@@ -64,8 +66,8 @@ export function CampaignDetail({ id }: { id: string }) {
       </div>
     );
   }
-  if (error) return <p role="alert" className="text-strong">{error}</p>;
-  if (!campaign || !data) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (error) return <Notice role="alert">{error}</Notice>;
+  if (!campaign || !data) return <Skeleton className="h-64" />;
 
   const inside = data.codes;
   const addable = all.filter((c) => c.campaignId !== id);

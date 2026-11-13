@@ -62,7 +62,7 @@ export function LoginForm({
   if (state === 'sent') {
     return (
       <div className="rounded-xl2 border border-hair bg-surface p-6" role="status">
-        <Icon name="mail" className="h-6 w-6 text-coral-600" />
+        <Icon name="mail" className="h-6 w-6 text-coralx-600" />
         <h2 className="mt-3 font-display text-xl font-bold text-ink">Check your inbox</h2>
         <p className="mt-2 text-strong">
           If <strong className="break-all">{email.trim()}</strong> is a real address, a sign-in link is on its way. It works once

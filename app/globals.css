@@ -99,8 +99,10 @@
   --header-bg: rgba(255, 255, 255, .95);
   --active-bg: #0C2248;
   --active-text: #FFFFFF;
-  --teal-tint: #DFF5F1;   --teal-accent: #2C9C8F;
-  --coral-tint: #FFE3D6;  --coral-accent: #E14F22;
+  /* Accent TEXT colours for the light theme are the darker shades that reach 4.5:1 on white, canvas and their own tint
+     (coral #B93C15 ≈ 5.6:1 on white, teal #1C7468 ≈ 5.6:1). Brand FILLS (coral-500, teal-500) are unchanged. test/contrast.test.mts checks every pair. */
+  --teal-tint: #DFF5F1;   --teal-accent: #1C7468;
+  --coral-tint: #FFE3D6;  --coral-accent: #B93C15;
   --yellow-tint: #FFF2D9; --yellow-accent: #B9791A;
   --purple-tint: #EDE4FB; --purple-accent: #6934D0;
   --danger-tint: #FEE2E2; --danger-border: #FECACA; --danger-text: #B42318;
@@ -255,7 +257,7 @@ body {
    mobile, a gentle cross-fade on larger screens. */
 .kk-underline-coral {
   text-decoration: underline;
-  text-decoration-color: var(--coral-accent);
+  text-decoration-color: #FE6336; /* the headline word is coral-500 in both themes; the underline matches it */
   text-underline-offset: 6px;
   text-decoration-thickness: 3px;
 }

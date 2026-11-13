@@ -118,7 +118,7 @@ function ConsentBanner() {
       <p className="mt-0.5 text-xs leading-snug text-muted sm:mt-1 sm:text-sm sm:leading-normal">
         Google Analytics would count visits and tool use. It sets a cookie and never sees your files, text or numbers.
         Change your mind any time on our{' '}
-        <a href="/privacy#analytics" className="font-semibold text-coral-600 underline">
+        <a href="/privacy#analytics" className="font-semibold text-coralx-600 underline">
           Privacy page
         </a>
         .

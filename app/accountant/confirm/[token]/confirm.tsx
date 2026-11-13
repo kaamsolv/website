@@ -29,7 +29,7 @@ export function ConfirmAccountant({ token }: { token: string }) {
         onClick={() => void go()}
         disabled={state === 'busy'}
         data-testid="confirm-accountant"
-        className="inline-flex h-12 items-center justify-center rounded-full bg-coral-500 px-6 text-base font-semibold text-navy-900 hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:opacity-60"
+        className="inline-flex h-12 items-center justify-center rounded-full bg-coral-500 px-6 text-base font-semibold text-navy-900 hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted"
       >
         {state === 'busy' ? 'Confirming…' : 'Yes, send me the packs'}
       </button>

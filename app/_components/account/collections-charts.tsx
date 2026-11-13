@@ -124,7 +124,7 @@ export function MonthlyChart({ months, currency }: { months: Month[]; currency: 
                   <th scope="row" className="py-2 pr-3 font-semibold text-ink">{monthLabel(m.month)}</th>
                   <td className="py-2 pr-3 text-right tabular-nums">
                     {m.invoiced > 0 ? (
-                      <a href={issuedLink(m.month, currency)} className="underline underline-offset-2 hover:text-coral-600">
+                      <a href={issuedLink(m.month, currency)} className="underline underline-offset-2 hover:text-coralx-600">
                         {formatMoney(m.invoiced, currency)}
                       </a>
                     ) : (
@@ -133,7 +133,7 @@ export function MonthlyChart({ months, currency }: { months: Month[]; currency: 
                   </td>
                   <td className="py-2 text-right tabular-nums">
                     {m.received > 0 ? (
-                      <a href={receivedLink(m.month, currency)} className="underline underline-offset-2 hover:text-coral-600">
+                      <a href={receivedLink(m.month, currency)} className="underline underline-offset-2 hover:text-coralx-600">
                         {formatMoney(m.received, currency)}
                       </a>
                     ) : (

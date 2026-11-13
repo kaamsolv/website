@@ -11,6 +11,8 @@ import { invoicesHref } from '@/app/lib/invoice/filters';
 import { stateName } from '@/app/lib/invoice/india';
 import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Money = { currency: CurrencyCode; count: number; invoiced: number; received: number; outstanding: number; overdue: number; markedPaid: { count: number; total: number } };
 type Summary = {
@@ -90,8 +92,8 @@ export function CustomerDetail({ id }: { id: string }) {
       </div>
     );
   }
-  if (problem) return <p role="alert" className="text-strong">{problem}</p>;
-  if (!summary) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (problem) return <Notice role="alert">{problem}</Notice>;
+  if (!summary) return <Skeleton className="h-64" />;
 
   const c = summary.customer;
   const details = [c.contactName, c.email, c.phone, stateName(c.stateCode), c.gstin && `GSTIN ${c.gstin}`].filter(Boolean);

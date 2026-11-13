@@ -95,7 +95,7 @@ export default function HomePage() {
                   <a
                     key={tool.slug}
                     href={tool.url}
-                    className="rounded font-medium text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                    className="rounded font-medium text-coralx-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
                   >
                     {tool.name}
                   </a>
@@ -138,7 +138,7 @@ export default function HomePage() {
                   );
                 })}
               </ul>
-              <p className="font-hand ml-auto mt-3 max-w-[17rem] pr-4 text-right text-2xl text-coral-600 lg:max-w-xs" aria-hidden="true">
+              <p className="font-hand ml-auto mt-3 max-w-[17rem] pr-4 text-right text-2xl text-coralx-600 lg:max-w-xs" aria-hidden="true">
                 Small tools. Less kaam.
               </p>
             </nav>
@@ -158,7 +158,7 @@ export default function HomePage() {
             </div>
             <a
               href="/tools"
-              className="inline-flex items-center gap-1 rounded text-sm font-semibold text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+              className="inline-flex items-center gap-1 rounded text-sm font-semibold text-coralx-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
             >
               All tools <Icon name="arrow-right" className="h-4 w-4" />
             </a>

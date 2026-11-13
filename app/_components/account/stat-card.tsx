@@ -34,7 +34,7 @@ export function StatCard({
       {href && (
         <a
           href={href}
-          className="mt-3 inline-flex min-h-10 items-center self-start rounded-full text-sm font-semibold text-ink underline underline-offset-2 hover:text-coral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+          className="mt-3 inline-flex min-h-10 items-center self-start rounded-full text-sm font-semibold text-ink underline underline-offset-2 hover:text-coralx-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
           aria-label={`${linkLabel} behind ${label}`}
         >
           {linkLabel}

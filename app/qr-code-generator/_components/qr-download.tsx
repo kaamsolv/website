@@ -26,7 +26,7 @@ type Props = {
 };
 
 const BTN =
-  'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:cursor-not-allowed disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted';
 
 export function QrDownload({ encodedText, design, exportOptions, disabled }: Props) {
   const [busy, setBusy] = useState<'png' | 'svg' | 'jpg' | 'share' | 'print' | null>(null);

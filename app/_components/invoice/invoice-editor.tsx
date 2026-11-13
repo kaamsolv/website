@@ -27,6 +27,7 @@ import { computeTotals } from '@/app/lib/invoice/totals';
 import { CURRENCIES, EMPTY_PAYMENT, hasPaymentDetails, type CurrencyCode, type Invoice, type LineItem, type PaymentDetails } from '@/app/lib/invoice/types';
 import { gstinProblem, ifscProblem, normalizeGstin, upiProblem } from '@/app/lib/invoice/india';
 import type { Settings } from '@/app/lib/invoice/settings';
+import { Skeleton } from '@/app/_components/skeleton';
 
 const BTN =
   'inline-flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60';
@@ -316,7 +317,7 @@ export function InvoiceEditor({ basePath = '/invoice-generator' }: { basePath?: 
   invRef.current = inv;
 
   if (!inv || !totals) {
-    return <div className="mx-auto min-h-[60vh] max-w-[794px] animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+    return <Skeleton className="mx-auto min-h-[60vh] max-w-[794px]" />;
   }
 
   const quote = inv.kind === 'quote';
@@ -685,14 +686,14 @@ export function InvoiceEditor({ basePath = '/invoice-generator' }: { basePath?: 
         {!signedIn ? (
           <span>
             Your draft stays in this browser — nothing is uploaded.{' '}
-            <a href="/login?next=%2Finvoice-generator" className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+            <a href="/login?next=%2Finvoice-generator" className="font-semibold text-ink underline underline-offset-2 hover:text-coralx-600">
               Sign in to save invoices and reuse your details — free.
             </a>
           </span>
         ) : savedId ? (
           <span>
             Saved in your account — changes save as you type.{' '}
-            <a href="/app/invoices" className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+            <a href="/app/invoices" className="font-semibold text-ink underline underline-offset-2 hover:text-coralx-600">
               My invoices
             </a>
           </span>

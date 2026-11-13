@@ -12,6 +12,8 @@ import { CURRENCIES } from '@/app/lib/invoice/types';
 import { formatSequentialNumber } from '@/app/lib/invoice/validate';
 import { useEntitlements } from '@/app/lib/me-client';
 import { DesignPicker } from '../invoice/design-panel';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Form = Settings & { logo: string | null; signature: string | null };
 
@@ -45,7 +47,7 @@ export function SettingsForm({ part }: { part: 'business' | 'invoice' }) {
       .catch(() => setState('error'));
   }, []);
 
-  if (!form) return state === 'error' ? <p role="alert">Couldn’t load your settings. Refresh to try again.</p> : <div className="h-96 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!form) return state === 'error' ? <Notice role="alert">Couldn’t load your settings. Refresh to try again.</Notice> : <Skeleton className="h-96" />;
 
   const set = (patch: Partial<Form>) => {
     setForm((f) => (f ? { ...f, ...patch } : f));

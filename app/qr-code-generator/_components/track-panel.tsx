@@ -13,7 +13,7 @@ export type TrackedState = { shortUrl: string; forText: string; name: string; id
 const INPUT =
   'h-11 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 const BTN =
-  'inline-flex h-11 items-center justify-center rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex h-11 items-center justify-center rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted';
 
 function suggestName(payload: QrPayload, canonicalText: string): string {
   switch (payload.kind) {
@@ -85,7 +85,7 @@ export function TrackPanel({
           Want to know how many people scan this?
         </h3>
         <p className="mt-1 text-sm text-muted">
-          <a href="/login?next=%2Fqr-code-generator" className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+          <a href="/login?next=%2Fqr-code-generator" className="font-semibold text-ink underline underline-offset-2 hover:text-coralx-600">
             Sign in (it’s free)
           </a>{' '}
           to count scans. The QR works the same either way.
@@ -129,7 +129,7 @@ export function TrackPanel({
           <p className="font-semibold text-ink">Tracked. Download your QR below — it now points through {tracked.shortUrl.replace(/^https?:\/\//, '')}.</p>
           <p className="text-muted">
             People who scan it still land on your link. See the count any time in{' '}
-            <a href={`/app/qr/${tracked.id}`} className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+            <a href={`/app/qr/${tracked.id}`} className="font-semibold text-ink underline underline-offset-2 hover:text-coralx-600">
               its page
             </a>
             .

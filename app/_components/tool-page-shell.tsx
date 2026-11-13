@@ -246,7 +246,7 @@ export function ToolPageShell({
               </h2>
               <a
                 href="/tools"
-                className="inline-flex items-center gap-1 rounded text-sm font-semibold text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                className="inline-flex items-center gap-1 rounded text-sm font-semibold text-coralx-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
               >
                 All tools <Icon name="arrow-right" className="h-4 w-4" />
               </a>

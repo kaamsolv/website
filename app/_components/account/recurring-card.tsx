@@ -6,6 +6,7 @@ import { INPUT, PRIMARY, SECONDARY } from './account-shell';
 import { displayDate } from '@/app/lib/invoice/defaults';
 import { RECUR_EVERY, RECUR_LABELS, type RecurEvery } from '@/app/lib/invoice/recurring';
 import { MAX_AUTO_RUNS, type AutoState } from '@/app/lib/invoice/recurring-auto';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Run = { id: string; dueOn: string; status: 'created' | 'skipped' | 'failed' | 'started'; reason: string; createdInvoiceId: string | null; createdNumber: string | null; at: string };
 type Data = { today: string; plan: boolean; recurEvery: string | null; recurNext: string | null; autoCreate: boolean; paused: boolean; endsOn: string | null; maxRuns: number | null; runsDone: number; state: AutoState; runs: Run[] };
@@ -78,7 +79,7 @@ export function RecurringCard({ id }: { id: string }) {
   }
 
   if (hidden) return null;
-  if (!d) return <div className="h-24 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!d) return <Skeleton className="h-24" />;
   const scheduled = !!d.recurEvery && !!d.recurNext;
 
   return (

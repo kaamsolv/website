@@ -87,7 +87,7 @@ export function RecurCard({ onChanged }: { onChanged?: () => void }) {
                     disabled={busy !== null}
                     onClick={() => void act(inv, 'create')}
                     aria-label={`Create the next invoice from ${inv.number}`}
-                    className="inline-flex h-10 items-center rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60"
+                    className="inline-flex h-10 items-center rounded-full bg-coral-500 px-4 text-sm font-semibold text-navy-900 hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted"
                   >
                     {busy === `create:${inv.id}` ? 'Creating…' : 'Create invoice'}
                   </button>

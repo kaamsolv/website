@@ -18,6 +18,8 @@ import {
   type PaymentMethod,
 } from '@/app/lib/invoice/payments';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Facts = {
   id: string;
@@ -224,8 +226,8 @@ export function InvoicePayments({ id }: { id: string }) {
       </div>
     );
   }
-  if (problem) return <p role="alert" className="text-strong">{problem}</p>;
-  if (!data || !summary) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (problem) return <Notice role="alert">{problem}</Notice>;
+  if (!data || !summary) return <Skeleton className="h-64" />;
 
   const inv = data.invoice;
   const money = (n: number) => formatMoney(n, inv.currency);
@@ -250,7 +252,7 @@ export function InvoicePayments({ id }: { id: string }) {
             <p className="mt-0.5 text-strong">{inv.clientName || 'No client yet'}</p>
             {inv.customerId && inv.customerName && (
               <p className="mt-0.5 text-sm">
-                <a href={`/app/business/customers/${inv.customerId}`} className="font-semibold text-ink underline underline-offset-2 hover:text-coral-600">
+                <a href={`/app/business/customers/${inv.customerId}`} className="font-semibold text-ink underline underline-offset-2 hover:text-coralx-600">
                   Saved customer: {inv.customerName}
                 </a>
               </p>

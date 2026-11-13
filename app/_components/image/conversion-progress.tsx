@@ -63,7 +63,7 @@ export function ConversionProgress({ progress }: Props) {
                   done
                     ? 'bg-tealx-100 text-tealx-600'
                     : active
-                      ? 'bg-coralx-100 text-coral-600'
+                      ? 'bg-coralx-100 text-coralx-600'
                       : 'bg-wash text-faint'
                 }`}
                 aria-hidden="true"

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { PRIMARY, SECONDARY } from '../account/account-shell';
 import { fmtDateOnly, plural } from './stats-data';
 import { CAMPAIGN_DESCRIPTION_MAX, CAMPAIGN_NAME_MAX } from '@/app/lib/qr/campaigns';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 export type Campaign = {
   id: string;
@@ -128,8 +130,8 @@ export function Campaigns() {
     await load();
   }
 
-  if (error) return <p role="alert" className="text-strong">{error}</p>;
-  if (!list) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (error) return <Notice role="alert">{error}</Notice>;
+  if (!list) return <Skeleton className="h-40" />;
 
   return (
     <div className="space-y-5">

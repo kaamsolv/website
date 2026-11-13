@@ -30,11 +30,11 @@ export function PdfToolCard({ tool, accent }: { tool: HubLiveTool; accent: Accen
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-display text-base font-bold text-ink sm:text-lg">{tool.label}</span>
           <span className="mt-0.5 flex-1 text-sm text-muted sm:mt-1.5 sm:leading-relaxed">{tool.blurb}</span>
-          <span className="mt-4 hidden items-center text-coral-600 sm:inline-flex" aria-hidden="true">
+          <span className="mt-4 hidden items-center text-coralx-600 sm:inline-flex" aria-hidden="true">
             <Icon name="arrow-right" className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
           </span>
         </span>
-        <Icon name="chevron-right" className="h-5 w-5 shrink-0 text-coral-600 sm:hidden" />
+        <Icon name="chevron-right" className="h-5 w-5 shrink-0 text-coralx-600 sm:hidden" />
       </span>
     </a>
   );
@@ -57,11 +57,11 @@ export function PdfFeatureCard({ tool, accent, note }: { tool: HubLiveTool; acce
           </span>
           {note && <span className="block text-sm text-muted sm:leading-relaxed lg:basis-1/2 lg:border-l lg:border-hair lg:pl-10">{note}</span>}
         </span>
-        <span className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-coral-600 sm:inline-flex" aria-hidden="true">
+        <span className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-coralx-600 sm:inline-flex" aria-hidden="true">
           Open
           <Icon name="arrow-right" className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
         </span>
-        <Icon name="chevron-right" className="h-5 w-5 shrink-0 text-coral-600 sm:hidden" />
+        <Icon name="chevron-right" className="h-5 w-5 shrink-0 text-coralx-600 sm:hidden" />
       </span>
     </a>
   );
@@ -80,12 +80,12 @@ export function PopularCard({ tool, accent }: { tool: HubLiveTool; accent: Accen
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-display text-lg font-bold text-ink sm:text-xl">{tool.label}</span>
           <span className="mt-0.5 flex-1 text-sm text-muted sm:mt-1.5 sm:text-base">{tool.blurb}</span>
-          <span className="mt-5 hidden items-center gap-1.5 text-sm font-semibold text-coral-600 sm:inline-flex">
+          <span className="mt-5 hidden items-center gap-1.5 text-sm font-semibold text-coralx-600 sm:inline-flex">
             Open
             <Icon name="arrow-right" className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
           </span>
         </span>
-        <Icon name="chevron-right" className="h-5 w-5 shrink-0 text-coral-600 sm:hidden" />
+        <Icon name="chevron-right" className="h-5 w-5 shrink-0 text-coralx-600 sm:hidden" />
       </span>
     </a>
   );

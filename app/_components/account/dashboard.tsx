@@ -9,6 +9,8 @@ import { displayDate, isoDate } from '@/app/lib/invoice/defaults';
 import { FX_NOTE, toInr, type FxRate } from '@/app/lib/invoice/fx';
 import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Totals = { currency: CurrencyCode; billedThisMonth: number; unpaid: number; overdue: number; overdueCount: number };
 type Recent = { id: string; number: string; clientName: string; currency: CurrencyCode; total: number; issueDate: string | null; dueDate: string | null; status: 'unpaid' | 'paid'; amountPaid: number };
@@ -27,8 +29,8 @@ export function Dashboard() {
       .catch(() => setError(true));
   }, []);
 
-  if (error) return <p role="alert">Couldn’t load your dashboard. Refresh to try again.</p>;
-  if (!data) return <div className="h-48 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (error) return <Notice role="alert">Couldn’t load your dashboard. Refresh to try again.</Notice>;
+  if (!data) return <Skeleton className="h-48" />;
 
   if (data.recent.length === 0) {
     return (

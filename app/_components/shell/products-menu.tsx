@@ -176,7 +176,7 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
           <div className="border-t border-hair bg-wash">
             <div className="kk-container flex items-center justify-between py-3">
               <p className="hidden text-sm text-muted sm:block">Small tools. Less kaam.</p>
-              <a href="/tools" onClick={close} className={`inline-flex items-center gap-1 rounded text-sm font-semibold text-coral-600 hover:underline ${FOCUS}`}>
+              <a href="/tools" onClick={close} className={`inline-flex items-center gap-1 rounded text-sm font-semibold text-coralx-600 hover:underline ${FOCUS}`}>
                 Explore all products <Icon name="arrow-right" className="h-4 w-4" />
               </a>
             </div>
@@ -224,7 +224,7 @@ export function ProductsAccordion({ onNavigate }: { onNavigate: () => void }) {
               </li>
             ))}
           </ul>
-          <a href="/tools" onClick={onNavigate} className={`inline-flex items-center gap-1 rounded text-sm font-semibold text-coral-600 ${FOCUS}`}>
+          <a href="/tools" onClick={onNavigate} className={`inline-flex items-center gap-1 rounded text-sm font-semibold text-coralx-600 ${FOCUS}`}>
             Explore all products <Icon name="arrow-right" className="h-4 w-4" />
           </a>
         </div>

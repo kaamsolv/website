@@ -5,6 +5,8 @@ import { PRIMARY } from './account-shell';
 import { priceLabel, splitIncludingTax, type BillingPeriod } from '@/app/lib/billing/plans';
 import { refreshMe } from '@/app/lib/me-client';
 import type { BillingStatus, Price } from '@/db/billing';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type PaymentRow = Omit<BillingStatus['payments'][number], 'invoiceId'> & { invoiceUrl: string | null };
 type Loaded = { taxRate: number | null; subscriptions: BillingStatus['subscriptions']; payments: PaymentRow[]; configured: boolean; prices: Price[] };
@@ -139,8 +141,8 @@ export function BillingPanel() {
     }
   }
 
-  if (loadError) return <p className="text-muted">We couldn’t load your plans. Refresh the page to try again.</p>;
-  if (!data) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (loadError) return <Notice role="alert">We couldn’t load your plans. Refresh the page to try again.</Notice>;
+  if (!data) return <Skeleton className="h-40" />;
 
   const ORDER = ['invoice_pro', 'qr_pro', 'invoice_qr_bundle'];
   const planKeys = [...new Set(data.prices.map((p) => p.planKey))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
@@ -247,13 +249,13 @@ export function BillingPanel() {
                 {p.status === 'paid' && (
                   <span className="flex w-full flex-wrap items-center gap-3 text-sm">
                     {p.invoiceUrl ? (
-                      <a href={p.invoiceUrl} className="font-semibold text-coral-600 underline underline-offset-2" data-testid="invoice-open">
+                      <a href={p.invoiceUrl} className="font-semibold text-coralx-600 underline underline-offset-2" data-testid="invoice-open">
                         Invoice {p.invoiceNumber}
                       </a>
                     ) : (
                       <span className="text-muted">{p.invoiceNumber ? 'The invoice link has run out. Email it to me again for a fresh one.' : 'Your invoice is being prepared.'}</span>
                     )}
-                    <button type="button" className="font-semibold text-coral-600 underline underline-offset-2" onClick={() => resend(p.id)}>
+                    <button type="button" className="font-semibold text-coralx-600 underline underline-offset-2" onClick={() => resend(p.id)}>
                       Email it to me again
                     </button>
                   </span>

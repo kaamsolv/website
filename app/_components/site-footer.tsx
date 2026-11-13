@@ -46,7 +46,7 @@ export function SiteFooter() {
             Kaam<span className="text-coral-500">Solv</span>
           </a>
           <p className="mt-1 text-sm text-muted">Small tools for everyday problems.</p>
-          <p className="font-hand mt-3 text-lg text-coral-600">Work smart.</p>
+          <p className="font-hand mt-3 text-lg text-coralx-600">Work smart.</p>
         </div>
 
         <nav aria-label="Categories" className="text-sm">

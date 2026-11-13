@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { SECONDARY } from './account-shell';
 import { WHATSAPP_BUTTON } from '../whatsapp-style';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Share = { url: string | null; expiresAt?: string | null; views: number; lastViewedAt: string | null; whatsapp: { message: string; href: string; hasClientNumber: boolean } | null };
 
@@ -63,7 +64,7 @@ export function InvoiceShare({ id }: { id: string }) {
     } else setNote('We couldn’t turn the link off. Try again in a moment.');
   }
 
-  if (!share) return <div className="h-24 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!share) return <Skeleton className="h-24" />;
 
   return (
     <section aria-labelledby="share-h" className="rounded-xl2 border border-hair bg-surface p-5 sm:p-6" data-testid="invoice-share">

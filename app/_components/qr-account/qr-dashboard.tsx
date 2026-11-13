@@ -6,6 +6,8 @@ import { Kpi } from './kpi';
 import { RangePicker } from './range-picker';
 import { ScanChart } from './scan-chart';
 import { KIND_SHORT, fmtDate, plural, useQrStats } from './stats-data';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 /**
  * QR dashboard. Every number comes from /api/qr/stats: lifetime figures say
@@ -17,8 +19,8 @@ export function QrDashboard() {
   const [range, setRange] = useState<7 | 30 | 90>(30);
   const { data, error } = useQrStats({ range });
 
-  if (error) return <p role="alert" className="text-strong">{error}</p>;
-  if (!data) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (error) return <Notice role="alert">{error}</Notice>;
+  if (!data) return <Skeleton className="h-64" />;
 
   const { totals } = data;
   if (totals.codes === 0) {

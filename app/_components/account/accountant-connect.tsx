@@ -6,6 +6,7 @@ import { INPUT, PRIMARY, SECONDARY } from './account-shell';
 import { AccountantAccessCard } from './accountant-access-card';
 import { displayDate } from '@/app/lib/invoice/defaults';
 import { DEFAULT_DAY, DEFAULT_HOUR, MAX_DAY, MAX_NAME, PACK_SECTIONS, SECTION_LABELS, type PackSection } from '@/app/lib/invoice/accountant';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Settings = { name: string; email: string; enabled: boolean; day: number; hour: number; timezone: string; sections: PackSection[]; verified: boolean; confirmationPending: boolean };
 type Pack = { id: string; period: string; state: 'sending' | 'retrying' | 'failed' | 'waiting' | 'sent' | 'skipped'; reason: string; sentAt: string | null; expiresAt: string | null; linkLive: boolean; downloads: number; lastDownloadedAt: string | null; attempts: number; nextAttemptAt: string | null };
@@ -133,7 +134,7 @@ export function AccountantConnect() {
       <button type="button" className={`${SECONDARY} mt-3`} onClick={() => void load()}>Try again</button>
     </div>
   );
-  if (!d) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!d) return <Skeleton className="h-64" />;
   const s = d.settings;
   const confirmed = !!s?.verified;
 

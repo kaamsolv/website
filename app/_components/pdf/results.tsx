@@ -132,7 +132,7 @@ export function JpgResult({ done, onZip, onAgain }: { done: JpgsDone; onZip: () 
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
                 <img src={f.url} alt="" className="aspect-[3/4] w-full rounded-md border border-hair bg-white object-contain" />
-                <span className="mt-1 block text-center text-xs font-semibold text-coral-600 group-hover:underline">
+                <span className="mt-1 block text-center text-xs font-semibold text-coralx-600 group-hover:underline">
                   Page {i + 1}
                   <span className="sr-only"> — download {f.filename}</span>
                 </span>
@@ -170,7 +170,7 @@ export function PdfZipResult({ done, onAgain }: { done: PdfZipDone; onAgain: () 
           <li key={f.filename} className="flex items-center justify-between gap-3 px-3 py-2">
             <span className="min-w-0 truncate font-medium text-ink">{f.filename}</span>
             <span className="shrink-0 text-xs text-muted">{formatBytes(f.blob.size)}</span>
-            <button type="button" onClick={() => downloadBlob(f.blob, f.filename)} className="shrink-0 rounded px-1 py-2 text-sm font-semibold text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
+            <button type="button" onClick={() => downloadBlob(f.blob, f.filename)} className="shrink-0 rounded px-1 py-2 text-sm font-semibold text-coralx-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
               Download<span className="sr-only"> {f.filename}</span>
             </button>
           </li>

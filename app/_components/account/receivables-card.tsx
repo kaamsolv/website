@@ -9,6 +9,7 @@ import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 import type { Cadence } from '@/app/lib/notify/schedule';
 import type { Receivables } from '@/db/collections';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Loaded = Receivables & { message: string | null; whatsappHref: string | null };
 
@@ -73,7 +74,7 @@ export function ReceivablesCard({ today, currency }: { today: string; currency: 
   }
 
   if (failed) return null; // The rest of the page still works; this is an extra.
-  if (!data) return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!data) return <Skeleton className="h-40" />;
 
   const cur = data.currency;
   const money = (n: number) => formatMoney(n, cur);

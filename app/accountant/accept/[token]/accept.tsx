@@ -18,7 +18,7 @@ export function AcceptInvite({ token }: { token: string }) {
   }
   return (
     <div className="mt-6">
-      <button type="button" onClick={() => void go()} disabled={state === 'busy'} data-testid="accept-invite" className="inline-flex h-12 items-center justify-center rounded-full bg-coral-500 px-6 text-base font-semibold text-navy-900 hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:opacity-60">
+      <button type="button" onClick={() => void go()} disabled={state === 'busy'} data-testid="accept-invite" className="inline-flex h-12 items-center justify-center rounded-full bg-coral-500 px-6 text-base font-semibold text-navy-900 hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted">
         {state === 'busy' ? 'Accepting…' : 'Accept the invitation'}
       </button>
       {state === 'error' && <p role="alert" className="mt-3 text-sm text-danger-600">{message}</p>}

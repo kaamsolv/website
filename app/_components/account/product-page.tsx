@@ -95,7 +95,7 @@ function GenericProductPage({ product: p }: { product: Product }) {
           )}
           {soon && (
             <p className="mt-4 rounded-lg border border-dashed border-hair p-3 text-sm text-muted">
-              Want something specific from a PDF plan? <a href="/contact#suggest" className="font-semibold text-coral-600 underline underline-offset-2">Tell us</a>.
+              Want something specific from a PDF plan? <a href="/contact#suggest" className="font-semibold text-coralx-600 underline underline-offset-2">Tell us</a>.
             </p>
           )}
         </section>
@@ -103,7 +103,7 @@ function GenericProductPage({ product: p }: { product: Product }) {
 
       {p.planKey && !subscribed && (
         <p className="text-sm text-muted">
-          Invoice Pro and QR Pro are also sold together as a bundle. <a href="/app/billing" className="font-semibold text-coral-600 underline underline-offset-2">See Plans and billing</a>.
+          Invoice Pro and QR Pro are also sold together as a bundle. <a href="/app/billing" className="font-semibold text-coralx-600 underline underline-offset-2">See Plans and billing</a>.
         </p>
       )}
     </div>

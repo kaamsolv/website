@@ -9,6 +9,7 @@ import { QrPreview } from '@/app/qr-code-generator/_components/qr-preview';
 import { DEFAULT_EXPORT_OPTIONS, type QrDesign } from '@/app/lib/qr/design';
 import { KIND_LABELS, QR_NAME_MAX, type TrackableKind } from '@/app/lib/qr/tracking';
 import { refreshMe } from '@/app/lib/me-client';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type CampaignOption = { id: string; name: string };
 
@@ -105,7 +106,7 @@ export function QrDetail({ id }: { id: string }) {
       </div>
     );
   }
-  if (!qr) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!qr) return <Skeleton className="h-64" />;
 
   const paused = qr.status === 'disabled';
   const shortText = qr.shortUrl.replace(/^https?:\/\//, '');

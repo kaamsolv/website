@@ -296,7 +296,7 @@ export function ImageConverterWorkspace({ tool }: Props) {
               type="button"
               onClick={convert}
               disabled={!resizeValid}
-              className="h-12 w-full rounded-full bg-coral-500 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-12 w-full rounded-full bg-coral-500 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted"
             >
               Convert to {labelForFormatId(to)}
             </button>

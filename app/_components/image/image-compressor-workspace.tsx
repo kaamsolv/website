@@ -332,7 +332,7 @@ export function ImageCompressorWorkspace() {
               setResult(null);
               setPhase('ready');
             }}
-            className="w-full text-center text-sm font-semibold text-coral-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+            className="w-full text-center text-sm font-semibold text-coralx-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
           >
             Change settings
           </button>

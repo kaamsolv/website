@@ -10,6 +10,8 @@ import { formatMoney } from '@/app/lib/invoice/money';
 import { cleanCustomer, cleanItem } from '@/app/lib/invoice/settings';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 import { refreshMe } from '@/app/lib/me-client';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Row = Record<string, string> & { id: string };
 type FieldDef = { key: string; label: string; kind?: 'text' | 'area' | 'state' | 'gst' | 'unit'; max: number; inputMode?: 'decimal' | 'email' | 'tel' | 'numeric'; upper?: boolean; placeholder?: string };
@@ -223,7 +225,7 @@ export function DirectoryManager({ kind }: { kind: keyof typeof CONFIG }) {
     );
   };
 
-  if (!rows) return notice ? <p role="alert">{notice}</p> : <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!rows) return notice ? <Notice role="alert">{notice}</Notice> : <Skeleton className="h-40" />;
 
   return (
     <div className="space-y-5">

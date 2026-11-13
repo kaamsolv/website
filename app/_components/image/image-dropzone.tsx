@@ -77,7 +77,7 @@ export function ImageDropzone({ accept, extensions, disabled, onFile, multiple =
       <p className="font-display font-bold text-ink">{title ?? (multiple ? 'Drop your images here' : 'Drop your image here')}</p>
       <p className="mt-1 text-sm text-muted">
         or{' '}
-        <span className="font-semibold text-coral-600 underline">browse your device</span>
+        <span className="font-semibold text-coralx-600 underline">browse your device</span>
       </p>
       <p className="mt-2 text-xs text-faint">{detail ?? `${extLabel} · up to 25 MB`}</p>
       <input

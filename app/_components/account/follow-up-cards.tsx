@@ -7,6 +7,8 @@ import { displayDate } from '@/app/lib/invoice/defaults';
 import { formatMoney } from '@/app/lib/invoice/money';
 import { DEFAULT_SCHEDULE_DAYS, MAX_SCHEDULE_DAY, MAX_SCHEDULE_STEPS } from '@/app/lib/invoice/reminders';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 const CARD = 'rounded-xl2 border border-hair bg-surface p-5 sm:p-6';
 
@@ -55,7 +57,7 @@ export function ReminderSettingsCard() {
   }
 
   if (failed) return null;
-  if (!s) return <div className="h-24 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!s) return <Skeleton className="h-24" />;
 
   return (
     <section aria-labelledby="rs-h" className={CARD} data-testid="reminder-settings">
@@ -129,8 +131,8 @@ export function PromisesCard() {
       .then((b) => (b ? setRows(b.promises) : setFailed(true)))
       .catch(() => setFailed(true));
   }, []);
-  if (failed) return <p role="alert" className="text-sm text-danger-600">We couldn’t load promised payments. Reload to try again.</p>;
-  if (!rows) return <div className="h-20 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (failed) return <Notice role="alert">We couldn’t load promised payments. Reload to try again.</Notice>;
+  if (!rows) return <Skeleton className="h-20" />;
   const missed = rows.filter((r) => r.status === 'overdue').length;
   return (
     <section aria-labelledby="pr-h" className={CARD} data-testid="promises-card">

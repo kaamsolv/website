@@ -14,6 +14,7 @@ import { AGEING_BUCKETS } from '@/app/lib/invoice/collections';
 import { FILTER_STATES, STATE_FILTER_LABELS, type FilterState } from '@/app/lib/invoice/filters';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 import { downloadBlob } from '@/app/lib/image/export';
+import { Skeleton } from '@/app/_components/skeleton';
 
 type Customer = { id: string; name: string };
 type Currency = { code: CurrencyCode; invoices: number; outstanding: number };
@@ -173,7 +174,7 @@ export function Reports() {
       </div>
     );
   }
-  if (!currencies) return <div className="h-64 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (!currencies) return <Skeleton className="h-64" />;
   if (currencies.length === 0) {
     return (
       <div className="rounded-xl2 border border-dashed border-hair bg-surface p-8 text-center">

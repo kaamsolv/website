@@ -49,7 +49,7 @@ export default function ContactPage() {
   return (
     <TextPage title="Contact" intro="One inbox, read by real people. Pick what you need, or just write to us.">
       <div className="flex flex-wrap items-center gap-3 rounded-xl2 border border-hair bg-surface p-5">
-        <Icon name="mail" className="h-5 w-5 text-coral-600" />
+        <Icon name="mail" className="h-5 w-5 text-coralx-600" />
         <a href={`mailto:${EMAIL}`} className="text-lg">
           {EMAIL}
         </a>

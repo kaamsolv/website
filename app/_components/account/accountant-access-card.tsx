@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from './account-shell';
 import { EVENT_TEXT } from '@/app/lib/invoice/accountant-access';
+import { Skeleton } from '@/app/_components/skeleton';
+import { Notice } from '@/app/_components/notice';
 
 type Access = { id: string; name: string; email: string; status: 'invited' | 'active' | 'revoked'; inviteExpired: boolean; acceptedAt: string | null; revokedAt: string | null; lastOpenedAt: string | null };
 type Ev = { id: string; who: string; action: string; detail: string; at: string };
@@ -57,8 +59,8 @@ export function AccountantAccessCard() {
     return false;
   }
 
-  if (failed) return <p role="alert" className="text-sm text-danger-600">We couldn’t load accountant access. Reload to try again.</p>;
-  if (!d) return <div className="h-32 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (failed) return <Notice role="alert">We couldn’t load accountant access. Reload to try again.</Notice>;
+  if (!d) return <Skeleton className="h-32" />;
   const live = d.access.filter((a) => a.status !== 'revoked');
 
   return (

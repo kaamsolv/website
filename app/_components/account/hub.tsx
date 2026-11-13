@@ -6,6 +6,7 @@ import { isoDate } from '@/app/lib/invoice/defaults';
 import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 import { useEntitlements, useMe } from '@/app/lib/me-client';
+import { Skeleton } from '@/app/_components/skeleton';
 
 /**
  * "Your KaamSolv": a card per tool that has account features, each with its
@@ -26,7 +27,7 @@ export function Hub() {
       .catch(() => setUnpaid([]));
   }, [pro]);
 
-  if (me.status !== 'signed-in') return <div className="h-40 animate-pulse rounded-xl2 bg-wash" aria-hidden="true" />;
+  if (me.status !== 'signed-in') return <Skeleton className="h-40" />;
 
   const saved = me.usage.invoiceSave;
   const saveLimit = limit('invoice_save');
@@ -46,10 +47,10 @@ export function Hub() {
           </div>
           <p className="mt-2 text-sm text-muted">{detail}</p>
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-            <a href={pro ? '/app/invoices/overview' : '/app/invoices'} className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coral-600">
+            <a href={pro ? '/app/invoices/overview' : '/app/invoices'} className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coralx-600">
               Open invoices <Icon name="arrow-right" className="h-4 w-4" />
             </a>
-            <a href="/app/invoices/editor" className="text-strong underline underline-offset-2 hover:text-coral-600">
+            <a href="/app/invoices/editor" className="text-strong underline underline-offset-2 hover:text-coralx-600">
               New invoice
             </a>
           </div>
@@ -63,10 +64,10 @@ export function Hub() {
           </div>
           <p className="mt-2 text-sm text-muted">{qrLimit === null ? `${me.usage.qrCodes} tracked` : `${me.usage.qrCodes} of ${qrLimit} tracked`}</p>
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-            <a href="/app/qr" className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coral-600">
+            <a href="/app/qr" className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coralx-600">
               Open QR codes <Icon name="arrow-right" className="h-4 w-4" />
             </a>
-            <a href="/app/qr/new" className="text-strong underline underline-offset-2 hover:text-coral-600">
+            <a href="/app/qr/new" className="text-strong underline underline-offset-2 hover:text-coralx-600">
               New QR code
             </a>
           </div>
@@ -79,13 +80,13 @@ export function Hub() {
         </h2>
         <p className="mt-1 text-sm text-muted">Fill these in once — invoices (and later quotations, receipts and UPI QR codes) use them.</p>
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
-          <a href="/app/business" className="text-ink underline underline-offset-2 hover:text-coral-600">
+          <a href="/app/business" className="text-ink underline underline-offset-2 hover:text-coralx-600">
             Business profile
           </a>
-          <a href="/app/business/customers" className="text-ink underline underline-offset-2 hover:text-coral-600">
+          <a href="/app/business/customers" className="text-ink underline underline-offset-2 hover:text-coralx-600">
             Customers ({me.usage.customers})
           </a>
-          <a href="/app/business/items" className="text-ink underline underline-offset-2 hover:text-coral-600">
+          <a href="/app/business/items" className="text-ink underline underline-offset-2 hover:text-coralx-600">
             Items
           </a>
         </div>
