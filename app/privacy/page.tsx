@@ -214,9 +214,11 @@ export default function PrivacyPage() {
       </p>
       <p>
         Your browser also keeps a few things on your device (in local storage): your light/dark choice, your
-        Invoice Generator draft, and a note that this browser has signed in before (so the site knows to show
-        your account menu), and your analytics choice. They never leave your device unless you save an invoice to your account, and you can
-        clear them in your browser settings.
+        Invoice Generator draft, a note that this browser has signed in before (so the site knows to show
+        your account menu), which tools you used lately (their names, when and how often, so the home page can
+        offer “Pick up where you left off”; never what you typed or made), and your analytics choice. They never
+        leave your device unless you save an invoice to your account, and you can clear them in your browser
+        settings. The home page has a Clear button for the tools list.
       </p>
       <p>
         Our hosting provider, Cloudflare, may in some cases set a strictly necessary security cookie, for

@@ -14,11 +14,14 @@ import { Icon } from './icons';
 export function ScrollRow({
   label,
   className = '',
+  always = false,
   children,
 }: {
   /** Names the group for assistive tech, e.g. "QR type". */
   label: string;
   className?: string;
+  /** A single line that scrolls at every width (never wraps), with the arrow buttons at every width too: for a slim bar, where wrapping would make it grow. */
+  always?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -61,8 +64,13 @@ export function ScrollRow({
 
   const nudge = (dir: -1 | 1) => ref.current?.scrollBy({ left: dir * Math.max(120, (ref.current?.clientWidth ?? 0) * 0.7), behavior: 'smooth' });
 
-  const arrow =
-    'absolute top-0 z-10 grid h-10 w-11 place-items-center bg-surface/95 text-strong shadow-soft focus-visible:outline-none md:hidden';
+  // `always` (a slim bar): small round buttons for a mouse only (a finger just scrolls), plus a soft fade at each edge that has more behind it.
+  const arrow = always
+    ? 'absolute top-1/2 z-10 hidden h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-surface text-strong shadow-soft focus-visible:outline-none pointer-fine:grid'
+    : 'absolute top-0 z-10 grid h-10 w-11 place-items-center bg-surface/95 text-strong shadow-soft focus-visible:outline-none md:hidden';
+  const fade = always
+    ? `linear-gradient(to right, ${edges.left ? 'transparent 0, #000 28px' : '#000 0'}, ${edges.right ? '#000 calc(100% - 28px), transparent 100%' : '#000 100%'})`
+    : undefined;
 
   return (
     <div className={`relative ${className}`}>
@@ -71,17 +79,18 @@ export function ScrollRow({
         role="group"
         aria-label={label}
         data-scroll-row
-        className="flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:overflow-visible"
+        style={fade ? { maskImage: fade, WebkitMaskImage: fade } : undefined}
+        className={`flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${always ? 'py-0.5' : 'md:flex-wrap md:overflow-visible'}`}
       >
         {children}
       </div>
       {edges.left && (
-        <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => nudge(-1)} data-scroll-left className={`${arrow} left-0 rounded-r-full`}>
+        <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => nudge(-1)} data-scroll-left className={`${arrow} ${always ? 'left-0.5' : 'left-0 rounded-r-full'}`}>
           <Icon name="chevron-right" className="h-4 w-4 rotate-180" />
         </button>
       )}
       {edges.right && (
-        <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => nudge(1)} data-scroll-right className={`${arrow} right-0 rounded-l-full`}>
+        <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => nudge(1)} data-scroll-right className={`${arrow} ${always ? 'right-0.5' : 'right-0 rounded-l-full'}`}>
           <Icon name="chevron-right" className="h-4 w-4" />
         </button>
       )}

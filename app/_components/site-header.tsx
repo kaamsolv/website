@@ -6,6 +6,7 @@ import { HeaderAccount, MobileAccountLinks } from './account/header-account';
 import { Icon } from './icons';
 import { ThemeToggle } from './theme-toggle';
 import { ProductsAccordion, ProductsMenu } from './shell/products-menu';
+import { RecentBar } from './recent/recent-bar';
 import { ToolSearch } from './tool-search';
 
 const NAV = [{ label: 'About', href: '/about' }];
@@ -54,6 +55,7 @@ export function SiteHeader() {
   }, [menuOpen]);
 
   return (
+    <>
     <header className="site-header sticky top-0 z-50 border-b border-hair backdrop-blur">
       <div className="kk-container flex h-16 items-center gap-4">
         <a href="/" aria-label="KaamSolv home" className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">
@@ -138,5 +140,8 @@ export function SiteHeader() {
         </div>
       )}
     </header>
+    {/* Under the header, not inside it: it scrolls away with the page, so it never takes permanent space. It shows only on the home page and /tools. */}
+    <RecentBar />
+    </>
   );
 }
