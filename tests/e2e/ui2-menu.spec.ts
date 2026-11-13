@@ -61,6 +61,8 @@ test('an Invoice Pro account: Invoices is Pro with all its pages; QR still opens
 test('the QR row opens the QR Pro page; the top bar still says QR codes and the free product stays reachable', async ({ page }) => {
   await signIn(page, email('free-prod'));
   await page.goto('/app/invoices');
+  // Until the plan has loaded the row is neutral (it opens the product home); wait for it to know it has a Pro page behind it.
+  await expect(row(page, 'qr')).toHaveAttribute('data-state', 'upgrade');
   await row(page, 'qr').click();
   await expect(page).toHaveURL(/\/app\/products\/qr$/);
   await expect(page.getByRole('heading', { level: 1, name: 'QR Pro' })).toBeVisible();
