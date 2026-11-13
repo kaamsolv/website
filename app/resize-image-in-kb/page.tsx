@@ -45,6 +45,7 @@ export default function ResizeImageInKbPage() {
   return (
     <ToolPageShell
       slug="resize-image-in-kb"
+      quickShare
       h1="Resize image to KB"
       intro="Photos and signatures at the exact KB and size your form asks for."
       steps={STEPS}

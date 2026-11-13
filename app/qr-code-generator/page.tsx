@@ -7,6 +7,8 @@ import { SiteFooter } from '@/app/_components/site-footer';
 import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { liveFirst, TOOLS } from '@/app/lib/catalogue';
 import { ToolCard } from '@/app/_components/tool-card';
+import { ShareBar } from '@/app/_components/share-bar';
+import { ShareTool } from '@/app/_components/share-tool';
 import { QrGenerator } from './_components/qr-generator';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
@@ -131,12 +133,15 @@ export default function QrCodeGeneratorPage() {
       <main id="main">
         <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair bg-wash">
           <div className="kk-container py-6 sm:py-8">
-            <Breadcrumb
-              items={[
-                { label: 'Home', href: '/' },
-                { label: 'Make a QR code' },
-              ]}
-            />
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <Breadcrumb
+                items={[
+                  { label: 'Home', href: '/' },
+                  { label: 'Make a QR code' },
+                ]}
+              />
+              <ShareBar name="QR Code Generator" blurb="QR codes for links, Wi-Fi, contact cards and more." url={`${SITE_URL}${PATH}`} />
+            </div>
 
             <div className="mt-4 max-w-2xl">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-purplex-100 px-2.5 py-1 text-xs font-semibold text-purplex-600">
@@ -161,6 +166,9 @@ export default function QrCodeGeneratorPage() {
             </noscript>
             <div className="mt-5">
               <QrGenerator />
+            </div>
+            <div className="mt-8">
+              <ShareTool name="QR Code Generator" blurb="QR codes for links, Wi-Fi, contact cards and more." url={`${SITE_URL}${PATH}`} />
             </div>
           </div>
         </section>

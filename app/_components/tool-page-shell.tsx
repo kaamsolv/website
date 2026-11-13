@@ -5,6 +5,7 @@ import { Icon } from './icons';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 import { ToolCard } from './tool-card';
+import { ShareBar } from './share-bar';
 import { ShareTool } from './share-tool';
 import { ToolOpen } from './tool-open';
 import { CATEGORIES, liveFirst, TOOLS, type Tool } from '@/app/lib/catalogue';
@@ -31,6 +32,7 @@ export function ToolPageShell({
   hero,
   afterHero,
   stage = false,
+  quickShare,
   children,
 }: {
   /** Catalogue slug — name, URL and category come from the catalogue. */
@@ -49,6 +51,8 @@ export function ToolPageShell({
   afterHero?: React.ReactNode;
   /** For a tool that is really an application (the invoice editor): a tinted work area and a compact heading, so the editor gets the screen. Same page, same SEO content. */
   stage?: boolean;
+  /** The compact share row (WhatsApp, copy link, more) beside the breadcrumb. Defaults to on for `stage` pages; the short calculators keep just the "Pass it on" card. */
+  quickShare?: boolean;
   children: React.ReactNode;
 }) {
   const tool = toolOverride ?? TOOLS.find((t) => t.slug === slug)!;
@@ -121,7 +125,14 @@ export function ToolPageShell({
         ) : (
           <section aria-labelledby="tool-title" className={`overflow-x-clip border-b border-hair ${stage ? 'bg-wash' : ''}`}>
             <div className={`kk-container ${stage ? 'py-6 sm:py-8' : 'py-10 sm:py-14'}`}>
-              <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+              {(quickShare ?? stage) ? (
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+                  <ShareBar name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />
+                </div>
+              ) : (
+                <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+              )}
 
               <div className={`max-w-2xl ${stage ? 'mt-4' : 'mt-6'}`}>
                 <span

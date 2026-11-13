@@ -13,6 +13,10 @@ infrastructure. Newest first. Detail lives in the linked docs.
 - Deviation from `ToolCard`: a PDF variant with accent per section and an icon per task (reasons in DESIGN-SYSTEM.md §6a); same shell otherwise.
 - The hub reads its tools from the catalogue; a unit test fails if the registry and catalogue ever disagree.
 
+## 2026-11-14 — Share row on the main tool pages; QR type row scrolls; QR preview centred (local, not deployed)
+
+**Decided by:** product owner (request in chat). Share: see DESIGN-SYSTEM §6b. QR type row: wraps on a laptop, scrolls with touch, wheel or arrow on a phone (it only scrolled by finger or shift-wheel before). QR preview: the canvas is centred in its white frame (it sat left of centre).
+
 ## 2026-11-13 — QR Pro page (built locally on feat/kaamsolv-ui-2, not deployed)
 
 **Decided by:** product owner. Heading "QR Pro" (top bar keeps "QR codes"); feature list shown in every checkout state; price and Subscribe only when checkout is available, else "QR Pro subscriptions aren't available yet" with the free path prominent; the 50,000-scan export limit is secondary detail; the per-account code and campaign ceilings, "no ads", the Invoice + QR bundle and yearly savings are not on this page (the bundle line on the Invoice Pro page is unchanged). The sample QR is static and illustrative. No billing, entitlement, navigation, shell or invoice code changed.

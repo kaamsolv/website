@@ -61,6 +61,7 @@ export default function ImageCompressorPage() {
   return (
     <ToolPageShell
       slug="image-compressor"
+      quickShare
       h1="Compress an image"
       intro="Make photos and images smaller without the guesswork — right in your browser."
       steps={STEPS}

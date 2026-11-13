@@ -7,6 +7,8 @@ import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { CATEGORIES, type Accent } from '@/app/lib/catalogue';
 import type { ConverterSlug } from '@/app/lib/image/types';
 import { getImageTool, relatedImageTools } from '@/app/lib/image/tools';
+import { ShareBar } from '@/app/_components/share-bar';
+import { ShareTool } from '@/app/_components/share-tool';
 import { ImageConverterWorkspace } from './image-converter-workspace';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
@@ -92,7 +94,10 @@ export function ImageToolPage({ slug }: Props) {
       <main id="main">
         <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
           <div className="kk-container py-10 sm:py-14">
-            <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+              <ShareBar name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.path}`} />
+            </div>
 
             <div className="mt-6 max-w-2xl">
               <span
@@ -118,6 +123,9 @@ export function ImageToolPage({ slug }: Props) {
 
             <div className="mt-8">
               <ImageConverterWorkspace tool={tool} />
+            </div>
+            <div className="mt-8">
+              <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.path}`} />
             </div>
           </div>
         </section>

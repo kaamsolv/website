@@ -89,7 +89,7 @@ export function QrPreview({ encodedText, design, exportPixelSize, empty, renderE
               role="img"
               aria-label="QR code preview"
               aria-hidden={message ? true : undefined}
-              className={`block max-w-full ${message ? 'invisible absolute h-0 w-0 overflow-hidden' : ''}`}
+              className={`mx-auto block max-w-full ${message ? 'invisible absolute h-0 w-0 overflow-hidden' : ''}`}
             />
             {message ? (
               <p className="px-4 py-8 text-center text-sm font-medium text-danger-700">{message}</p>

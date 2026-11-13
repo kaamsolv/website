@@ -15,14 +15,13 @@ import { primaryBlockMessage, scanabilityReport } from '@/app/lib/qr/scanability
 import { KIND_OPTIONS } from '@/app/lib/qr/style';
 import { LOGO_TYPES, MAX_LOGO_BYTES, type QrKind, type QrPayload } from '@/app/lib/qr/types';
 import { emptyPayload } from '@/app/lib/qr/validate';
+import { ScrollRow } from '@/app/_components/scroll-row';
 import { QrTypeFields } from './qr-type-fields';
 import { QrPreview } from './qr-preview';
 import { QrStudio } from './qr-studio';
 import { QrDownload } from './qr-download';
 import { TrackPanel, type TrackedState } from './track-panel';
 
-const CHIP_SCROLL =
-  'flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
 const CHIP_BTN = 'touch-manipulation select-none';
 
 export function QrGenerator() {
@@ -118,7 +117,7 @@ export function QrGenerator() {
     <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[1fr_min(100%,20rem)] lg:items-start lg:gap-8">
       <div className="min-w-0 rounded-xl2 border border-hair bg-surface p-5 shadow-soft sm:p-6 lg:col-start-1 lg:row-start-1">
         <p className="text-sm font-semibold text-ink">What should this QR do?</p>
-        <div className={`mt-2 ${CHIP_SCROLL}`} role="group" aria-label="QR type">
+        <ScrollRow label="QR type" className="mt-2">
           {KIND_OPTIONS.map((opt) => {
             const active = kind === opt.kind;
             return (
@@ -137,7 +136,7 @@ export function QrGenerator() {
               </button>
             );
           })}
-        </div>
+        </ScrollRow>
 
         <div className="mt-5 sm:mt-6">
           <QrTypeFields

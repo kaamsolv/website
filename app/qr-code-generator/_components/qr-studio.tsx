@@ -1,6 +1,7 @@
 'use client';
 
 import { Icon } from '@/app/_components/icons';
+import { ScrollRow } from '@/app/_components/scroll-row';
 import {
   DEFAULT_QR_DESIGN,
   LOGO_SIZES,
@@ -28,8 +29,6 @@ const CHIP =
   'h-9 shrink-0 rounded-full border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 const CHIP_ACTIVE = 'border-activebg bg-activebg text-activetext';
 const CHIP_IDLE = 'border-hair text-strong hover:bg-wash';
-const CHIP_SCROLL =
-  'flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:overflow-visible';
 const CHIP_BTN_TOUCH = 'touch-manipulation select-none';
 
 type Props = {
@@ -74,11 +73,7 @@ export function QrStudio({
       <div className="mt-4 space-y-4 sm:space-y-5">
         <div>
           <p className="text-xs font-semibold text-ink">Presets</p>
-          <div
-            className={`mt-1.5 ${CHIP_SCROLL}`}
-            role="group"
-            aria-label="QR style presets"
-          >
+          <ScrollRow label="QR style presets" className="mt-1.5">
             {PRESETS.map((p) => (
               <button
                 key={p.id}
@@ -90,16 +85,12 @@ export function QrStudio({
                 {p.label}
               </button>
             ))}
-          </div>
+          </ScrollRow>
         </div>
 
         <div>
           <p className="text-xs font-semibold text-ink">Frame</p>
-          <div
-            className={`mt-1.5 ${CHIP_SCROLL}`}
-            role="group"
-            aria-label="QR frame"
-          >
+          <ScrollRow label="QR frame" className="mt-1.5">
             {FRAME_OPTIONS.map((f) => (
               <button
                 key={f.id}
@@ -111,7 +102,7 @@ export function QrStudio({
                 {f.label}
               </button>
             ))}
-          </div>
+          </ScrollRow>
           {frameHasCta(design.frame.id) && (
             <div className="mt-3">
               <label htmlFor="qr-cta" className="text-xs font-semibold text-ink">CTA text</label>
