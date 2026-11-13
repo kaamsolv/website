@@ -12,6 +12,8 @@
  * "use it now".
  */
 
+import { SEARCH_FILLER, TOOL_ACTIONS } from './search-actions';
+
 export type CategoryName =
   | 'Money'
   | 'Work'
@@ -269,30 +271,41 @@ export function toolCount(category: CategoryName): number {
 }
 
 /**
- * Small, forgiving search. Ranks by where the match lands (name start >
- * name contains > keyword > category > blurb) so the obvious result is
- * first. No dependency, no index — 60 rows is nothing.
+ * Small, forgiving search. Ranks by where the match lands (action phrase >
+ * name start > name contains > keyword > category > blurb) so the obvious
+ * result is first. It also reads how people put a request ("I want to make an
+ * invoice"): filler words are ignored, and each live tool's action phrase and
+ * alternatives (app/lib/search-actions.ts) are searched. No dependency, no
+ * index, no backend — 60 rows is nothing.
  */
 export function searchTools(query: string, limit = 7): Tool[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const terms = q.split(/\s+/).filter(Boolean);
+  const words = q.split(/\s+/).filter(Boolean);
+  const meaningful = words.filter((w) => !SEARCH_FILLER.has(w));
+  const terms = meaningful.length ? meaningful : words;
 
   const scored = TOOLS.map((tool) => {
     const name = tool.name.toLowerCase();
     const blurb = tool.blurb.toLowerCase();
     const cat = tool.category.toLowerCase();
     const kw = tool.keywords.join(' ').toLowerCase();
-    const haystack = `${name} ${cat} ${kw} ${blurb}`;
+    const act = TOOL_ACTIONS[tool.slug];
+    const action = (act?.action ?? '').toLowerCase();
+    const also = (act?.also ?? []).join(' ').toLowerCase();
+    const haystack = `${name} ${action} ${also} ${cat} ${kw} ${blurb}`;
 
     // every term must appear somewhere
     if (!terms.every((t) => haystack.includes(t))) return null;
 
     let score = 0;
+    if (action && action.startsWith(q)) score += 110;
+    else if (action && terms.every((t) => action.includes(t))) score += 70;
     if (name.startsWith(q)) score += 100;
     else if (name.includes(q)) score += 60;
     if (terms.every((t) => name.includes(t))) score += 25;
     if (terms.every((t) => kw.includes(t))) score += 15;
+    if (also && terms.every((t) => also.includes(t))) score += 20;
     if (cat.includes(q)) score += 10;
     score += Math.max(0, 6 - (tool.popularRank ?? 6));
 

@@ -6,7 +6,7 @@ import { BTN, INPUT, PRIMARY, SECONDARY } from '../app/lib/ui-classes.ts';
 
 test('every featured application stands on live catalogue tools and has a real route', () => {
   const shown = featuredApps();
-  assert.deepEqual(shown.map((a) => a.id), ['invoice', 'pdf', 'qr']);
+  assert.deepEqual(shown.map((a) => a.id), ['qr', 'invoice', 'pdf']);
   for (const a of shown) {
     assert.ok(a.href.startsWith('/'), a.name);
     for (const slug of a.needs) assert.equal(TOOLS.find((t) => t.slug === slug)?.status, 'live', `${a.name} needs ${slug}`);

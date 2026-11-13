@@ -3,6 +3,7 @@
  * suite of tools), shown larger than ordinary utilities on the homepage and in the Products menu.
  * Kept apart from `Tool` on purpose: an app is not one catalogue row (the PDF bundle is fourteen).
  *
+ * The order here is the order shown on the homepage and in the Products menu (QR, Invoice, PDF).
  * An app is shown only while the catalogue says the tool(s) it stands on are live, so the homepage
  * can never feature something that doesn't work. Add an entry here to feature a new application.
  */
@@ -32,6 +33,20 @@ export type AppEntry = {
 
 export const APPS: AppEntry[] = [
   {
+    id: 'qr',
+    name: 'QR Studio',
+    blurb: 'QR codes for links, Wi-Fi, UPI, contacts and more. Style them, download PNG or SVG, or track the scans.',
+    short: 'QR codes for links, Wi-Fi, UPI and more. Style them, or track the scans.',
+    category: 'Business',
+    accent: 'teal',
+    icon: 'toolbox',
+    href: '/qr-code-generator',
+    cta: 'Make a QR code',
+    needs: ['qr-code-generator'],
+    owns: ['qr-code-generator'],
+    points: ['PNG and SVG', 'Optional scan tracking'],
+  },
+  {
     id: 'invoice',
     name: 'Invoice Generator',
     blurb: 'Type straight onto the invoice and download a clean PDF. GST, discounts and five currencies. No sign-up.',
@@ -58,20 +73,6 @@ export const APPS: AppEntry[] = [
     needs: ['merge-pdf', 'split-pdf', 'compress-pdf'],
     owns: PDF_TOOLS.filter((t) => t.status === 'live').map((t) => t.slug),
     points: ['14 PDF tools', 'Nothing uploaded'],
-  },
-  {
-    id: 'qr',
-    name: 'QR Studio',
-    blurb: 'QR codes for links, Wi-Fi, UPI, contacts and more. Style them, download PNG or SVG, or track the scans.',
-    short: 'QR codes for links, Wi-Fi, UPI and more. Style them, or track the scans.',
-    category: 'Business',
-    accent: 'teal',
-    icon: 'toolbox',
-    href: '/qr-code-generator',
-    cta: 'Make a QR code',
-    needs: ['qr-code-generator'],
-    owns: ['qr-code-generator'],
-    points: ['PNG and SVG', 'Optional scan tracking'],
   },
 ];
 

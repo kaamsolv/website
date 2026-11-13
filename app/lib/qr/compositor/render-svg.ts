@@ -56,8 +56,13 @@ export function renderArtboardSvg(matrix: QrMatrix, design: QrDesign, qrPixelSiz
   }
 
   parts.push(`<g id="qr-modules">`);
+  // Square modules are one path (no seams between neighbours in any viewer); other shapes stay individual elements.
+  const squares = ops.filter((op) => op.kind === 'square');
+  if (squares.length > 0) {
+    parts.push(`<path d="${squares.map((op) => `M${op.x} ${op.y}h${op.w}v${op.h}h${-op.w}z`).join('')}" fill="${fg}"/>`);
+  }
   for (const op of ops) {
-    parts.push(opToSvg(op, fg));
+    if (op.kind !== 'square') parts.push(opToSvg(op, fg));
   }
   parts.push(`</g>`);
 

@@ -110,8 +110,16 @@ export async function renderArtboardCanvas(
     design.modules.shape,
     design.eyes.shape,
   );
+  // Square modules are filled as ONE path, so neighbours that meet at a fractional pixel have no anti-aliasing seam between them.
+  const squares = ops.filter((op) => op.kind === 'square');
+  if (squares.length > 0) {
+    ctx.fillStyle = design.colors.fg;
+    ctx.beginPath();
+    for (const op of squares) ctx.rect(op.x, op.y, op.w, op.h);
+    ctx.fill();
+  }
   for (const op of ops) {
-    drawOp(ctx, op, design.colors.fg);
+    if (op.kind !== 'square') drawOp(ctx, op, design.colors.fg);
   }
 
   if (design.logo?.dataUrl) {

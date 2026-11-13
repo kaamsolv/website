@@ -3,23 +3,28 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from './icons';
-import { liveFirst, POPULAR_TOOLS, searchTools, toolHref, type Tool } from '../lib/catalogue';
+import { liveFirst, searchTools, TOOLS, toolHref, type Tool } from '../lib/catalogue';
+import { actionOf, SUGGESTED_TASKS } from '../lib/search-actions';
 
 type Variant = 'hero' | 'compact';
 
 /**
- * The homepage's primary interaction: type what you need, see matching
- * tools, press Enter. Full ARIA combobox — arrow keys move, Enter opens,
- * Escape closes. With an empty field it offers the popular tools rather
- * than an empty void.
+ * The homepage's primary interaction: say what you want to do ("make an
+ * invoice", "heic to jpg"), see the tools that do it, labelled by the action,
+ * press Enter. Full ARIA combobox — arrow keys move, Enter opens, Escape
+ * closes. With an empty field it offers the jobs people most often come for
+ * rather than an empty void. Matching is the catalogue's own (searchTools).
  */
 export function ToolSearch({
   variant = 'hero',
   inputId,
+  placeholder,
   className = '',
 }: {
   variant?: Variant;
   inputId?: string;
+  /** Defaults to an invitation to say a task, not to know a tool's name. */
+  placeholder?: string;
   className?: string;
 }) {
   const router = useRouter();
@@ -34,7 +39,8 @@ export function ToolSearch({
 
   const trimmed = query.trim();
   const matches = useMemo(() => (trimmed ? liveFirst(searchTools(trimmed)) : []), [trimmed]);
-  const showing: Tool[] = trimmed ? matches : POPULAR_TOOLS;
+  const suggested = useMemo(() => SUGGESTED_TASKS.map((slug) => TOOLS.find((t) => t.slug === slug)).filter((t): t is Tool => !!t && t.status === 'live'), []);
+  const showing: Tool[] = trimmed ? matches : suggested;
   const noResults = trimmed.length > 0 && matches.length === 0;
 
   useEffect(() => {
@@ -114,7 +120,7 @@ export function ToolSearch({
             aria-activedescendant={activeId}
             aria-label="Search for a tool"
             autoComplete="off"
-            placeholder="Search for a tool…"
+            placeholder={placeholder ?? (big ? 'What do you want to do? Try “make an invoice”' : 'What do you want to do?')}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -141,6 +147,12 @@ export function ToolSearch({
       </form>
 
       {open && (showing.length > 0 || noResults) && (
+        <p role="status" className="sr-only">
+          {noResults ? `No tool for ${trimmed} yet.` : `${showing.length} suggestion${showing.length === 1 ? '' : 's'}. Use the up and down arrow keys, then Enter.`}
+        </p>
+      )}
+
+      {open && (showing.length > 0 || noResults) && (
         <div
           className="kk-pop absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl2 border border-hair bg-raised"
           // keep focus in the input when a result is tapped
@@ -152,7 +164,7 @@ export function ToolSearch({
                 id={autoId}
                 className="border-b border-hair px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted"
               >
-                {trimmed ? 'Matching tools' : 'Popular tools'}
+                {trimmed ? 'Best matches' : 'Try one of these'}
               </p>
               <ul id={listId} role="listbox" aria-labelledby={autoId} className="max-h-80 overflow-y-auto py-1">
                 {showing.map((tool, i) => (
@@ -175,8 +187,8 @@ export function ToolSearch({
                         <Icon name="search" className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-ink">{tool.name}</span>
-                        <span className="block truncate text-xs text-muted">{tool.blurb}</span>
+                        <span className="block truncate text-sm font-semibold text-ink">{actionOf(tool.slug) ?? tool.name}</span>
+                        <span className="block truncate text-xs text-muted">{actionOf(tool.slug) ? `${tool.name} · ${tool.blurb}` : tool.blurb}</span>
                       </span>
                       <span className="shrink-0 rounded-full bg-chip px-2 py-0.5 text-[11px] font-medium text-strong">
                         {tool.status === 'live' ? tool.category : 'Soon'}

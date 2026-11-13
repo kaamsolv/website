@@ -70,7 +70,8 @@ export default function HomePage() {
                 Simple, useful tools for business, documents, work and everyday life.
               </p>
 
-              <div className="kk-rise kk-rise-3 mt-6 max-w-xl sm:mt-7">
+              {/* relative z-30: the entrance animation gives each block its own stacking layer, so without this the blocks below the search (the tagline, the products panel) paint over its suggestion list. */}
+              <div className="kk-rise kk-rise-3 relative z-30 mt-6 max-w-xl sm:mt-7">
                 <ToolSearch variant="hero" inputId="hero-search" />
                 <span id="hero-search-anchor" aria-hidden="true" className="block h-px" />
               </div>

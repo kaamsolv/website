@@ -32,7 +32,9 @@ export function buildModuleOps(
 ): ModuleDrawOp[] {
   const ops: ModuleDrawOp[] = [];
   const size = matrix.size;
-  const gap = moduleShape === 'dots' ? 0.22 : moduleShape === 'rounded' ? 0.08 : 0.02;
+  // Square modules touch (no gap): a 2% gap left a hairline grid across the whole code, which looked unfinished and made strict
+  // QR readers fail. Rounded and dotted modules keep their deliberate spacing.
+  const gap = moduleShape === 'dots' ? 0.22 : moduleShape === 'rounded' ? 0.08 : 0;
 
   for (let row = 0; row < size; row += 1) {
     for (let col = 0; col < size; col += 1) {
