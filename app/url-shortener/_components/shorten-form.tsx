@@ -165,7 +165,7 @@ export function ShortenForm() {
           value={expiry}
           onChange={(e) => setExpiry(e.target.value as ExpiryOption)}
           disabled={submitting}
-          className="h-10 rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
+          className="h-10 pointer-coarse:h-11 rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
         >
           {EXPIRY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -257,7 +257,7 @@ function ShortResult({
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-hair bg-surface px-3 text-sm font-semibold text-strong transition-colors hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+          className="inline-flex h-9 pointer-coarse:h-11 items-center gap-1.5 rounded-lg border border-hair bg-surface px-3 text-sm font-semibold text-strong transition-colors hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
         >
           <Icon name="scissors" className="h-4 w-4" />
           Shorten another

@@ -50,6 +50,7 @@ export default function InvoiceGeneratorPage() {
     <ToolPageShell
       slug="invoice-generator"
       stage
+      stageAlign="mx-auto max-w-[860px]"
       h1="Invoice generator"
       intro="Type straight onto the invoice. Download a clean PDF. No sign-up."
       steps={STEPS}

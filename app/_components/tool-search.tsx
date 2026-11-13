@@ -127,14 +127,17 @@ export function ToolSearch({
             }`}
           />
         </div>
-        <button
-          type="submit"
-          className={`shrink-0 rounded-full bg-coral-500 font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${
-            big ? 'h-14 w-full px-7 text-base sm:w-auto' : 'h-11 px-5 text-sm'
-          }`}
-        >
-          Search
-        </button>
+        {/* The big (hero) search has its own button; the compact one in the header is a quiet field: Enter searches, and the list opens on focus. */}
+        {big && (
+          <button
+            type="submit"
+            className={`shrink-0 rounded-full bg-coral-500 font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${
+              big ? 'h-14 w-full px-7 text-base sm:w-auto' : 'h-11 px-5 text-sm'
+            }`}
+          >
+            Search
+          </button>
+          )}
       </form>
 
       {open && (showing.length > 0 || noResults) && (

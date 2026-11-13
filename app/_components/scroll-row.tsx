@@ -62,7 +62,7 @@ export function ScrollRow({
   const nudge = (dir: -1 | 1) => ref.current?.scrollBy({ left: dir * Math.max(120, (ref.current?.clientWidth ?? 0) * 0.7), behavior: 'smooth' });
 
   const arrow =
-    'absolute top-0 z-10 grid h-10 w-9 place-items-center bg-surface/95 text-strong shadow-soft focus-visible:outline-none md:hidden';
+    'absolute top-0 z-10 grid h-10 w-11 place-items-center bg-surface/95 text-strong shadow-soft focus-visible:outline-none md:hidden';
 
   return (
     <div className={`relative ${className}`}>

@@ -26,7 +26,7 @@ import { QR_EC_LEVELS, type QrEcLevel, LOGO_TYPES, MAX_LOGO_BYTES } from '@/app/
 import { isHexColor } from '@/app/lib/qr/validate';
 
 const CHIP =
-  'h-9 shrink-0 rounded-full border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
+  'h-9 pointer-coarse:h-11 shrink-0 rounded-full border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500';
 const CHIP_ACTIVE = 'border-activebg bg-activebg text-activetext';
 const CHIP_IDLE = 'border-hair text-strong hover:bg-wash';
 const CHIP_BTN_TOUCH = 'touch-manipulation select-none';
@@ -119,7 +119,7 @@ export function QrStudio({
                     frame: { ...design.frame, ctaText: sanitizeCtaInput(e.target.value) },
                   })
                 }
-                className="mt-1.5 h-10 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                className="mt-1.5 h-10 pointer-coarse:h-11 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
               />
               <p className="mt-1 text-xs text-muted">Up to 24 characters. Keep it short for print.</p>
             </div>
@@ -224,7 +224,7 @@ export function QrStudio({
                     const n = Number(e.target.value);
                     if (isExportSize(n)) onExportChange({ ...exportOptions, pixelSize: n });
                   }}
-                  className="mt-2 h-10 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                  className="mt-2 h-10 pointer-coarse:h-11 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
                 >
                   {SIZE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -277,7 +277,7 @@ export function QrStudio({
             <div>
               <p className="text-xs font-semibold text-ink">Logo (optional)</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-hair px-3 text-xs font-semibold text-muted hover:bg-wash focus-within:ring-2 focus-within:ring-coral-500">
+                <label className="inline-flex h-10 pointer-coarse:h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-hair px-3 text-xs font-semibold text-muted hover:bg-wash focus-within:ring-2 focus-within:ring-coral-500">
                   <Icon name="upload" className="h-4 w-4" />
                   {logoName ? 'Change logo' : 'Upload image'}
                   <input
@@ -308,7 +308,7 @@ export function QrStudio({
                     <button
                       type="button"
                       onClick={() => onLogoPick(null)}
-                      className="h-10 rounded-lg border border-hair px-3 text-xs font-semibold text-strong hover:bg-wash"
+                      className="h-10 pointer-coarse:h-11 rounded-lg border border-hair px-3 text-xs font-semibold text-strong hover:bg-wash"
                     >
                       Remove
                     </button>
@@ -337,7 +337,7 @@ export function QrStudio({
                   }
                 }}
                 aria-describedby="qr-ec-help"
-                className="mt-2 h-10 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
+                className="mt-2 h-10 pointer-coarse:h-11 w-full rounded-lg border border-hair bg-fieldbg px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60"
               >
                 {EC_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>

@@ -137,6 +137,7 @@ export default function QrCodeGeneratorPage() {
               <Breadcrumb
                 items={[
                   { label: 'Home', href: '/' },
+                  { label: 'Business', href: '/tools#business' },
                   { label: 'Make a QR code' },
                 ]}
               />
@@ -144,13 +145,9 @@ export default function QrCodeGeneratorPage() {
             </div>
 
             <div className="mt-4 max-w-2xl">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-purplex-100 px-2.5 py-1 text-xs font-semibold text-purplex-600">
-                <Icon name="business" className="h-3.5 w-3.5" />
-                Business · Free tool
-              </span>
               <h1
                 id="tool-title"
-                className="mt-3 font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl"
+                className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl"
               >
                 Make a QR code
               </h1>

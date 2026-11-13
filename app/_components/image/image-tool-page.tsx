@@ -95,24 +95,18 @@ export function ImageToolPage({ slug }: Props) {
         <section aria-labelledby="tool-title" className="overflow-x-clip border-b border-hair">
           <div className="kk-container py-10 sm:py-14">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+              <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Images & Files', href: '/tools#images-files' }, { label: tool.name }]} />
               <ShareBar name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.path}`} />
             </div>
 
-            <div className="mt-6 max-w-2xl">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${accent.tint} ${accent.fg}`}
-              >
-                <Icon name="images" className="h-3.5 w-3.5" />
-                Images &amp; Files · Free tool
-              </span>
+            <div className="mt-5 max-w-2xl">
               <h1
                 id="tool-title"
-                className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
+                className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
               >
                 {tool.h1}
               </h1>
-              <p className="mt-3 text-pretty text-lg text-muted">{tool.blurb}</p>
+              <p className="mt-2 text-pretty text-lg text-muted">{tool.blurb}</p>
             </div>
 
             <noscript>
@@ -121,7 +115,7 @@ export function ImageToolPage({ slug }: Props) {
               </p>
             </noscript>
 
-            <div className="mt-8">
+            <div className="mt-6">
               <ImageConverterWorkspace tool={tool} />
             </div>
             <div className="mt-8">

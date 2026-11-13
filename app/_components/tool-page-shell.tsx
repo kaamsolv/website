@@ -1,5 +1,4 @@
 import AdSlot from '@/app/components/AdSlot';
-import { ACCENT } from './accent';
 import { Breadcrumb } from './breadcrumb';
 import { Icon } from './icons';
 import { SiteFooter } from './site-footer';
@@ -33,6 +32,7 @@ export function ToolPageShell({
   afterHero,
   stage = false,
   quickShare,
+  stageAlign,
   children,
 }: {
   /** Catalogue slug — name, URL and category come from the catalogue. */
@@ -53,16 +53,20 @@ export function ToolPageShell({
   stage?: boolean;
   /** The compact share row (WhatsApp, copy link, more) beside the breadcrumb. Defaults to on for `stage` pages; the short calculators keep just the "Pass it on" card. */
   quickShare?: boolean;
+  /** Classes that narrow and centre the heading block (breadcrumb, title, intro) to line up with a centred tool, e.g. the invoice paper's toolbar. */
+  stageAlign?: string;
   children: React.ReactNode;
 }) {
   const tool = toolOverride ?? TOOLS.find((t) => t.slug === slug)!;
   const cat = CATEGORIES.find((c) => c.name === tool.category)!;
-  const accent = ACCENT[cat.accent];
   const relatedTools: Tool[] = liveFirst(
     related
       ? related.map((s) => TOOLS.find((t) => t.slug === s)!).filter(Boolean)
       : TOOLS.filter((t) => t.category === tool.category && t.slug !== slug),
   ).slice(0, 3);
+
+  // The category is a crumb (it links to that group on /tools), which replaces the old "Category · Free tool" badge row.
+  const crumbs = [{ label: 'Home', href: '/' }, { label: cat.name, href: `/tools#${cat.slug}` }, { label: tool.name }];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -124,30 +128,26 @@ export function ToolPageShell({
           </>
         ) : (
           <section aria-labelledby="tool-title" className={`overflow-x-clip border-b border-hair ${stage ? 'bg-wash' : ''}`}>
-            <div className={`kk-container ${stage ? 'py-6 sm:py-8' : 'py-10 sm:py-14'}`}>
+            <div className={`kk-container ${stage ? 'py-6 sm:py-8' : 'py-8 sm:py-12'}`}>
+              <div className={stageAlign}>
               {(quickShare ?? stage) ? (
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+                  <Breadcrumb items={crumbs} />
                   <ShareBar name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />
                 </div>
               ) : (
-                <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: tool.name }]} />
+                <Breadcrumb items={crumbs} />
               )}
 
-              <div className={`max-w-2xl ${stage ? 'mt-4' : 'mt-6'}`}>
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${accent.tint} ${accent.fg}`}
-                >
-                  <Icon name={cat.icon} className="h-3.5 w-3.5" />
-                  {cat.name} · Free tool
-                </span>
+              <div className={`max-w-2xl ${stage ? 'mt-4' : 'mt-5'}`}>
                 <h1
                   id="tool-title"
-                  className={`mt-3 font-display font-extrabold tracking-tight text-ink ${stage ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}
+                  className={`font-display font-extrabold tracking-tight text-ink ${stage ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}
                 >
                   {h1}
                 </h1>
                 <p className={`mt-2 text-pretty text-muted ${stage ? 'text-base' : 'text-lg'}`}>{intro}</p>
+              </div>
               </div>
 
               <noscript>
@@ -156,7 +156,7 @@ export function ToolPageShell({
                 </p>
               </noscript>
 
-              <div className={stage ? 'mt-5' : 'mt-8'}>{children}</div>
+              <div className={stage ? 'mt-5' : 'mt-6'}>{children}</div>
 
               <div className="mt-8">
                 <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.url}`} />

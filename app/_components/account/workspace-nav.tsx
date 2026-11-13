@@ -6,6 +6,7 @@ import { Icon } from '../icons';
 import type { EntitlementKey } from '@/app/lib/entitlements';
 import { useEntitlements } from '@/app/lib/me-client';
 import { PRODUCTS, productPageHref, type Product } from '@/app/lib/products';
+import { ProductChip } from './product-chip';
 
 type Link = { href: string; label: string; pro?: boolean; /** Shown only when the account has this entitlement. */ key?: EntitlementKey };
 
@@ -36,24 +37,13 @@ const SUB: Record<string, Link[]> = {
 
 type State = 'loading' | 'pro' | 'free' | 'upgrade' | 'soon';
 
-function Chip({ state }: { state: State }) {
-  if (state === 'loading') return null;
-  const look = {
-    pro: 'bg-tealx-100 text-tealx-600',
-    free: 'bg-chip text-strong',
-    upgrade: 'bg-coral-500 text-navy-900',
-    soon: 'border border-dashed border-hair text-muted',
-  }[state];
-  const text = { pro: 'Pro', free: 'Free', upgrade: 'Upgrade', soon: 'Soon' }[state];
-  return <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${look}`}>{text}</span>;
-}
-
 /**
- * The signed-in navigation: your KaamSolv, the products (each in one of four looks), what is shared, the account.
- *   - subscribed: a normal row with a "Pro" chip; its pages open under it while you are in it;
- *   - free, and you are in it: a normal row with a "Free" chip, its free pages, and an "Unlock … Pro" line;
- *   - free, and you are elsewhere: a highlighted "Upgrade" row that opens the product page;
- *   - no plan yet: a highlighted, dashed "Soon" row that opens a "coming soon" page.
+ * The signed-in navigation: your KaamSolv, the products, what is shared, the account. A product's chip says its plan
+ * (Pro, Free, Soon: the same words as on the hub); how a row behaves says where it goes:
+ *   - Pro: its pages open under it while you are in it;
+ *   - Free, and you are in it: its free pages, then an "Unlock … Pro" line;
+ *   - Free, and you are elsewhere: a quiet coral edge marks that it has a Pro page; the row opens that page;
+ *   - Soon (no plan yet): opens a "coming soon" page.
  * The sidebar (a drawer on a phone) is this one list.
  */
 export function WorkspaceNav(_props: { stacked?: boolean } = {}) {
@@ -116,13 +106,14 @@ export function WorkspaceNav(_props: { stacked?: boolean } = {}) {
                     data-product={p.slug}
                     data-state={state}
                     aria-current={onProductPage ? 'page' : undefined}
-                    className={`${ROW} ${nudged ? 'border border-coral-300/70 bg-coralx-100 text-ink hover:brightness-95' : onProductPage ? ACTIVE : IDLE}`}
+                    title={state === 'upgrade' ? `${p.planName}: see what it adds` : undefined}
+                    className={`${ROW} ${onProductPage ? ACTIVE : IDLE} ${state === 'upgrade' ? 'shadow-[inset_2px_0_0_#FE6336]' : ''}`}
                   >
                     <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${a.tint} ${a.fg}`}>
                       <Icon name={p.icon} className="h-4 w-4" />
                     </span>
                     {p.name}
-                    <Chip state={state} />
+                    {state !== 'loading' && <ProductChip state={state === 'upgrade' ? 'free' : state} className="ml-auto" />}
                   </a>
                   {open && (subs.length > 0 || (state === 'free' && p.planKey)) && (
                     <ul className="ml-3 mt-0.5 flex flex-col gap-0.5">

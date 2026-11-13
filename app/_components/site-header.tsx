@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { HeaderAccount, MobileAccountLinks } from './account/header-account';
 import { Icon } from './icons';
@@ -13,6 +14,10 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [condensed, setCondensed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const onHome = usePathname() === '/';
+  // One coral action per screen: on the homepage's first screen it is "Suggest a tool"; on a tool page the tool owns the coral,
+  // so the header's own button is a quiet outline (the same after the homepage's hero search has scrolled away).
+  const quietSuggest = !onHome || condensed;
 
   // Show the compact header search only once the hero's own search has
   // scrolled up behind the header — no duplicate search box on the first
@@ -87,7 +92,9 @@ export function SiteHeader() {
           <HeaderAccount />
           <a
             href="/contact#suggest"
-            className="inline-flex h-10 items-center rounded-full bg-coral-500 px-3.5 text-sm font-semibold text-navy-900 transition-colors hover:bg-coral-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:px-4"
+            className={`inline-flex h-11 items-center rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:px-4 ${
+              quietSuggest ? 'border border-hair bg-surface text-strong hover:bg-wash' : 'bg-coral-500 text-navy-900 hover:bg-coral-600 hover:text-white'
+            }`}
           >
             <span className="sm:hidden">Suggest</span>
             <span className="hidden sm:inline">Suggest a tool</span>
@@ -98,7 +105,7 @@ export function SiteHeader() {
             aria-controls="mobile-menu"
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             onClick={() => setMenuOpen((v) => !v)}
-            className="grid h-10 w-10 place-items-center rounded-lg text-ink hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-lg text-ink hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 lg:hidden"
           >
             <Icon name={menuOpen ? 'close' : 'menu'} className="h-5 w-5" />
           </button>

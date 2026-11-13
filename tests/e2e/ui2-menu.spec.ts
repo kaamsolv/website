@@ -19,13 +19,13 @@ const row = (page: Page, slug: string) => nav(page).locator(`[data-product="${sl
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test('a free account: Invoices is Free while you are in it, QR is a highlighted Upgrade, PDF is Soon', async ({ page }) => {
+test('a free account: Invoices and QR both say Free (QR has a Pro page behind it), PDF says Soon', async ({ page }) => {
   await signIn(page, email('free-menu'));
   await page.goto('/app/invoices');
   await expect(row(page, 'invoices')).toHaveAttribute('data-state', 'free');
   await expect(row(page, 'invoices')).toContainText('Free');
   await expect(row(page, 'qr')).toHaveAttribute('data-state', 'upgrade');
-  await expect(row(page, 'qr')).toContainText('Upgrade');
+  await expect(row(page, 'qr')).toContainText('Free'); // same label as the hub; the row opens QR Pro
   await expect(row(page, 'qr')).toHaveAttribute('href', '/app/products/qr');
   await expect(row(page, 'pdf')).toHaveAttribute('data-state', 'soon');
   await expect(row(page, 'pdf')).toContainText('Soon');
@@ -38,7 +38,7 @@ test('a free account: Invoices is Free while you are in it, QR is a highlighted 
   await expect(nav(page).getByText('Coupons')).toHaveCount(0);
 });
 
-test('a free account in QR sees QR as Free with its pages and an unlock line; Invoices becomes the Upgrade row', async ({ page }) => {
+test('a free account in QR sees QR as Free with its pages and an unlock line; Invoices opens its Pro page', async ({ page }) => {
   await signIn(page, email('free-menu2'));
   await page.goto('/app/qr');
   await expect(row(page, 'qr')).toHaveAttribute('data-state', 'free');
@@ -47,7 +47,7 @@ test('a free account in QR sees QR as Free with its pages and an unlock line; In
   await expect(row(page, 'invoices')).toHaveAttribute('data-state', 'upgrade');
 });
 
-test('an Invoice Pro account: Invoices is Pro with all its pages; QR is still an Upgrade', async ({ page }) => {
+test('an Invoice Pro account: Invoices is Pro with all its pages; QR still opens its Pro page', async ({ page }) => {
   await signIn(page, email('pro-menu'));
   await page.goto('/app/invoices/overview');
   await expect(row(page, 'invoices')).toHaveAttribute('data-state', 'pro');

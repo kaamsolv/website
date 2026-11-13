@@ -35,7 +35,7 @@ export function HeaderAccount() {
 
   if (me.status === 'anon') {
     return (
-      <a href={loginHref(pathname)} className={`hidden h-10 items-center rounded-full px-3 text-sm font-semibold text-strong hover:bg-wash sm:inline-flex ${FOCUS}`}>
+      <a href={loginHref(pathname)} className={`hidden h-10 pointer-coarse:h-11 items-center rounded-full px-3 text-sm font-semibold text-strong hover:bg-wash sm:inline-flex ${FOCUS}`}>
         Log in
       </a>
     );

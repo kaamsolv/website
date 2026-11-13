@@ -98,45 +98,25 @@ function AdSlotUnit({
     );
   }
 
-  // House promo — a self-contained, clearly-labelled unit. It uses navy (a
-  // constant brand hue) in both themes, so it always reads as a *placed unit*
-  // rather than page content. Its own `min-h-32` is the reserved space; the IAB
-  // `height` above only matters once a real ad fills this slot.
+  // House promo: a quiet, clearly labelled strip, not a billboard. It sits on the wash surface with a hairline, one line of
+  // text and a text-style action, so it never outweighs the tool, the empty state or the page's own coral button.
+  // (The IAB `height` above only matters once a real ad fills this slot.)
   return (
     <div data-ad-slot={slotId} className={`w-full ${className}`}>
       <a
         href={houseAd.href}
-        className="group relative flex flex-col gap-5 overflow-hidden rounded-xl2 border border-white/10 bg-gradient-to-br from-navy-900 to-navy-700 p-6 text-white shadow-soft transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:flex-row sm:items-center sm:gap-6 sm:p-7"
+        className="group flex flex-col gap-2 rounded-xl2 border border-hair bg-wash px-4 py-3.5 transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:flex-row sm:items-center sm:gap-5 sm:px-5"
       >
-        {/* soft brand glow — decorative only */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-coral-500/25 blur-3xl"
-        />
-
-        <div className="relative flex-1">
-          <span className="inline-flex items-center rounded-full border border-white/25 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white/80">
-            {disclosure}
-          </span>
-          {houseAd.eyebrow && (
-            <p className="font-hand mt-3 text-xl text-yellow-500">{houseAd.eyebrow}</p>
-          )}
-          <p className="mt-1 font-display text-xl font-bold text-white sm:text-2xl">{houseAd.title}</p>
-          <p className="mt-1.5 max-w-xl text-sm text-white/75">{houseAd.body}</p>
-        </div>
-
-        <span className="relative inline-flex h-11 shrink-0 items-center gap-1.5 self-start rounded-full bg-coral-500 px-5 text-sm font-semibold text-navy-900 transition-colors group-hover:bg-coral-600 group-hover:text-white sm:self-center">
+        <span className="shrink-0 self-start rounded-full border border-hair bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted sm:self-center">
+          {disclosure}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-base font-bold text-ink">{houseAd.title}</span>
+          <span className="mt-0.5 block text-sm text-muted">{houseAd.body}</span>
+        </span>
+        <span className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-semibold text-coralx-600 group-hover:underline">
           {houseAd.ctaLabel}
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
+          <svg className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
         </span>

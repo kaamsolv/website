@@ -121,7 +121,7 @@ export function ReportForm() {
         <button
           type="button"
           onClick={reset}
-          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg border border-hair bg-surface px-3 text-sm font-semibold text-strong transition-colors hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+          className="mt-4 inline-flex h-9 pointer-coarse:h-11 items-center gap-1.5 rounded-lg border border-hair bg-surface px-3 text-sm font-semibold text-strong transition-colors hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
         >
           <Icon name="flag" className="h-4 w-4" />
           Report another link

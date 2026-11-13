@@ -10,15 +10,16 @@ const SHOTS = 'test-results/screenshots';
 const settle = async (page: Page) => page.waitForLoadState('networkidle');
 
 test.describe('homepage', () => {
-  test('hero, featured applications, popular tools and categories', async ({ page }) => {
+  test('hero with the main products beside it, popular tools without them, and categories', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your Digital Toolkit for Everyday Kaam.');
     await expect(page.getByText('Simple, useful tools for business, documents, work and everyday life.')).toBeVisible();
     await expect(page.getByText('Small tools. Less kaam.')).toBeAttached();
     await expect(page.locator('#hero-search-anchor')).toBeAttached();
 
-    const apps = page.getByRole('region', { name: 'Featured Applications' });
-    await expect(apps.getByRole('link')).toHaveCount(3);
+    const apps = page.getByRole('region', { name: 'Featured products' });
+    await expect(apps.getByRole('link')).toHaveCount(4); // three products and "Explore all products"
+    await expect(apps.getByTestId('explore-products')).toHaveAttribute('href', '/tools');
     await expect(apps.getByTestId('app-invoice')).toHaveAttribute('href', '/invoice-generator');
     await expect(apps.getByTestId('app-pdf')).toHaveAttribute('href', '/pdf-tools');
     await expect(apps.getByTestId('app-qr')).toHaveAttribute('href', '/qr-code-generator');
@@ -30,9 +31,9 @@ test.describe('homepage', () => {
     const cats = page.locator('#categories').getByRole('link');
     await expect(cats).toHaveCount(10);
     await expect(cats.first()).toHaveAttribute('href', '/tools#money');
-    // The order on the page: hero, featured applications, popular tools, categories.
+    // The order on the page: hero (with the products), popular tools, categories.
     const order = await page.locator('main h1, main h2').allTextContents();
-    expect(order.slice(0, 4)).toEqual(['Your Digital Toolkit for Everyday Kaam.', 'Featured Applications', 'Popular tools', 'Explore tools by category']);
+    expect(order.slice(0, 3)).toEqual(['Your Digital Toolkit for Everyday Kaam.', 'Popular tools', 'Explore tools by category']);
   });
 
   test('the hero search finds a tool and opens it', async ({ page }) => {

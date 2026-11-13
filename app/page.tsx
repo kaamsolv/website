@@ -1,33 +1,19 @@
 import AdSlot from './components/AdSlot';
 import { Icon } from './_components/icons';
-import { FeaturedApps } from './_components/home/featured-apps';
+import { HeroProducts } from './_components/home/hero-products';
 import { MarketingShell } from './_components/shell/marketing-shell';
 import { ToolSearch } from './_components/tool-search';
 import { ACCENT } from './_components/accent';
 import { ToolCard } from './_components/tool-card';
-import {
-  CATEGORIES,
-  LIVE_TOOLS,
-  POPULAR_TOOLS,
-  TOOLS,
-  type Accent,
-} from './lib/catalogue';
+import { appOwnedSlugs } from './lib/apps';
+import { CATEGORIES, POPULAR_TOOLS } from './lib/catalogue';
 
 /**
- * Hero sticky notes. Status comes from the catalogue, so a "Soon" note turns
- * into a working link on its own when that tool goes live.
+ * Popular tools: the everyday one-task tools. Anything that belongs to a featured product (invoice, QR, the PDF tools)
+ * is shown through that product in the hero, not again here. Four, so the row fills the grid.
  */
-const HERO_CHIPS = [
-  { label: 'Shorten a link', slug: 'url-shortener', accent: 'coral' as Accent, rotate: '-rotate-2' },
-  { label: 'Make a QR code', slug: 'qr-code-generator', accent: 'purple' as Accent, rotate: 'rotate-1' },
-  { label: 'Convert PNG to JPG', slug: 'png-to-jpg', accent: 'teal' as Accent, rotate: '-rotate-1' },
-  { label: 'iPhone photo to JPG', slug: 'heic-to-jpg', accent: 'yellow' as Accent, rotate: 'rotate-2' },
-  { label: 'Calculate GST', slug: 'gst-calculator', accent: 'yellow' as Accent, rotate: '-rotate-1' },
-  { label: 'Make an invoice', slug: 'invoice-generator', accent: 'coral' as Accent, rotate: 'rotate-1' },
-].map((chip) => ({ ...chip, tool: TOOLS.find((t) => t.slug === chip.slug)! }));
-
-/** Quick links under the search box — only tools that work today. */
-const QUICK_LINKS = [...new Set([...POPULAR_TOOLS.filter((t) => t.status === 'live'), ...LIVE_TOOLS])].slice(0, 4);
+const OWNED = appOwnedSlugs();
+const POPULAR = POPULAR_TOOLS.filter((t) => !OWNED.has(t.slug)).slice(0, 4);
 
 const STEPS = [
   { n: '1', t: 'Find it', d: 'Search, or pick a category. The tool you need is a click away.' },
@@ -71,7 +57,7 @@ export default function HomePage() {
         {/* ---------- HERO ---------- */}
         <section aria-labelledby="hero-title" className="relative overflow-hidden border-b border-hair bg-surface">
           <div className="kk-dotgrid" aria-hidden="true" />
-          <div className="kk-container relative grid gap-10 py-12 sm:py-16 md:grid-cols-[1.15fr_0.85fr] md:items-center md:gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:py-20">
+          <div className="kk-container relative grid gap-10 py-12 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-16 lg:py-16">
             <div>
               <h1
                 id="hero-title"
@@ -89,63 +75,19 @@ export default function HomePage() {
                 <span id="hero-search-anchor" aria-hidden="true" className="block h-px" />
               </div>
 
-              <div className="kk-rise kk-rise-3 mt-4 flex max-w-xl flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span className="text-muted">Popular:</span>
-                {QUICK_LINKS.map((tool) => (
-                  <a
-                    key={tool.slug}
-                    href={tool.url}
-                    className="rounded font-medium text-coralx-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-                  >
-                    {tool.name}
-                  </a>
-                ))}
-              </div>
-
               <p className="kk-rise kk-rise-4 mt-5 flex items-center gap-2 text-sm text-muted sm:mt-6">
                 <Icon name="sparkle" className="h-4 w-4 text-teal-500" />
                 Free to use. No sign-up to get started.
               </p>
-            </div>
-
-            {/* Sticky notes — tools you can use now, then a couple that are on the way. */}
-            <nav aria-label="Tools you can use now" className="kk-rise kk-rise-3 relative hidden md:block">
-              <ul className="ml-auto flex max-w-[17rem] flex-col items-start gap-2.5 lg:max-w-xs lg:gap-3">
-                {HERO_CHIPS.map(({ label, tool, accent, rotate }) => {
-                  const a = ACCENT[accent];
-                  const live = tool.status === 'live';
-                  return (
-                    <li key={tool.slug} className={rotate}>
-                      {live ? (
-                        <a
-                          href={tool.url}
-                          className="inline-flex items-center gap-2 rounded-full border border-hair bg-surface px-4 py-2 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-                        >
-                          <span className={`grid h-6 w-6 place-items-center rounded-full ${a.tint} ${a.fg}`}>
-                            <Icon name="arrow-right" className="h-3.5 w-3.5" />
-                          </span>
-                          <span className="text-sm font-semibold text-ink">{label}</span>
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-hair px-4 py-2">
-                          <span className="text-sm font-semibold text-muted">{label}</span>
-                          <span className="rounded-full bg-chip px-2 py-0.5 text-[11px] font-semibold text-muted">
-                            Soon
-                          </span>
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="font-hand ml-auto mt-3 max-w-[17rem] pr-4 text-right text-2xl text-coralx-600 lg:max-w-xs" aria-hidden="true">
+              <p className="font-hand kk-rise kk-rise-4 mt-3 text-2xl text-coralx-600" aria-hidden="true">
                 Small tools. Less kaam.
               </p>
-            </nav>
+            </div>
+
+            <HeroProducts />
+
           </div>
         </section>
-
-        <FeaturedApps />
 
         {/* ---------- POPULAR ---------- */}
         <section aria-labelledby="popular-title" className="kk-container py-14 sm:py-16">
@@ -154,7 +96,7 @@ export default function HomePage() {
               <h2 id="popular-title" className="font-display text-2xl font-bold text-ink sm:text-3xl">
                 Popular tools
               </h2>
-              <p className="mt-1 text-muted">KaamSolv is new — these are the first tools rolling out.</p>
+              <p className="mt-1 text-muted">The everyday ones people reach for first. Search for anything else.</p>
             </div>
             <a
               href="/tools"
@@ -164,8 +106,8 @@ export default function HomePage() {
             </a>
           </div>
 
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {POPULAR_TOOLS.map((tool) => (
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {POPULAR.map((tool) => (
               <li key={tool.slug}>
                 <ToolCard tool={tool} />
               </li>
@@ -221,10 +163,9 @@ export default function HomePage() {
             enabled
             label="From KaamSolv"
             houseAd={{
-              eyebrow: 'Small problems. Solved.',
-              title: 'Need to get something done?',
-              body: 'KaamSolv is a growing collection of quick, useful tools for everyday work and life — no sign-up, no clutter.',
-              ctaLabel: 'Explore KaamSolv',
+              title: 'Not sure where to start?',
+              body: 'Browse the ten groups, from money and work to documents and images.',
+              ctaLabel: 'Browse by category',
               href: '#categories',
             }}
           />

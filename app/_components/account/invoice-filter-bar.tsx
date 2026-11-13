@@ -84,7 +84,7 @@ export function InvoiceFilterBar({
             );
           })}
         </ul>
-        <a href="/app/invoices" onClick={(e) => onNavigate?.('/app/invoices', e)} className={`${SECONDARY} ml-auto h-9 px-4`}>
+        <a href="/app/invoices" onClick={(e) => onNavigate?.('/app/invoices', e)} className={`${SECONDARY} ml-auto h-9 pointer-coarse:h-11 px-4`}>
           Clear filters
         </a>
       </div>

@@ -117,25 +117,22 @@ export default function UrlShortenerPage() {
       <main id="main">
         {/* ---------- TOOL ---------- */}
         <section aria-labelledby="tool-title" className="border-b border-hair">
-          <div className="kk-container py-10 sm:py-14">
+          <div className="kk-container py-8 sm:py-12">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <Breadcrumb
                 items={[
                   { label: 'Home', href: '/' },
+                  { label: 'Work', href: '/tools#work' },
                   { label: 'Shorten a URL' },
                 ]}
               />
               <ShareBar name="URL Shortener" blurb="Paste a long link, get a short one you can share anywhere." url={`${SITE_URL}${PATH}`} />
             </div>
 
-            <div className="mt-6 max-w-2xl">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-coralx-100 px-2.5 py-1 text-xs font-semibold text-coralx-600">
-                <Icon name="link" className="h-3.5 w-3.5" />
-                Work · Free tool
-              </span>
+            <div className="mt-5 max-w-2xl">
               <h1
                 id="tool-title"
-                className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
+                className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
               >
                 Shorten a URL
               </h1>
@@ -144,7 +141,7 @@ export default function UrlShortenerPage() {
               </p>
             </div>
 
-            <div className="mt-8 max-w-2xl rounded-xl2 border border-hair bg-surface p-5 shadow-soft sm:p-8">
+            <div className="mt-6 max-w-2xl rounded-xl2 border border-hair bg-surface p-5 shadow-soft sm:p-8">
               <ShortenForm />
             </div>
             <div className="mt-8">

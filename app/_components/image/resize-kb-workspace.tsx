@@ -279,7 +279,7 @@ export function ResizeKbWorkspace() {
                 />
                 <label className="flex items-center gap-2 text-sm text-muted">
                   <span className="sr-only">Maximum size in KB</span>
-                  <input value={kbInput} onChange={(e) => setKbInput(e.target.value)} inputMode="decimal" className={`${FIELD} h-10 w-24`} />
+                  <input value={kbInput} onChange={(e) => setKbInput(e.target.value)} inputMode="decimal" className={`${FIELD} h-10 pointer-coarse:h-11 w-24`} />
                   KB max
                 </label>
               </div>
@@ -432,7 +432,7 @@ export function ResizeKbWorkspace() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {items.length < MAX_FILES && (
-                  <label className="inline-flex h-9 cursor-pointer items-center rounded-full border border-hair bg-fieldbg px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-within:ring-2 focus-within:ring-coral-500">
+                  <label className="inline-flex h-9 pointer-coarse:h-11 cursor-pointer items-center rounded-full border border-hair bg-fieldbg px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-within:ring-2 focus-within:ring-coral-500">
                     Add more
                     <input
                       type="file"
@@ -453,7 +453,7 @@ export function ResizeKbWorkspace() {
                     setSelectedId(null);
                     setNotice(null);
                   }}
-                  className="h-9 rounded-full border border-hair bg-fieldbg px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                  className="h-9 pointer-coarse:h-11 rounded-full border border-hair bg-fieldbg px-3.5 text-sm font-semibold text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
                 >
                   Start again
                 </button>

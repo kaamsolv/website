@@ -198,7 +198,7 @@ export function BillingPanel() {
                   type="button"
                   aria-pressed={period === p}
                   onClick={() => setPeriod(p)}
-                  className={`min-h-10 rounded-full px-4 text-sm font-semibold ${period === p ? 'bg-navy-900 text-white' : 'text-strong'}`}
+                  className={`min-h-10 pointer-coarse:min-h-11 rounded-full px-4 text-sm font-semibold ${period === p ? 'bg-navy-900 text-white' : 'text-strong'}`}
                 >
                   {p === 'month' ? 'Monthly' : 'Yearly'}
                 </button>

@@ -13,6 +13,10 @@ infrastructure. Newest first. Detail lives in the linked docs.
 - Deviation from `ToolCard`: a PDF variant with accent per section and an icon per task (reasons in DESIGN-SYSTEM.md §6a); same shell otherwise.
 - The hub reads its tools from the catalogue; a unit test fails if the registry and catalogue ever disagree.
 
+## 2026-11-14 — UI polish pass from the first-level audit (local, not deployed)
+
+**Decided by:** product owner. Contrast tokens for small coral and teal text; calmer tool-page header (category crumb instead of a badge row, quiet header search and "Suggest a tool", invoice heading aligned to its toolbar); `/tools` lists each tool once under its category; hub and menu share one Pro / Free / Soon vocabulary with quieter emphasis (the highlighted "Upgrade" rows became a plain row with a thin coral edge; the product page behind it is unchanged); shared `Skeleton`, `Notice`, card variants and neutral disabled buttons; 44px touch targets on touch screens; a homepage products panel replacing the sticky-note chips and the separate Featured Applications section. No routes, URLs, data, entitlements, billing or analytics changed. Left as is: the hero headline word "Kaam" (coral-500, large display text, about 3:1) and yellow accent text.
+
 ## 2026-11-14 — Share row on the main tool pages; QR type row scrolls; QR preview centred (local, not deployed)
 
 **Decided by:** product owner (request in chat). Share: see DESIGN-SYSTEM §6b. QR type row: wraps on a laptop, scrolls with touch, wheel or arrow on a phone (it only scrolled by finger or shift-wheel before). QR preview: the canvas is centred in its white frame (it sat left of centre).

@@ -58,7 +58,7 @@ export function TodayMoneyField({ id, on, onToggle, rate, onRate }: { id: string
   return (
     <div className="space-y-3 rounded-xl border border-hair bg-wash/60 p-3">
       <div className="flex items-center justify-between gap-3">
-        <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm font-semibold text-ink">
+        <label className="flex min-h-10 pointer-coarse:min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-ink">
           <input type="checkbox" id={`${id}-today`} checked={on} onChange={(e) => onToggle(e.target.checked)} className="h-5 w-5 accent-coral-500" />
           Show it in today&apos;s money
         </label>

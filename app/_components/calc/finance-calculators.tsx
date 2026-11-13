@@ -269,7 +269,7 @@ export function EmiCalculator() {
           <Tenure idPrefix="emi" years={years} months={monthsBox} setYears={setYears} setMonths={setMonthsBox} maxYears={40} label="Loan tenure" yearsInfo={EMI_HELP.tenure} monthsInfo="Extra months on top of the years." />
           {!afford && (
             <details className="rounded-xl border border-hair px-3 py-2" open={prepayOpen} onToggle={(e) => setPrepayOpen(e.currentTarget.open)} data-testid="prepay-section">
-              <summary className="min-h-10 cursor-pointer py-1.5 text-sm font-semibold text-ink">Add a prepayment (optional)</summary>
+              <summary className="min-h-10 pointer-coarse:min-h-11 cursor-pointer py-1.5 text-sm font-semibold text-ink">Add a prepayment (optional)</summary>
               <div className="space-y-5 pb-2 pt-3">
                 <SliderField id="emi-extra" label="Extra on every EMI" value={extra} onChange={setExtra} min={0} max={200000} step={1000} prefix="₹" minLabel="₹0" maxLabel="₹2,00,000" group info={EMI_HELP.extra} />
                 <SliderField id="emi-lump" label="One lump sum" value={lump} onChange={setLump} min={0} max={20000000} step={100000} prefix="₹" minLabel="₹0" maxLabel="₹2 crore" group info={EMI_HELP.lump} />

@@ -200,7 +200,7 @@ export function HraCalculator() {
               )}
 
               <details className="rounded-xl border border-hair px-3 py-2" data-testid="regime-compare">
-                <summary className="min-h-10 cursor-pointer py-1.5 text-sm font-semibold text-ink">Compare with the new regime</summary>
+                <summary className="min-h-10 pointer-coarse:min-h-11 cursor-pointer py-1.5 text-sm font-semibold text-ink">Compare with the new regime</summary>
                 <div className="space-y-4 pb-2 pt-3">
                   {year === '2025-26' ? (
                     <Note>This comparison uses the FY 2026-27 rules, so switch the financial year to FY 2026-27 to use it.</Note>

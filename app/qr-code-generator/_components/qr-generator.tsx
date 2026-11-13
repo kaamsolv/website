@@ -126,7 +126,7 @@ export function QrGenerator() {
                 type="button"
                 aria-pressed={active}
                 onClick={() => selectKind(opt.kind)}
-                className={`${CHIP_BTN} h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
+                className={`${CHIP_BTN} h-10 pointer-coarse:h-11 shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
                   active
                     ? 'border-activebg bg-activebg text-activetext'
                     : 'border-hair text-strong hover:bg-wash'

@@ -52,7 +52,7 @@ export function WorkspaceChrome({ nav, appName, after, children }: { nav: React.
             aria-expanded={open}
             aria-controls="ws-sidebar"
             onClick={() => setOpen((v) => !v)}
-            className={`grid h-10 w-10 place-items-center rounded-lg text-ink hover:bg-wash lg:hidden ${FOCUS}`}
+            className={`grid h-11 w-11 place-items-center rounded-lg text-ink hover:bg-wash lg:hidden ${FOCUS}`}
           >
             <Icon name={open ? 'close' : 'menu'} className="h-5 w-5" />
           </button>
@@ -72,7 +72,7 @@ export function WorkspaceChrome({ nav, appName, after, children }: { nav: React.
             <div className="hidden sm:block">
               <ThemeToggle />
             </div>
-            <a href="/contact#feedback" className={`hidden h-10 items-center rounded-full px-3 text-sm font-semibold text-strong hover:bg-wash sm:inline-flex ${FOCUS}`}>
+            <a href="/contact#feedback" className={`hidden h-11 items-center rounded-full px-3 text-sm font-semibold text-strong hover:bg-wash sm:inline-flex ${FOCUS}`}>
               Help
             </a>
             <HeaderAccount />

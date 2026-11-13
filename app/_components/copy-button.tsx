@@ -48,7 +48,7 @@ export function CopyButton({
       type="button"
       onClick={copy}
       aria-live="polite"
-      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
+      className={`inline-flex h-9 pointer-coarse:h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
         copied
           ? 'border-teal-300 bg-tealx-100 text-tealx-600'
           : 'border-hair bg-surface text-strong hover:bg-wash'

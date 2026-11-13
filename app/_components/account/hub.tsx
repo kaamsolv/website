@@ -7,6 +7,9 @@ import { formatMoney } from '@/app/lib/invoice/money';
 import type { CurrencyCode } from '@/app/lib/invoice/types';
 import { useEntitlements, useMe } from '@/app/lib/me-client';
 import { Skeleton } from '@/app/_components/skeleton';
+import { PRODUCTS, productPageHref } from '@/app/lib/products';
+import { CARD, CARD_QUIET, PRIMARY, SECONDARY } from '@/app/lib/ui-classes';
+import { ProductChip } from './product-chip';
 
 /**
  * "Your KaamSolv": a card per tool that has account features, each with its
@@ -35,69 +38,60 @@ export function Hub() {
   const unpaidText = unpaid?.filter((t) => t.unpaid > 0).map((t) => `${formatMoney(t.unpaid, t.currency)} unpaid`).join(' · ');
   const detail = pro ? [`${saved} saved`, unpaidText || (unpaid ? 'nothing unpaid' : '')].filter(Boolean).join(' · ') : `${saved} of ${saveLimit ?? '∞'} saved`;
 
+  const qrPro = can('qr_campaigns');
+  const qrDetail = qrLimit === null ? `${me.usage.qrCodes} tracked` : `${me.usage.qrCodes} of ${qrLimit} tracked`;
+  const byslug = (slug: string) => PRODUCTS.find((x) => x.slug === slug)!;
+  const cards = [
+    { p: byslug('invoices'), isPro: pro, detail, open: pro ? '/app/invoices/overview' : '/app/invoices', openLabel: 'Open invoices', make: '/app/invoices/editor', makeLabel: 'New invoice' },
+    { p: byslug('qr'), isPro: qrPro, detail: qrDetail, open: '/app/qr', openLabel: 'Open QR codes', make: '/app/qr/new', makeLabel: 'New QR code' },
+  ];
+
   return (
-    <div className="space-y-8">
-      <ul aria-label="Your tools" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <li className="rounded-xl2 border border-hair bg-surface p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-bold text-ink">Invoices</h2>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${pro ? 'bg-purplex-100 text-purplex-600' : 'bg-wash text-strong'}`}>
-              {pro ? 'Pro' : 'Free'}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-muted">{detail}</p>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-            <a href={pro ? '/app/invoices/overview' : '/app/invoices'} className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coralx-600">
-              Open invoices <Icon name="arrow-right" className="h-4 w-4" />
-            </a>
-            <a href="/app/invoices/editor" className="text-strong underline underline-offset-2 hover:text-coralx-600">
-              New invoice
-            </a>
-          </div>
-        </li>
-        <li className="rounded-xl2 border border-hair bg-surface p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-bold text-ink">QR codes</h2>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${qrLimit === null ? 'bg-purplex-100 text-purplex-600' : 'bg-wash text-strong'}`}>
-              {qrLimit === null ? 'Pro' : 'Free'}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-muted">{qrLimit === null ? `${me.usage.qrCodes} tracked` : `${me.usage.qrCodes} of ${qrLimit} tracked`}</p>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-            <a href="/app/qr" className="inline-flex items-center gap-1 text-ink underline underline-offset-2 hover:text-coralx-600">
-              Open QR codes <Icon name="arrow-right" className="h-4 w-4" />
-            </a>
-            <a href="/app/qr/new" className="text-strong underline underline-offset-2 hover:text-coralx-600">
-              New QR code
-            </a>
-          </div>
-        </li>
+    <div className="space-y-6">
+      <ul aria-label="Your tools" className="grid gap-4 sm:grid-cols-2">
+        {cards.map(({ p, isPro, detail: line, open, openLabel, make, makeLabel }) => (
+          <li key={p.slug} className={`${CARD} flex flex-col`}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-display text-lg font-bold text-ink">{p.name}</h2>
+              <ProductChip state={isPro ? 'pro' : 'free'} />
+            </div>
+            <p className="mt-2 text-sm text-muted">{line}</p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <a href={open} className={SECONDARY}>
+                {openLabel} <Icon name="arrow-right" className="h-4 w-4" />
+              </a>
+              <a href={make} className={PRIMARY}>
+                {makeLabel}
+              </a>
+            </div>
+            {!isPro && (
+              <p className="mt-5 border-t border-hair pt-3 text-sm text-muted">
+                <a href={productPageHref(p)} className="font-semibold text-coralx-600 underline underline-offset-2">
+                  See what {p.planName} adds
+                </a>
+              </p>
+            )}
+          </li>
+        ))}
       </ul>
 
-      <section aria-labelledby="shared-h" className="rounded-xl2 border border-hair bg-surface p-5">
+      <section aria-labelledby="shared-h" className={CARD_QUIET}>
         <h2 id="shared-h" className="font-display text-lg font-bold text-ink">
           Shared across your business tools
         </h2>
         <p className="mt-1 text-sm text-muted">Fill these in once — invoices (and later quotations, receipts and UPI QR codes) use them.</p>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
-          <a href="/app/business" className="text-ink underline underline-offset-2 hover:text-coralx-600">
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a href="/app/business" className={SECONDARY}>
             Business profile
           </a>
-          <a href="/app/business/customers" className="text-ink underline underline-offset-2 hover:text-coralx-600">
+          <a href="/app/business/customers" className={SECONDARY}>
             Customers ({me.usage.customers})
           </a>
-          <a href="/app/business/items" className="text-ink underline underline-offset-2 hover:text-coralx-600">
+          <a href="/app/business/items" className={SECONDARY}>
             Items
           </a>
         </div>
       </section>
-
-      <p className="text-sm text-muted">
-        Looking for something else?{' '}
-        <a href="/tools" className="font-semibold text-ink underline underline-offset-2">
-          See all tools
-        </a>
-      </p>
     </div>
   );
 }

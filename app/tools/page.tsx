@@ -7,14 +7,14 @@ import { SiteHeader } from '../_components/site-header';
 import { ToolCard } from '../_components/tool-card';
 import { ToolSearch } from '../_components/tool-search';
 import AdSlot from '../components/AdSlot';
-import { CATEGORIES, LIVE_TOOL_COUNT, LIVE_TOOLS, toolsInCategory } from '../lib/catalogue';
+import { CATEGORIES, LIVE_TOOL_COUNT, toolsInCategory } from '../lib/catalogue';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
 
 export const metadata: Metadata = {
   title: 'All tools',
   description:
-    'Every KaamSolv tool in one place — shorten links, make QR codes and convert images, free and with no sign-up. More tools on the way.',
+    'Every KaamSolv tool in one place: invoices, QR codes, PDF tools, image converters, calculators and more. Free to use, with no sign-up. More on the way.',
   alternates: { canonical: '/tools' },
   openGraph: { type: 'website', url: `${SITE_URL}/tools`, title: 'All tools · KaamSolv' },
 };
@@ -56,33 +56,24 @@ export default function ToolsPage() {
             </div>
 
             <nav aria-label="Jump to a category" className="mt-6 flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
-                <a
-                  key={cat.slug}
-                  href={`#${cat.slug}`}
-                  className="rounded-full border border-hair bg-surface px-3 py-1.5 text-sm font-medium text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-                >
-                  {cat.name}
-                </a>
-              ))}
+              {CATEGORIES.map((cat) => {
+                const live = toolsInCategory(cat.name).filter((t) => t.status === 'live').length;
+                return (
+                  <a
+                    key={cat.slug}
+                    href={`#${cat.slug}`}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-hair bg-surface px-4 text-sm font-medium text-strong hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                  >
+                    {cat.name}
+                    {live > 0 && <span className="text-xs text-muted">{live}</span>}
+                  </a>
+                );
+              })}
             </nav>
           </div>
         </section>
 
-        <section aria-labelledby="ready-title" className="kk-container py-12 sm:py-14">
-          <h2 id="ready-title" className="font-display text-2xl font-bold text-ink">
-            Ready to use
-          </h2>
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {LIVE_TOOLS.map((tool) => (
-              <li key={tool.slug}>
-                <ToolCard tool={tool} />
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <aside aria-label="Promotion" className="kk-container">
+        <aside aria-label="Promotion" className="kk-container pt-8">
           <AdSlot
             slotId="tools-promo"
             size="billboard"
