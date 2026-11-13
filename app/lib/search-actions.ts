@@ -23,6 +23,7 @@ export const TOOL_ACTIONS: Record<string, ToolAction> = {
   'url-shortener': { action: 'Shorten a link', also: ['short url', 'make a link shorter', 'shorten url'] },
   'invoice-generator': { action: 'Make an invoice', also: ['create an invoice', 'bill a client', 'gst invoice', 'make a bill'] },
   'qr-code-generator': { action: 'Make a QR code', also: ['create a qr code', 'wifi qr', 'upi qr', 'qr for a link'] },
+  'coupon-code-generator': { action: 'Make coupon codes', also: ['create coupon codes', 'discount codes', 'promo codes', 'voucher codes', 'generate coupons'] },
   // Documents
   'pdf-to-word': { action: 'Turn a PDF into Word', also: ['pdf to docx', 'edit a pdf', 'convert pdf to word'] },
   'compress-pdf': { action: 'Make a PDF smaller', also: ['shrink a pdf', 'reduce pdf size', 'pdf too big'] },

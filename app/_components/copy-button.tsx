@@ -14,6 +14,8 @@ export function CopyButton({
   copiedLabel = 'Copied',
   className = '',
   iconOnlyOnMobile = false,
+  primary = false,
+  onCopied,
 }: {
   value: string;
   label?: string;
@@ -21,6 +23,10 @@ export function CopyButton({
   className?: string;
   /** Below `sm`, show only the icon (label stays for screen readers) — for tight rows. */
   iconOnlyOnMobile?: boolean;
+  /** The main action of a result card: a taller coral pill instead of the small outlined button. */
+  primary?: boolean;
+  /** Called once the text is on the clipboard (e.g. to count the tool as used). */
+  onCopied?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +44,7 @@ export function CopyButton({
       ok = legacyCopy(value);
     }
     if (!ok) return;
+    onCopied?.();
     setCopied(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCopied(false), 2000);
@@ -48,10 +55,14 @@ export function CopyButton({
       type="button"
       onClick={copy}
       aria-live="polite"
-      className={`inline-flex h-9 pointer-coarse:h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
+      className={`inline-flex shrink-0 items-center gap-1.5 border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 ${
+        primary ? 'h-12 justify-center rounded-full px-5 focus-visible:ring-offset-2 focus-visible:ring-offset-surface' : 'h-9 pointer-coarse:h-11 rounded-lg px-3'
+      } ${
         copied
           ? 'border-teal-300 bg-tealx-100 text-tealx-600'
-          : 'border-hair bg-surface text-strong hover:bg-wash'
+          : primary
+            ? 'border-transparent bg-coral-500 text-navy-900 hover:bg-coral-400'
+            : 'border-hair bg-surface text-strong hover:bg-wash'
       } ${className}`}
     >
       <Icon name={copied ? 'check' : 'copy'} className="h-4 w-4" />
