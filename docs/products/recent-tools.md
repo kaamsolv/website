@@ -1,6 +1,6 @@
 # Recent and most-used tools
 
-**Status (2026-11-14):** Part A (kept on the device) is built on `feat/recent-tools`: not committed or deployed until the owner approves. Part B (a copy on the account for signed-in people) is **not built** and waits for the affiliate branch's migration. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
+**Status (2026-11-14):** Part A (kept on the device) is **live** (committed as `e6986a4` on `main` and deployed 2026-11-14, version `92c417af`). Part B (a copy on the account for signed-in people) is **not built** and waits for the affiliate branch's migration. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
 
 ## What it is
 
