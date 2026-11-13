@@ -40,6 +40,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { DEVICE_CLASSES } from '../app/lib/click-meta.ts';
 import { MAX_REPORT_DETAILS, REPORT_REASONS } from '../app/lib/report.ts';
+import { MERCHANT_LIMITS, MERCHANT_LOGO_MAX_CHARS } from '../app/lib/affiliate/merchant.ts';
 
 /** Redirect behaviour for a link. `expired` is derived from `expiresAt`, not stored. */
 export const linkStatus = pgEnum('link_status', ['active', 'disabled']);
@@ -1028,3 +1029,52 @@ export const qrCodes = pgTable(
 );
 
 export type QrCodeRow = typeof qrCodes.$inferSelect;
+
+// ─── Affiliate Manager, Phase 1 (migration 0018) ─────────────────────────────
+//
+// Only db/merchant-scope.ts may import these two tables (test/affiliate-isolation.test.mts fails otherwise), so
+// every read and write is tied to one merchant. docs/products/affiliate-manager.md.
+
+/** A business running an affiliate programme. One per owner; the slug is fixed at creation so shared links keep working. */
+export const merchants = pgTable(
+  'merchants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerUserId: uuid('owner_user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('merchants_owner_user_id_key').on(table.ownerUserId),
+    uniqueIndex('merchants_slug_key').on(table.slug),
+    check('merchants_slug_shape', sql`${table.slug} ~ '^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$'`),
+    check('merchants_name_len', sql`char_length(${table.name}) between 1 and ${sql.raw(String(MERCHANT_LIMITS.name))}`),
+  ],
+);
+
+/** How the merchant's public portal looks and what it says. */
+export const merchantBrandSettings = pgTable(
+  'merchant_brand_settings',
+  {
+    merchantId: uuid('merchant_id')
+      .primaryKey()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    logo: text('logo'),
+    brandColour: text('brand_colour').notNull().default('#FE6336'),
+    programmeName: text('programme_name').notNull().default(''),
+    programmeDescription: text('programme_description').notNull().default(''),
+    terms: text('terms').notNull().default(''),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('merchant_brand_colour', sql`${table.brandColour} ~ '^#[0-9A-Fa-f]{6}$'`),
+    check('merchant_brand_logo_len', sql`char_length(${table.logo}) <= ${sql.raw(String(MERCHANT_LOGO_MAX_CHARS))}`),
+    check('merchant_brand_programme_name_len', sql`char_length(${table.programmeName}) <= ${sql.raw(String(MERCHANT_LIMITS.programmeName))}`),
+    check('merchant_brand_description_len', sql`char_length(${table.programmeDescription}) <= ${sql.raw(String(MERCHANT_LIMITS.programmeDescription))}`),
+    check('merchant_brand_terms_len', sql`char_length(${table.terms}) <= ${sql.raw(String(MERCHANT_LIMITS.terms))}`),
+  ],
+);

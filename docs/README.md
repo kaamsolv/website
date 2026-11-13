@@ -31,6 +31,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | HRA Calculator (`/hra-calculator`) | Built locally 2026-11-04 — [`products/hra-calculator.md`](products/hra-calculator.md) |
 | Gratuity Calculator (`/gratuity-calculator`) | **Live** (2026-10-27; rules and FAQ reviewed by the owner) — [`products/gratuity-calculator.md`](products/gratuity-calculator.md) |
 | Rent Receipt Generator (`/rent-receipt-generator`) | Built, **not deployed** — [`products/rent-receipt.md`](products/rent-receipt.md) |
+| Affiliate Manager, Phase 1 (merchant foundation, branded portal at `/affiliate/{slug}`) | Built on `feat/affiliate-phase1`, **not committed or deployed**; migration 0018 not applied — [`products/affiliate-manager.md`](products/affiliate-manager.md) |
 | Everything else in the catalogue | Planned (36 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack

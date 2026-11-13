@@ -19,6 +19,7 @@ const ROUTE_SEGMENTS = [
   'url-shortener',
   'qr-code-generator',
   'coupon-code-generator',
+  'affiliate',
   'i',
   'accountant',
   'qr-generator',

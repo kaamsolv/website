@@ -5,6 +5,12 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-11-13 — Affiliate Manager: Phase 1 (merchant foundation and branded portal)
+
+**Decided by:** product owner, accepting the recommendations of the read-only audit. Portal at `kaamsolv.com/affiliate/{slug}` (paths, not subdomains: DECISIONS 2026-10-22 stands, so no `app.` subdomain and no DNS change); **one merchant per owner**; the slug is fixed once created; every read and write of merchant data goes through `db/merchant-scope.ts` (a test fails if another file touches the tables); the public portal is `noindex` until registration opens. Built on `feat/affiliate-phase1` (not committed, not deployed; migration 0018 is additive and not yet applied to Neon): merchants, brand settings, owner editor at `/app/affiliate`, public portal. **Left for later phases, by decision:** affiliate registration, attribution (coupon first), WooCommerce, commissions and payouts, subscriptions, marketplace, custom domains. Detail: [`products/affiliate-manager.md`](./products/affiliate-manager.md).
+
+---
+
 ## 2026-11-13 — Coupons: phased plan approved (free generator first; tracked redemption is the paid product)
 
 **Decided by:** product owner ("Yes, phased plan", after a research report). **Phase 1:** a free Coupon Code Generator (one or many codes, optional discount and expiry labels, copy / CSV / TXT, in the browser, no account). **Phase 2 (paid):** tracked redemption: saved batches, single-use and expiry enforced on the server, a hosted redeem page and QR coupons for shops with no online store, redemption analytics. **Phase 3:** a small API for a shop's own checkout. **Phase 4:** WooCommerce, then Shopify, only on demand. **Ruled out to stay at zero cost:** automated WhatsApp or SMS sending (charged per message) and pushing codes to Razorpay (its offers are made in its Dashboard). A WhatsApp share link stays free. Built so far (committed and deployed 2026-11-13, `main` at `3c1bc67`, version `18bc1ced`): the engine (`app/lib/coupons/`) and the Phase 1 page at `/coupon-code-generator` (design approved by the owner in chat; Business catalogue entry; a free batch of up to 1,000 codes, a comfort limit not a paywall; no database change). Everything else waits on approval (Phase 2 schema, entitlement keys, the redemption data we keep). Detail: [`products/coupons.md`](./products/coupons.md).

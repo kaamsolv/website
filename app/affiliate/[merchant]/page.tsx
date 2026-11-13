@@ -1,0 +1,50 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { PortalView } from '@/app/_components/affiliate/portal-view';
+import type { MerchantView } from '@/app/lib/affiliate/merchant';
+import { formatErrorForLog } from '@/app/lib/log-error';
+import { getDb } from '@/db/client';
+import { publicMerchantBySlug } from '@/db/merchant-scope';
+
+/**
+ * A merchant's branded affiliate portal (/affiliate/{slug}). Public, drawn per request (branding comes from the
+ * database, and there is no revalidation), and not indexed until registration opens (Phase 2). Shows only what the
+ * merchant wrote: no account, owner or email. An unknown address is a plain 404.
+ */
+
+export const dynamic = 'force-dynamic';
+
+async function load(slug: string): Promise<MerchantView | null> {
+  try {
+    return await publicMerchantBySlug(await getDb(), slug);
+  } catch (e) {
+    console.error('[affiliate/portal]', formatErrorForLog(e));
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ merchant: string }> }): Promise<Metadata> {
+  const { merchant } = await params;
+  const m = await load(merchant);
+  const title = m ? m.brand.programmeName || `${m.name} affiliate programme` : 'Affiliate programme';
+  return { title, description: m?.brand.programmeDescription.slice(0, 160) || undefined, robots: { index: false, follow: false } };
+}
+
+export default async function MerchantPortal({ params }: { params: Promise<{ merchant: string }> }) {
+  const { merchant } = await params;
+  const m = await load(merchant);
+  if (!m) notFound();
+  return (
+    <main id="main" className="min-h-screen bg-canvas">
+      <PortalView name={m.name} brand={m.brand} />
+      <footer className="mx-auto max-w-2xl px-4 pb-10 text-xs text-muted sm:px-0">
+        Affiliate programme run on{' '}
+        <Link href="/" className="font-semibold underline">
+          KaamSolv
+        </Link>
+        .
+      </footer>
+    </main>
+  );
+}
