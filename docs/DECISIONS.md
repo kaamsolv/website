@@ -5,7 +5,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
-## 2026-11-05 — /pdf-tools redesigned as a PDF Studio page (built locally on `design/pdf-hub-redesign`, not deployed)
+## 2026-11-05 — /pdf-tools redesigned as a PDF Studio page (deployed 2026-11-13 with PR #2)
 
 **Decided by:** product owner (redesign brief 2026-11-05). Visual only: no change to PDF processing, validation, limits, routes, entitlements, analytics or privacy.
 - Hero with the real upload workspace, popular tasks, a grouped directory with per-group colour and a distinct icon per task, a short trust note.
@@ -13,19 +13,19 @@ infrastructure. Newest first. Detail lives in the linked docs.
 - Deviation from `ToolCard`: a PDF variant with accent per section and an icon per task (reasons in DESIGN-SYSTEM.md §6a); same shell otherwise.
 - The hub reads its tools from the catalogue; a unit test fails if the registry and catalogue ever disagree.
 
-## 2026-11-15 — Release candidate: search by task, hero order, QR hairline fix (local, then pushed for review)
+## 2026-11-13 — Release: search by task, hero order, QR hairline fix (merged and deployed 2026-11-13, PR #2)
 
 **Decided by:** product owner. Homepage products are ordered QR, Invoice, PDF (also in the Products menu). Search is action-first: every live tool has an action phrase ("Make an invoice", "Convert HEIC to JPG") and a few other ways to say it in `app/lib/search-actions.ts`; the catalogue's own `searchTools` ranks by them and ignores filler words ("I want to make an invoice"); the empty state offers six common jobs; placeholder: "What do you want to do? Try “make an invoice”". No AI, no backend. `test/search-actions.test.mts` fails if a live tool has no phrase. **Found by the release smoke check:** exported QR codes had a hairline grid between modules (2% gap on square modules), which a strict QR reader (OpenCV) could not read; square modules now touch and are filled as one path (canvas and SVG). Rounded and dotted styles are unchanged. The hero search list is now above the blocks below it on phones. Razorpay stays in test mode.
 
-## 2026-11-14 — UI polish pass from the first-level audit (local, not deployed)
+## 2026-11-13 — UI polish pass from the first-level audit (deployed 2026-11-13 with PR #2)
 
 **Decided by:** product owner. Contrast tokens for small coral and teal text; calmer tool-page header (category crumb instead of a badge row, quiet header search and "Suggest a tool", invoice heading aligned to its toolbar); `/tools` lists each tool once under its category; hub and menu share one Pro / Free / Soon vocabulary with quieter emphasis (the highlighted "Upgrade" rows became a plain row with a thin coral edge; the product page behind it is unchanged); shared `Skeleton`, `Notice`, card variants and neutral disabled buttons; 44px touch targets on touch screens; a homepage products panel replacing the sticky-note chips and the separate Featured Applications section. No routes, URLs, data, entitlements, billing or analytics changed. Left as is: the hero headline word "Kaam" (coral-500, large display text, about 3:1) and yellow accent text.
 
-## 2026-11-14 — Share row on the main tool pages; QR type row scrolls; QR preview centred (local, not deployed)
+## 2026-11-13 — Share row on the main tool pages; QR type row scrolls; QR preview centred (deployed 2026-11-13 with PR #2)
 
 **Decided by:** product owner (request in chat). Share: see DESIGN-SYSTEM §6b. QR type row: wraps on a laptop, scrolls with touch, wheel or arrow on a phone (it only scrolled by finger or shift-wheel before). QR preview: the canvas is centred in its white frame (it sat left of centre).
 
-## 2026-11-13 — QR Pro page (built locally on feat/kaamsolv-ui-2, not deployed)
+## 2026-11-13 — QR Pro page (deployed 2026-11-13 with PR #2)
 
 **Decided by:** product owner. Heading "QR Pro" (top bar keeps "QR codes"); feature list shown in every checkout state; price and Subscribe only when checkout is available, else "QR Pro subscriptions aren't available yet" with the free path prominent; the 50,000-scan export limit is secondary detail; the per-account code and campaign ceilings, "no ads", the Invoice + QR bundle and yearly savings are not on this page (the bundle line on the Invoice Pro page is unchanged). The sample QR is static and illustrative. No billing, entitlement, navigation, shell or invoice code changed.
 
@@ -33,7 +33,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 **Decided by:** product owner (design approved in chat). Free accounts now see Pro products as highlighted "Upgrade" rows (reverses the Stage 1 rule that free accounts see no Pro mentions; two e2e assertions were about the hub page and still hold). Coupons are not shown: there is no such product. PDF Bundle shows "Soon" because no PDF plan exists. Pro-only pages inside a product stay hidden for free accounts, with one "Unlock … Pro" line instead. Signed-in users create and edit invoices at `/app/invoices/editor` and QR codes at `/app/qr/new`; `/invoice-generator` and `/qr-code-generator` stay public. No billing logic changed (the plan cards on Plans and billing just gained anchors).
 
-## 2026-11-12 — KaamSolv UI 2.0 (branch feat/kaamsolv-ui-2, built locally, not deployed)
+## 2026-11-12 — KaamSolv UI 2.0 (branch feat/kaamsolv-ui-2; deployed 2026-11-13 with PR #2)
 
 **Decided by:** product owner (master brief). Visual and layout only: no change to business logic, billing, auth, entitlements, APIs, schema, QR tracking or PDF engines.
 - Header nav: "Tools" and "Categories" became one **Products** mega menu; About stays.
@@ -46,7 +46,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 **Decided by:** product owner. Groups lose the left rail and use the full width: heading row, then a full-width grid; short last rows stretch; a one-tool group (Compress) is a wide feature card. Cards got more padding, a larger icon tile and title, and an arrow cue. No change to hero, popular tasks, colours, trust, share, SEO or any behaviour.
 
-## 2026-11-05 — PDF suite completion: page tools, numbers, watermark, protect, hub sections (built locally, not deployed)
+## 2026-11-05 — PDF suite completion: page tools, numbers, watermark, protect, hub sections (deployed 2026-11-13 with PR #2)
 
 **Decided by:** product owner (audit and plan approved 2026-11-05, with additions: PDF to Text, picture watermarks, editor with multi-select, undo, reset and confirmations, protection tested with independent readers, sectioned hub).
 - **Free, in the browser, nothing uploaded**, no new dependency, no entitlement, billing or database change. The reserved Pro keys stay unused (ranges, every N and ZIP split are free).
