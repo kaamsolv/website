@@ -25,6 +25,7 @@ import {
   bigint,
   boolean,
   check,
+  foreignKey,
   date,
   index,
   integer,
@@ -35,6 +36,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -43,6 +45,7 @@ import { MAX_REPORT_DETAILS, REPORT_REASONS } from '../app/lib/report.ts';
 import { MERCHANT_LIMITS, MERCHANT_LOGO_MAX_CHARS, MERCHANT_STATUSES, SUSPENDED_REASON_MAX } from '../app/lib/affiliate/merchant.ts';
 import { PORTAL_REPORT_DETAILS_MAX, PORTAL_REPORT_REASONS, PORTAL_REPORT_STATUSES } from '../app/lib/affiliate/report.ts';
 import { LINK_DESTINATION_MAX } from '../app/lib/affiliate/link.ts';
+import { COUPON_MAX, COUPON_MIN, ORDER_STATUSES } from '../app/lib/affiliate/orders.ts';
 import {
   AFFILIATE_EVENT_ACTIONS,
   AFFILIATE_LIMITS,
@@ -1326,5 +1329,129 @@ export const affiliateClicks = pgTable(
     index('affiliate_clicks_merchant_idx').on(table.merchantId, table.occurredAt),
     check('affiliate_clicks_country_iso2', sql`${table.country} ~ '^[A-Z]{2}$'`),
     check('affiliate_clicks_referrer_host_len', sql`char_length(${table.referrerHost}) <= 253`),
+  ],
+);
+
+// ─── Affiliate Manager, Phase 3B (migration 0023) ────────────────────────────
+//
+// Orders from a business's WooCommerce store, credited to an affiliate by coupon code. Reached only through
+// db/affiliate-orders.ts (and the merchant scope's own reads); test/affiliate-isolation.test.mts fails if any other file
+// uses these tables. An order row holds amounts, a status and a date, never a customer's name, email, phone or address.
+
+/** A business's link to its store: one per merchant. The webhook secret is derived from this id and `secret_version`, never stored. */
+export const storeConnections = pgTable(
+  'store_connections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    /** Bumped to rotate the secret: the old one stops verifying at once. */
+    secretVersion: integer('secret_version').notNull().default(1),
+    lastReceivedAt: timestamp('last_received_at', { withTimezone: true }),
+    /** Orders that carried more than one affiliate coupon and so were credited to nobody. */
+    ambiguousOrders: integer('ambiguous_orders').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('store_connections_merchant_key').on(table.merchantId),
+    check('store_connections_secret_version', sql`${table.secretVersion} >= 1`),
+    check('store_connections_ambiguous', sql`${table.ambiguousOrders} >= 0`),
+  ],
+);
+
+/**
+ * Who owns a coupon code, for good. The first membership a code is given to keeps it: it can be taken off them and put
+ * back, but never given to someone else, so a delayed order for an old code can't be credited to the wrong person.
+ */
+export const affiliateCouponCodes = pgTable(
+  'affiliate_coupon_codes',
+  {
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    code: text('code').notNull(),
+    membershipId: uuid('membership_id')
+      .notNull()
+      .references(() => programmeMemberships.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.merchantId, table.code] }),
+    unique('affiliate_coupon_codes_owner_key').on(table.merchantId, table.code, table.membershipId),
+    index('affiliate_coupon_codes_membership_idx').on(table.membershipId),
+    check('affiliate_coupon_codes_shape', sql`${table.code} ~ ${sql.raw(`'^[A-Z0-9][A-Z0-9_-]{${COUPON_MIN - 1},${COUPON_MAX - 1}}$'`)}`),
+  ],
+);
+
+/**
+ * When a code was in use. An order is resolved by when it was PLACED, so replacing a code later never changes who an
+ * earlier order belongs to. At most one open period per membership and per code; the code must belong to this membership.
+ */
+export const affiliateCouponPeriods = pgTable(
+  'affiliate_coupon_periods',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantId: uuid('merchant_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    code: text('code').notNull(),
+    activeFrom: timestamp('active_from', { withTimezone: true }).notNull().defaultNow(),
+    activeTo: timestamp('active_to', { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.merchantId, table.code, table.membershipId],
+      foreignColumns: [affiliateCouponCodes.merchantId, affiliateCouponCodes.code, affiliateCouponCodes.membershipId],
+      name: 'affiliate_coupon_periods_owner_fk',
+    }).onDelete('cascade'),
+    uniqueIndex('affiliate_coupon_periods_one_open_per_membership').on(table.membershipId).where(sql`${table.activeTo} is null`),
+    uniqueIndex('affiliate_coupon_periods_one_open_per_code').on(table.merchantId, table.code).where(sql`${table.activeTo} is null`),
+    index('affiliate_coupon_periods_lookup_idx').on(table.merchantId, table.code, table.activeFrom),
+    check('affiliate_coupon_periods_range', sql`${table.activeTo} is null or ${table.activeTo} > ${table.activeFrom}`),
+  ],
+);
+
+/**
+ * One row per credited order. Money is whole paise (bigint), never a float. The row only ever moves to a newer version
+ * of the same order: later modified time, then a more final status, then a larger refund, then the digest (see
+ * app/lib/affiliate/orders.ts, `orderVersion`), so repeated and out-of-order deliveries settle on the same row.
+ */
+export const affiliateOrders = pgTable(
+  'affiliate_orders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    membershipId: uuid('membership_id')
+      .notNull()
+      .references(() => programmeMemberships.id, { onDelete: 'cascade' }),
+    affiliateUserId: uuid('affiliate_user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    externalOrderId: text('external_order_id').notNull(),
+    orderNumber: text('order_number').notNull(),
+    currency: text('currency').notNull(),
+    placedAt: timestamp('placed_at', { withTimezone: true }).notNull(),
+    storeModifiedAt: timestamp('store_modified_at', { withTimezone: true }).notNull(),
+    status: text('status').notNull(),
+    statusRank: integer('status_rank').notNull(),
+    wooStatus: text('woo_status').notNull(),
+    /** Line totals after discounts, before tax and shipping. */
+    salePaise: bigint('sale_paise', { mode: 'number' }).notNull(),
+    refundedPaise: bigint('refunded_paise', { mode: 'number' }).notNull().default(0),
+    couponCode: text('coupon_code').notNull(),
+    versionDigest: text('version_digest').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('affiliate_orders_merchant_external_key').on(table.merchantId, table.externalOrderId),
+    index('affiliate_orders_membership_idx').on(table.membershipId, table.placedAt.desc()),
+    index('affiliate_orders_merchant_idx').on(table.merchantId, table.placedAt.desc()),
+    check('affiliate_orders_status', sql`${table.status} in (${inList(ORDER_STATUSES)})`),
+    check('affiliate_orders_currency', sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check('affiliate_orders_amounts', sql`${table.salePaise} >= 0 and ${table.refundedPaise} >= 0`),
+    check('affiliate_orders_text_len', sql`char_length(${table.orderNumber}) <= 40 and char_length(${table.externalOrderId}) <= 20 and char_length(${table.wooStatus}) <= 40`),
   ],
 );

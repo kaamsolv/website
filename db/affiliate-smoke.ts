@@ -24,12 +24,14 @@ import type { Db } from './links.ts';
 import { createMerchant, merchantForOwner, merchantScope, portalRegistration, publicMerchantBySlug } from './merchant-scope.ts';
 import { createPortalReport, listPortalReports } from './portal-reports.ts';
 import { ensureLinks, linksForAffiliate, recordAffiliateClick, resolveAffiliateLink } from './affiliate-links.ts';
+import { connectStore, ordersForAffiliate, recordOrder, setCoupon } from './affiliate-orders.ts';
 import { withRef } from '../app/lib/affiliate/link.ts';
+import { deriveWebhookSecret, parseOrder, signBody } from '../app/lib/affiliate/orders.ts';
 import { authUsers } from './schema.ts';
 
 export type SmokeResult = { name: string; ok: boolean; detail: string };
 
-const TABLES = ['merchants', 'merchant_brand_settings', 'programmes', 'programme_applications', 'programme_memberships', 'affiliate_profiles', 'affiliate_events', 'portal_reports', 'affiliate_links', 'affiliate_clicks'];
+const TABLES = ['merchants', 'merchant_brand_settings', 'programmes', 'programme_applications', 'programme_memberships', 'affiliate_profiles', 'affiliate_events', 'portal_reports', 'affiliate_links', 'affiliate_clicks', 'store_connections', 'affiliate_coupon_codes', 'affiliate_coupon_periods', 'affiliate_orders'];
 const rows = <T,>(r: unknown) => (r as { rows: T[] }).rows;
 const brand = { logo: null, brandColour: '#FE6336', programmeName: 'Smoke Partners', programmeDescription: '', terms: '' };
 
@@ -50,6 +52,12 @@ export type SmokeOptions = {
   redirectBaseUrl?: string;
   /** How long to wait for that click to appear. */
   waitMs?: number;
+  /**
+   * The master secret the app at `redirectBaseUrl` was started with (AFFILIATE_WEBHOOK_MASTER). With it the smoke test
+   * also posts a signed WooCommerce order to that app and checks it is recorded, and that a wrongly signed one is refused.
+   * Without it that check does not run (it is never silently reported as passed).
+   */
+  webhookMaster?: string;
 };
 
 const HUMAN_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
@@ -82,12 +90,12 @@ export async function runAffiliateSmoke(db: Db, tag: string, options: SmokeOptio
 
   const slugA = `smoke-a-${tag}`;
   const slugB = `smoke-b-${tag}`;
-  const ids: { ownerA?: string; ownerB?: string; aff?: string; ma?: string; mb?: string; app?: string; link?: string; code?: string; before?: number } = {};
+  const ids: { ownerA?: string; ownerB?: string; aff?: string; ma?: string; mb?: string; app?: string; link?: string; code?: string; before?: number; conn?: string; coupon?: string } = {};
   const destination = 'https://smoke-store.example/shop';
   const clicksOf = async (linkId: string) => Number(rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from affiliate_clicks where link_id = ${linkId}::uuid`))[0].n);
 
   try {
-    await check('migrations 0018 to 0022 are applied (tables and columns exist)', async () => {
+    await check('migrations 0018 to 0023 are applied (tables and columns exist)', async () => {
       for (const t of TABLES) {
         const r = rows<{ ok: boolean }>(await db.execute(sql`select to_regclass(${`public.${t}`}) is not null as ok`))[0];
         must(r.ok, `table ${t} is missing`);
@@ -200,6 +208,40 @@ export async function runAffiliateSmoke(db: Db, tag: string, options: SmokeOptio
       must(row.clicksAll === 2, `the business sees ${row.clicksAll} click(s), expected 2`);
     });
 
+    await check('connect a store; give a coupon; an order is recorded once, moved on by a refund, an unrelated coupon is not stored, and a paused affiliate earns no new order', async () => {
+      const conn = await connectStore(db, ids.ma!, ids.ownerA!);
+      must(conn, 'the store could not be connected');
+      ids.conn = conn!.id;
+      ids.coupon = `SM${tag.toUpperCase()}`;
+      must((await setCoupon(db, ids.ma!, ids.app!, ids.coupon, ids.ownerA!)) === 'ok', 'the coupon was not saved');
+      const created = new Date(Date.now() + 5000).toISOString().slice(0, 19);
+      const body = (id: number, over: { status?: string; refund?: string; modified?: string; coupon?: string } = {}) => ({
+        id, number: `S-${id}`, status: over.status ?? 'processing', currency: 'INR', date_created_gmt: created, date_modified_gmt: over.modified ?? created,
+        total: '1650.00', line_items: [{ total: '1000.00' }, { total: '500.00' }], coupon_lines: [{ code: (over.coupon ?? ids.coupon!).toLowerCase() }],
+        refunds: over.refund ? [{ total: `-${over.refund}` }] : [],
+      });
+      const read = async (b: object) => {
+        const p = await parseOrder(b);
+        must(p.ok, `the order was not readable: ${JSON.stringify(p)}`);
+        return (p as { order: Parameters<typeof recordOrder>[2] }).order;
+      };
+      // Orders are credited from when the coupon was given; these are stamped a few seconds ahead, so they always fall after it.
+      must((await recordOrder(db, ids.conn!, await read(body(1)))) === 'recorded', 'the order was not recorded');
+      must((await recordOrder(db, ids.conn!, await read(body(1)))) === 'unchanged', 'a repeated delivery changed something');
+      const later = new Date(Date.now() + 8000).toISOString().slice(0, 19);
+      must((await recordOrder(db, ids.conn!, await read(body(1, { status: 'completed', refund: '200.00', modified: later })))) === 'updated', 'the refund update did not land');
+      must((await recordOrder(db, ids.conn!, await read(body(1)))) === 'unchanged', 'an older update overwrote a newer one');
+      must((await recordOrder(db, ids.conn!, await read(body(2, { coupon: 'NOTMINE1' })))) === 'not_credited', 'an unrelated coupon was credited');
+      const mine = (await ordersForAffiliate(db, ids.aff!)).get(ids.app!);
+      must(mine?.coupon === ids.coupon && mine.stats.orders.all === 1, `expected 1 recorded order, got ${mine?.stats.orders.all}`);
+      must(mine!.stats.sales[0]?.all === 130000, `expected sales of 130000 paise (1,500 less the 200 refunded), got ${mine!.stats.sales[0]?.all}`);
+      const scope = merchantScope(db, ids.ma!);
+      must(await scope.setMembership(ids.app!, 'suspended', ids.ownerA!, 'Test'), 'pause failed');
+      must((await recordOrder(db, ids.conn!, await read(body(3)))) === 'not_credited', 'a paused affiliate earned a new order');
+      must((await recordOrder(db, ids.conn!, await read(body(1, { status: 'refunded', refund: '1550.00', modified: new Date(Date.now() + 20_000).toISOString().slice(0, 19) })))) === 'updated', 'a recorded order stopped taking updates when the affiliate was paused');
+      must(await scope.setMembership(ids.app!, 'active', ids.ownerA!, ''), 'reinstate failed');
+    });
+
     if (options.redirectBaseUrl) {
       const base = options.redirectBaseUrl.replace(/\/+$/, '');
       const waitMs = options.waitMs ?? 10_000;
@@ -241,6 +283,25 @@ export async function runAffiliateSmoke(db: Db, tag: string, options: SmokeOptio
         must((await clicksOf(ids.link!)) === settled, 'a paused affiliate’s click was recorded');
         must(await scope.setMembership(ids.app!, 'active', ids.ownerA!, ''), 'reinstate failed');
       });
+
+      if (options.webhookMaster && ids.conn && ids.coupon) {
+        await check('a signed WooCommerce order posted to the app is recorded; a wrongly signed one is refused', async () => {
+          const secret = await deriveWebhookSecret(options.webhookMaster!, ids.conn!, 1);
+          const created = new Date(Date.now() + 5000).toISOString().slice(0, 19);
+          const text = JSON.stringify({
+            id: 4, number: 'S-4', status: 'processing', currency: 'INR', date_created_gmt: created, date_modified_gmt: created, total: '800.00',
+            line_items: [{ total: '800.00' }], coupon_lines: [{ code: ids.coupon!.toLowerCase() }], refunds: [],
+          });
+          const post = async (sig: string) => fetch(`${base}/api/affiliate/woo/${ids.conn}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-wc-webhook-topic': 'order.created', 'x-wc-webhook-signature': sig }, body: text });
+          const bad = await post(await signBody('not-the-secret', text));
+          must(bad.status === 401, `a wrongly signed order answered ${bad.status}, expected 401`);
+          const good = await post(await signBody(secret, text));
+          const answer = (await good.json().catch(() => ({}))) as { code?: string };
+          must(good.status === 200 && answer.code === 'recorded', `a signed order answered ${good.status} ${answer.code}, expected 200 recorded (does the app use the same master secret and database?)`);
+          const n = Number(rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from affiliate_orders where merchant_id = ${ids.ma!}::uuid and external_order_id = '4'`))[0].n);
+          must(n === 1, `expected the order in the database, found ${n}`);
+        });
+      }
     }
 
     await check('the history is append-only: update and delete are refused', async () => {
@@ -278,7 +339,9 @@ export async function runAffiliateSmoke(db: Db, tag: string, options: SmokeOptio
                + (select count(*) from auth_users where email like ${`smoke-${tag}-%`})::int
                + (select count(*) from outbox where payload->>'applicationId' = ${ids.app ?? ''})::int
                + (select count(*) from affiliate_links where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int
-               + (select count(*) from affiliate_events where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int as n`),
+               + (select count(*) from affiliate_events where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int
+               + (select count(*) from affiliate_orders where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int
+               + (select count(*) from store_connections where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int as n`),
       )[0].n;
       must(left === 0, `${left} test row(s) are still there`);
     });

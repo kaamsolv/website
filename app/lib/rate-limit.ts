@@ -69,6 +69,11 @@ export const ANONYMOUS_LIMITS = {
     { limit: 120, windowSeconds: 60 * 60, window: '1h' },
     { limit: 500, windowSeconds: 24 * 60 * 60, window: '1d' },
   ],
+  /** Signed order deliveries from one store connection. High: a busy shop sends several per order, and WooCommerce turns a webhook off after 5 failures. */
+  affiliateWebhook: [
+    { limit: 600, windowSeconds: 60, window: '1m' },
+    { limit: 20_000, windowSeconds: 60 * 60, window: '1h' },
+  ],
   /** Sign-in link emails, per address (salted hash of the email) — stops mail-bombing one inbox. */
   signInLinkEmail: [
     { limit: 3, windowSeconds: 10 * 60, window: '10m' },

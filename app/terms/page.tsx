@@ -70,13 +70,21 @@ export default function TermsPage() {
       <p>
         A business that runs a programme on KaamSolv is responsible for its page, its terms, who it approves, and
         anything it promises or pays its affiliates. KaamSolv provides the tools and isn&apos;t a party to the
-        arrangement between a business and its affiliates. For now we handle applications and approvals only: we
-        don&apos;t track sales, and we don&apos;t hold or pay any money.
+        arrangement between a business and its affiliates. We handle applications and approvals, we record the orders a
+        business&apos;s store reports against an affiliate&apos;s coupon code, and we show them as recorded orders and
+        sales. We don&apos;t work out or pay commission, and we don&apos;t hold or pay any money.
       </p>
       <p>
         A referral link sends people to the business&apos;s own store or page, which KaamSolv doesn&apos;t run or check.
         The click counts we show are the clicks we recorded. They aren&apos;t a count of people, of different visitors or of
         sales, and we don&apos;t promise they match anyone else&apos;s numbers.
+      </p>
+      <p>
+        Recorded orders and sales are what the business&apos;s own store told us, and we can&apos;t check them. We credit
+        an order to an affiliate only when it used exactly one of that business&apos;s affiliate coupon codes, from the
+        day the business gave the code to that affiliate. If an order isn&apos;t credited, or a figure differs from the
+        store&apos;s own records, the store&apos;s records are the ones to rely on. What a business owes an affiliate is
+        for them to agree between themselves.
       </p>
       <p>Don&apos;t use a programme page to:</p>
       <ul>

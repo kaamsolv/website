@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { INPUT, PRIMARY } from '@/app/_components/account/account-shell';
 import { useInfo } from '@/app/_components/calc/info-tip';
 import { Notice } from '@/app/_components/notice';
@@ -20,12 +20,14 @@ export function DestinationField({ disabled }: { disabled?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Once the person has typed, a saved value that arrives late must never replace what they typed.
+  const typed = useRef(false);
 
   useEffect(() => {
     fetch('/api/affiliate/destination', { credentials: 'same-origin', cache: 'no-store' })
       .then((r) => r.json())
       .then((b: { destination?: string }) => {
-        setValue(b.destination ?? '');
+        if (!typed.current) setValue(b.destination ?? '');
         setSaved(b.destination ?? '');
       })
       .catch(() => undefined)
@@ -81,6 +83,7 @@ export function DestinationField({ disabled }: { disabled?: boolean }) {
         aria-describedby="m-destination-hint"
         aria-invalid={error ? true : undefined}
         onChange={(e) => {
+          typed.current = true;
           setValue(e.target.value);
           setState('idle');
           setError(null);

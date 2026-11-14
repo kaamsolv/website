@@ -59,6 +59,11 @@ export const AFFILIATE_EVENT_ACTIONS = [
   'merchant_reinstated',
   'link_created',
   'destination_saved',
+  'store_connected',
+  'store_secret_rotated',
+  'store_disconnected',
+  'coupon_set',
+  'coupon_cleared',
 ] as const;
 export type AffiliateEventAction = (typeof AFFILIATE_EVENT_ACTIONS)[number];
 

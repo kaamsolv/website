@@ -6,10 +6,12 @@ import { SECONDARY } from '@/app/_components/account/account-shell';
 import { Notice } from '@/app/_components/notice';
 import { Skeleton } from '@/app/_components/skeleton';
 import type { MyLink } from '@/db/affiliate-links';
+import type { MyOrders } from '@/db/affiliate-orders';
 import type { MyApplication as MyApplicationRow } from '@/db/affiliate-scope';
 import { LinkCard } from './link-card';
+import { OrdersCard } from './orders-card';
 
-type MyApplication = MyApplicationRow & { link: MyLink | null };
+type MyApplication = MyApplicationRow & { link: MyLink | null; orders: MyOrders };
 type Filter = 'all' | 'pending' | 'approved' | 'rejected';
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -83,6 +85,7 @@ export function MyProgrammes({ initial = 'all' }: { initial?: Filter }) {
               </p>
             )}
             {r.status === 'approved' && r.link && <LinkCard link={r.link} businessName={r.merchantName} />}
+            {r.status === 'approved' && <OrdersCard orders={r.orders} businessName={r.merchantName} />}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {r.status === 'pending' && (
                 <button type="button" className={SECONDARY} disabled={busy === r.id} onClick={() => withdraw(r.id)}>

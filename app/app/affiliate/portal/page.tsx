@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AccountShell, SECONDARY } from '@/app/_components/account/account-shell';
 import { MerchantForm } from '@/app/_components/affiliate/merchant-form';
+import { StoreConnection } from '@/app/_components/affiliate/store-connection';
 import { getCurrentUser } from '@/app/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -23,13 +24,19 @@ export default async function AffiliateSetupPage() {
           <Link href="/app/affiliate/applications" className={SECONDARY}>
             Applications
           </Link>
+          <Link href="/app/affiliate/orders" className={SECONDARY}>
+            Orders
+          </Link>
           <Link href="/app/affiliate" className={SECONDARY}>
             Affiliate overview
           </Link>
         </div>
       }
     >
-      <MerchantForm />
+      <div className="space-y-6">
+        <MerchantForm />
+        <StoreConnection />
+      </div>
     </AccountShell>
   );
 }

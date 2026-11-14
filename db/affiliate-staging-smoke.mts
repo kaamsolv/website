@@ -15,6 +15,9 @@
  *       (the OpenNext preview, http://localhost:8787, or a staging deployment) and waits for the click written after the
  *       response to appear in the database. Needed to prove the post-response write persists on Workers.
  *
+ *   … --redirect-base-url <address>, with AFFILIATE_WEBHOOK_MASTER set in the same command to the value the app was started with
+ *       also posts a signed WooCommerce order to that app and checks it is recorded (Phase 3B). Without it that check does not run.
+ *
  *   npm run affiliate:smoke -- --local --confirm
  *       The same checks on in-memory PGlite: a self-check that needs no database.
  *
@@ -106,5 +109,5 @@ async function main(args: string[]): Promise<number> {
   const { drizzle } = await import('drizzle-orm/neon-http');
   const schema = await import('./schema.ts');
   const db = drizzle(neon(url), { schema }) as unknown as Db;
-  return report(db, confirmed, `Target ${host}`, { redirectBaseUrl: redirectBase });
+  return report(db, confirmed, `Target ${host}`, { redirectBaseUrl: redirectBase, webhookMaster: process.env.AFFILIATE_WEBHOOK_MASTER?.trim() || undefined });
 }

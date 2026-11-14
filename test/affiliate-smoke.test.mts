@@ -13,9 +13,9 @@ test('the staging smoke test passes on a fully migrated database, and leaves not
     const results = await runAffiliateSmoke(db, 'unit1');
     const failed = results.filter((r) => !r.ok);
     assert.deepEqual(failed, [], failed.map((f) => `${f.name}: ${f.detail}`).join('\n'));
-    assert.ok(results.length >= 14, `expected the full set of checks, got ${results.length}`);
+    assert.ok(results.length >= 15, `expected the full set of checks, got ${results.length}`);
     assert.equal(rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from auth_users`))[0].n, 0);
-    for (const t of ['merchants', 'programme_applications', 'affiliate_events', 'portal_reports', 'affiliate_links', 'affiliate_clicks', 'outbox', 'subscriptions']) {
+    for (const t of ['merchants', 'programme_applications', 'affiliate_events', 'portal_reports', 'affiliate_links', 'affiliate_clicks', 'store_connections', 'affiliate_coupon_codes', 'affiliate_coupon_periods', 'affiliate_orders', 'outbox', 'subscriptions']) {
       assert.equal(rows<{ n: number }>(await db.execute(sql.raw(`select count(*)::int as n from ${t}`)))[0].n, 0, `${t} is empty again`);
     }
     // And it can be run again, on the same database, with another tag.
@@ -31,7 +31,7 @@ test('when something is wrong it says which check failed, and still cleans up', 
     await db.execute(sql`drop table portal_reports`);
     const results = await runAffiliateSmoke(db, 'unit3');
     const failed = results.filter((r) => !r.ok).map((r) => r.name);
-    assert.ok(failed.some((n) => n.startsWith('migrations 0018 to 0022')), 'the missing table is reported');
+    assert.ok(failed.some((n) => n.startsWith('migrations 0018 to 0023')), 'the missing table is reported');
     assert.ok(failed.some((n) => n.startsWith('report a portal')), 'the check that needed it is reported');
     assert.ok(!failed.some((n) => n.startsWith('clean-up')), 'clean-up still worked');
     assert.equal(rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from auth_users`))[0].n, 0);
@@ -58,7 +58,7 @@ test('the modules the operator commands load import under plain Node (explicit .
   const { execFileSync } = await import('node:child_process');
   const { resolve } = await import('node:path');
   const root = resolve(import.meta.dirname, '..');
-  const modules = ['db/schema.ts', 'db/merchant-scope.ts', 'db/affiliate-scope.ts', 'db/affiliate-operator.ts', 'db/portal-reports.ts', 'db/affiliate-smoke.ts', 'db/affiliate-mail.ts', 'db/affiliate-links.ts'];
+  const modules = ['db/schema.ts', 'db/merchant-scope.ts', 'db/affiliate-scope.ts', 'db/affiliate-operator.ts', 'db/portal-reports.ts', 'db/affiliate-smoke.ts', 'db/affiliate-mail.ts', 'db/affiliate-links.ts', 'db/affiliate-orders.ts'];
   const code = `${modules.map((m) => `await import('./${m}');`).join(' ')} console.log('imported ${modules.length}');`;
   const out = execFileSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', '--input-type=module', '-e', code], { cwd: root, env: { ...process.env, NODE_OPTIONS: '' }, encoding: 'utf8' });
   assert.match(out, new RegExp(`imported ${modules.length}`));
@@ -92,12 +92,23 @@ test('the staging command refuses safely, before contacting anything, when the h
 // ─── The redirect checks over HTTP (referral links, Phase 3A) ────────────────
 // A stub app built from the real functions: it answers first and writes the click afterwards, like the route does
 // with after(). The smoke test must see the 302 and then find the click in the database by polling.
+const STUB_MASTER = 'stub-master-for-tests';
 async function stubApp(db: import('../db/links.ts').Db, writeAfterResponse: boolean) {
   const { createServer } = await import('node:http');
   const { resolveAffiliateLink, recordAffiliateClick } = await import('../db/affiliate-links.ts');
   const { withRef } = await import('../app/lib/affiliate/link.ts');
   const { clickMetaFromRequest } = await import('../app/lib/click-meta.ts');
+  const { handleWooDelivery } = await import('../app/lib/affiliate/woo-webhook.ts');
   const server = createServer(async (req, res) => {
+    const hook = /^\/api\/affiliate\/woo\/([^/]+)$/.exec(req.url ?? '');
+    if (hook) {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(c as Buffer);
+      const request = new Request(`http://stub.test${req.url}`, { method: 'POST', headers: Object.fromEntries(Object.entries(req.headers).flatMap(([k, v]) => (typeof v === 'string' ? [[k, v]] : []))), body: Buffer.concat(chunks) });
+      const r = await handleWooDelivery(db, hook[1], request, STUB_MASTER);
+      res.writeHead(r.status, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: r.status < 300, code: r.code }));
+      return;
+    }
     const [, slug, code] = /^\/([^/]+)\/([^/]+)$/.exec(req.url ?? '') ?? [];
     const link = slug ? await resolveAffiliateLink(db, slug, code) : ({ outcome: 'not_found' } as const);
     if (link.outcome === 'not_found') {
@@ -118,10 +129,11 @@ test('the redirect checks pass when the click is written after the response', as
   const { db, close } = await makeTestDb();
   const app = await stubApp(db, true);
   try {
-    const results = await runAffiliateSmoke(db, 'http1', { redirectBaseUrl: app.url, waitMs: 5000 });
+    const results = await runAffiliateSmoke(db, 'http1', { redirectBaseUrl: app.url, waitMs: 5000, webhookMaster: STUB_MASTER });
     const failed = results.filter((r) => !r.ok);
     assert.deepEqual(failed, [], failed.map((f) => `${f.name}: ${f.detail}`).join('\n'));
     assert.ok(results.some((r) => r.name.startsWith('the click written AFTER the response persisted')), 'the persistence check ran');
+    assert.ok(results.some((r) => r.name.startsWith('a signed WooCommerce order posted to the app')), 'the signed-order check ran');
   } finally {
     await app.close();
     await close();
@@ -132,7 +144,7 @@ test('the persistence check fails, and says so, when the post-response write nev
   const { db, close } = await makeTestDb();
   const app = await stubApp(db, false);
   try {
-    const results = await runAffiliateSmoke(db, 'http2', { redirectBaseUrl: app.url, waitMs: 1500 });
+    const results = await runAffiliateSmoke(db, 'http2', { redirectBaseUrl: app.url, waitMs: 1500, webhookMaster: STUB_MASTER });
     const failed = results.filter((r) => !r.ok);
     assert.deepEqual(failed.map((f) => f.name.startsWith('the click written AFTER the response persisted')), [true]);
     assert.match(failed[0].detail, /did not persist/);

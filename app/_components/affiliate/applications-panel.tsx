@@ -7,7 +7,10 @@ import { Notice } from '@/app/_components/notice';
 import { Skeleton } from '@/app/_components/skeleton';
 import { AFFILIATE_LIMITS, categoryLabel, channelLabel, type ApplicationStatus } from '@/app/lib/affiliate/application';
 import { SUSPENDED_OWNER_MESSAGE } from '@/app/lib/affiliate/merchant';
+import { CouponField } from './coupon-field';
+import { SalesLines } from './order-bits';
 import { ShareLinks } from './share-links';
+import type { OrderStats } from '@/db/affiliate-orders';
 
 type Row = {
   id: string;
@@ -26,6 +29,8 @@ type Row = {
   suspendNote: string;
   clicks30: number;
   clicksAll: number;
+  coupon: string;
+  orders: OrderStats;
 };
 type Door = { status: 'open' | 'closed' | null; pending: number; slug: string; suspended: boolean; suspendedReason: string };
 
@@ -208,6 +213,21 @@ export function ApplicationsPanel({ initialFilter = 'pending' }: { initialFilter
                     Recorded clicks on their link: <span className="font-bold tabular-nums text-ink">{r.clicks30.toLocaleString('en-IN')}</span> in the last 30 days,{' '}
                     <span className="font-bold tabular-nums text-ink">{r.clicksAll.toLocaleString('en-IN')}</span> in all.
                   </p>
+                )}
+
+                {r.status === 'approved' && (
+                  <>
+                    <p className="mt-2 text-sm text-strong" data-testid="recorded-orders">
+                      Recorded orders with their coupon: <span className="font-bold tabular-nums text-ink">{r.orders.orders.days30.toLocaleString('en-IN')}</span> in the last 30 days,{' '}
+                      <span className="font-bold tabular-nums text-ink">{r.orders.orders.all.toLocaleString('en-IN')}</span> in all.
+                    </p>
+                    {r.orders.sales.length > 0 && (
+                      <div className="mt-1">
+                        <SalesLines sales={r.orders.sales} />
+                      </div>
+                    )}
+                    <CouponField key={`${r.id}-${r.coupon}`} applicationId={r.id} current={r.coupon} disabled={door.suspended} onChanged={() => void loadRows(filter)} />
+                  </>
                 )}
 
                 {r.status === 'pending' && (

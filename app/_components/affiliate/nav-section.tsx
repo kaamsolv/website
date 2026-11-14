@@ -15,6 +15,7 @@ const ACTIVE = 'bg-activebg text-activetext';
 const BASE = '/app/affiliate';
 const JOINED = `${BASE}/programmes`;
 const APPLICATIONS = `${BASE}/applications`;
+const ORDERS = `${BASE}/orders`;
 const PORTAL = `${BASE}/portal`;
 
 const total = (c: StatusCounts) => c.pending + c.approved + c.rejected + c.withdrawn;
@@ -36,7 +37,7 @@ export function AffiliateNavSection() {
   const status = new URLSearchParams(search).get('status');
 
   const inJoined = pathname === JOINED;
-  const inCreated = pathname === APPLICATIONS || pathname === PORTAL;
+  const inCreated = pathname === APPLICATIONS || pathname === PORTAL || pathname === ORDERS;
   const [openJoined, setOpenJoined] = useState(inJoined || pathname === BASE);
   const [openCreated, setOpenCreated] = useState(inCreated || pathname === BASE);
 
@@ -130,6 +131,7 @@ export function AffiliateNavSection() {
               sub(`${APPLICATIONS}?status=pending`, 'To review', created.counts.pending, here(APPLICATIONS, 'pending'), { badge: true, testid: 'nav-created-pending' }),
               sub(`${APPLICATIONS}?status=approved`, 'Approved', created.counts.approved, here(APPLICATIONS, 'approved'), { testid: 'nav-created-approved' }),
               sub(`${APPLICATIONS}?status=rejected`, 'Not approved', created.counts.rejected, here(APPLICATIONS, 'rejected'), { testid: 'nav-created-rejected' }),
+              sub(ORDERS, 'Orders', undefined, here(ORDERS), { testid: 'nav-created-orders' }),
               sub(PORTAL, 'Portal settings', undefined, here(PORTAL), { testid: 'nav-created-portal' }),
             ],
           })

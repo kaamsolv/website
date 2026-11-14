@@ -194,6 +194,17 @@ export default function PrivacyPage() {
         site; what it does with that is up to it.
       </p>
       <p>
+        If a business connects its WooCommerce store, the store sends us each order it takes. We keep an order only if it
+        used one affiliate&apos;s coupon code, and then only the order number, the amounts (what was paid for the items
+        after discounts and before tax and shipping, and any refund), its status and date, and which coupon and
+        affiliate it was credited to. We don&apos;t keep the customer&apos;s name, email, phone number or address, or
+        what they bought. Orders that used no affiliate coupon are not stored, and nor are orders that used coupons from
+        more than one affiliate (we only count those, so the business can see how many there were). The affiliate sees
+        their own orders and sales; the business sees the orders and sales for each of its affiliates. We check that an
+        order really comes from the store with a secret we share with it, and we never write an order&apos;s contents
+        or that secret to our logs.
+      </p>
+      <p>
         We send emails about applications: to the business owner when someone applies, and to the applicant when an
         application is approved or not, with the business&apos;s reason if it gave one. We also keep a short history of
         what happened (applied, approved, suspended and so on, with the date and which account did it) as a record. It
@@ -304,8 +315,8 @@ export default function PrivacyPage() {
         <li>Short links and their click counts: for as long as the link exists.</li>
         <li>Reports: as long as we need them to deal with the link.</li>
         <li>
-          Affiliate profiles, applications, referral links and their recorded clicks, programme pages and their
-          history: until you delete your account. If a
+          Affiliate profiles, applications, referral links and their recorded clicks, coupon codes and recorded orders,
+          programme pages and their history: until you delete your account. If a
           business&apos;s account is deleted, its programme and the applications to it go with it.
         </li>
         <li>Reports of programme pages: as long as we need them to review the page.</li>

@@ -7,6 +7,7 @@
 import { APPLICATION_STATUSES, type ApplicationStatus } from '@/app/lib/affiliate/application';
 import { fail, json, requireUser } from '@/app/lib/api-response';
 import { formatErrorForLog } from '@/app/lib/log-error';
+import { NO_ORDER_STATS, orderStatsForMerchant } from '@/db/affiliate-orders';
 import { getDb } from '@/db/client';
 import { merchantForOwner, merchantScope } from '@/db/merchant-scope';
 
@@ -23,8 +24,8 @@ export async function GET(req: Request) {
     const m = await merchantForOwner(db, user.id);
     if (!m) return fail(404, 'no_merchant', 'Set up your portal first.');
     const scope = merchantScope(db, m.id);
-    const [applications, counts] = await Promise.all([scope.listApplications((raw as ApplicationStatus | null) ?? undefined), scope.applicationCounts()]);
-    return json({ ok: true, applications, counts });
+    const [applications, counts, orders] = await Promise.all([scope.listApplications((raw as ApplicationStatus | null) ?? undefined), scope.applicationCounts(), orderStatsForMerchant(db, m.id)]);
+    return json({ ok: true, applications: applications.map((a) => ({ ...a, coupon: orders.get(a.id)?.coupon ?? '', orders: orders.get(a.id)?.stats ?? NO_ORDER_STATS })), counts });
   } catch (e) {
     console.error('[api/affiliate/applications GET]', formatErrorForLog(e));
     return fail(500, 'server_error', 'We couldn’t load the applications. Try again in a moment.');

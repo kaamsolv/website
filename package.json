@@ -21,6 +21,7 @@
     "affiliate:reports": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON db/affiliate-reports.mts",
     "affiliate:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON db/affiliate-staging-smoke.mts",
     "affiliate:merchant": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON db/affiliate-merchant.mts",
+    "affiliate:woo-test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/affiliate-woo-test.mts",
     "pdfjs:sync": "node scripts/sync-pdfjs-assets.mts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
