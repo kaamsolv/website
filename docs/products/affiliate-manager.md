@@ -1,5 +1,7 @@
 # Affiliate Manager
 
+**Released to production 2026-11-14** (migrations 0018 to 0021, deploy version `8a6bde62`; first merchant granted by hand; one real application tested end to end). The status paragraph below was written before the release.
+
 **Status (2026-11-13):** Phase 1 (merchant foundation and branded portal) is committed on `feat/affiliate-phase1` (`7588d9d`). Phase 2 (affiliate registration, applications, merchant review, membership status) is on `feat/affiliate-phase2` (worktree `.claude/worktrees/affiliate-phase1`). Phase 2 was committed as `d6f22ef`. The launch safeguards (below) are built on top (`e582dab`). **Nothing is pushed or deployed. Migrations 0018 to 0021 were applied to a staging Neon database and verified (12 of 12) on 2026-11-14, and have not been applied to production.** Phases 3 to 8 are not started. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
 
 ## What it is

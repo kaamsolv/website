@@ -5,6 +5,12 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-11-14 — Affiliate Manager Phases 1 and 2 released to production
+
+**Decided by:** product owner (each step approved in chat). Migrations 0018 to 0021 were applied to the production Neon database in one transaction after a restore-point branch, then the Worker was deployed (version `8a6bde62`). The first merchant (Wandernest Tales) holds plan `affiliate_manager`, granted by hand. A real apply and approve test sent all three emails. The production database password was rotated afterwards because it had been shown in a screenshot. **Lessons kept:** a connection string is only ever entered through a hidden prompt, never typed into a command line, and the Worker log (`wrangler tail`) names a bad `DATABASE_URL` plainly. Still pending (owner, not urgent): review of all privacy policies and rate cards, and switching Razorpay to live. Phase 3 (referral tracking and WooCommerce) needs its own plan.
+
+---
+
 ## 2026-11-14 — Release sanity check: main merged in; privacy and terms cover affiliate programmes
 
 **Decided by:** product owner ("please fix all of above"). A pre-release check found: `main` had moved (the Recent tools deploy), so it was merged into `feat/affiliate-phase2` (one conflict, in this log, kept both entries; the branch now contains `origin/main`, which the deploy guard requires); the Privacy and Terms pages said nothing about affiliate programmes, so each gained an "Affiliate programmes" section (see [`products/affiliate-manager.md`](./products/affiliate-manager.md); owner to read the wording before release); and the deployment doc's line that the atomic migration runner was "not yet confirmed against Neon" was corrected (confirmed on staging 2026-11-14, not yet on production). Also checked and fine: nothing sensitive in the commits, the new pages are `noindex` and not in the sitemap, every route that changes anything checks origin and sign-in (the report route is open on purpose and rate-limited), and the billing, hub and account pages cope with an account holding the new plan.
