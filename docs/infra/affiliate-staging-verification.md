@@ -61,6 +61,7 @@ If a check fails, the line names it. The likeliest places on Neon are the unique
 | Date | Database | Migrations | Smoke test | Notes |
 |---|---|---|---|---|
 | 2026-11-14 | New empty Neon project, Singapore, pooled | Rehearsal builder applied 0000 to 0017 (18); atomic runner then committed 0018, 0019, 0020, 0021 in one transaction, journal 22 rows (expected 22) | **12 of 12** | Passed first time on the real driver: unique-violation handling (`already_has_merchant`, `slug_taken`), the one-statement writes, the `pg_trigger_depth()` append-only trigger (update and direct delete refused; cascade allowed), queued emails once each, reports, operator suspension, the plan entitlement, isolation, and clean-up. Two things the run exposed, both fixed in code before it: a helper defined after its first use in the smoke command (the Neon path only), and on Windows PowerShell `npm` is blocked by the execution policy, so use `npm.cmd`. |
+| 2026-11-14 | `kaamsolv-staging` Neon project, Singapore, pooled (already at 0021) | Atomic runner committed 0022 alone, journal 23 rows (expected 23); a Neon branch `pre-0022-staging` was taken first | **14 of 14**, then **17 of 17** with `--redirect-base-url` against the OpenNext Cloudflare preview (`cf:preview`, same database) | Phase 3A on the real Neon HTTP driver: 0022, link creation, click write and count, previews and paused affiliates recording nothing. The 17-check run proved the real 302 with `?ref=`, `no-store`, `noindex`, 404s, and that **the click written after the response persists on Workers**. A first attempt reported 2 failures only because the smoke pointed at port 8787 while the preview was on 8788 (another process answered with 500); the preview prints its port, so read it. |
 
 ## Production comes after, and separately
 
@@ -74,7 +75,7 @@ Not part of the staging go-ahead. When the staging run is clean and the owner ap
 
 Rollback is `npx wrangler rollback` for the Worker; the schema changes are additive and the previous Worker ignores them. The release gates in `docs/products/affiliate-manager.md` must all be met first.
 
-## Phase 3A (referral links and recorded clicks): staging steps, not yet run
+## Phase 3A (referral links and recorded clicks): staging steps (run 2026-11-14, see Results)
 
 Migration 0022 follows 0021. The atomic runner applies pending migrations **in journal order**, so a staging test of "0018, 0019 and 0022" is really the whole journal, ending in 0022 (0022 can't be applied without 0020 and 0021 in between). Use a **fresh, non-production** Neon database (creating or touching one is the owner's approval) and the same safeguards as above (`DATABASE_URL` in that one command, `--expect-host` typed by the owner, `--non-production`).
 
