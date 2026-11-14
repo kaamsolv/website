@@ -1,6 +1,6 @@
 # Affiliate Manager: verifying the migrations on a staging Neon database
 
-**Status (2026-11-14): prepared, not run.** No staging database exists and none has been created or contacted. Everything below that touches Neon needs the owner's explicit go-ahead first, and a database the owner creates.
+**Status (2026-11-14): run once, clean: 12 of 12 checks passed on a staging Neon database.** The owner created an empty non-production project (Singapore, pooled connection) and ran the steps in their own terminal; the staging project is to be deleted afterwards. **Production has not been touched and still needs its own explicit approval** (see the last section).
 
 ## Why
 
@@ -50,6 +50,8 @@ Commands are shown for Windows PowerShell. `<host>` is the connection string's h
    Remove-Item Env:DATABASE_URL
    ```
    Then delete the staging database in Neon.
+
+On Windows PowerShell, `npm` may be blocked by the execution policy (`npm.ps1 cannot be loaded`). Use `npm.cmd` instead, in every command above; no system setting needs changing.
 6. **Record the result** in the table below (date, which checks, anything unexpected).
 
 If a check fails, the line names it. The likeliest places on Neon are the unique-violation detection in `db/links.ts` (`isUniqueViolation`), parameter typing in the CTE statements in `db/merchant-scope.ts` / `db/affiliate-scope.ts`, and the `pg_trigger_depth()` rule in the trigger from migration 0019. Fix in code, re-run on a fresh database, and do not go to production until it is clean.
@@ -58,11 +60,11 @@ If a check fails, the line names it. The likeliest places on Neon are the unique
 
 | Date | Database | Migrations | Smoke test | Notes |
 |---|---|---|---|---|
-| _not run yet_ | | | | |
+| 2026-11-14 | New empty Neon project, Singapore, pooled | Rehearsal builder applied 0000 to 0017 (18); atomic runner then committed 0018, 0019, 0020, 0021 in one transaction, journal 22 rows (expected 22) | **12 of 12** | Passed first time on the real driver: unique-violation handling (`already_has_merchant`, `slug_taken`), the one-statement writes, the `pg_trigger_depth()` append-only trigger (update and direct delete refused; cascade allowed), queued emails once each, reports, operator suspension, the plan entitlement, isolation, and clean-up. Two things the run exposed, both fixed in code before it: a helper defined after its first use in the smoke command (the Neon path only), and on Windows PowerShell `npm` is blocked by the execution policy, so use `npm.cmd`. |
 
 ## Production comes after, and separately
 
-Not part of this document's go-ahead. When the staging run is clean and the owner approves the release:
+Not part of the staging go-ahead. When the staging run is clean and the owner approves the release:
 
 1. Take a Neon restore point (the atomic runner requires you to say you did).
 2. `npm run db:migrate:atomic -- --expect-host <production host>` (dry run), then with `--confirm --restore-point-taken`, with `DATABASE_URL` set only for that command.

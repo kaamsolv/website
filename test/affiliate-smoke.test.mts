@@ -63,3 +63,28 @@ test('the modules the operator commands load import under plain Node (explicit .
   const out = execFileSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', '--input-type=module', '-e', code], { cwd: root, env: { ...process.env, NODE_OPTIONS: '' }, encoding: 'utf8' });
   assert.match(out, new RegExp(`imported ${modules.length}`));
 });
+
+test('the staging command refuses safely, before contacting anything, when the host or the non-production flag is wrong', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { resolve } = await import('node:path');
+  const root = resolve(import.meta.dirname, '..');
+  // A URL that could never connect: if the command tried, it would hang or fail on DNS, not print a refusal.
+  const env = { ...process.env, NODE_OPTIONS: '', DATABASE_URL: 'postgresql://user:secret@staging-host.invalid/db?sslmode=require' };
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', 'db/affiliate-staging-smoke.mts', ...args], { cwd: root, env, encoding: 'utf8', timeout: 60_000 });
+
+  const noHost = run('--non-production');
+  assert.equal(noHost.status, 1);
+  assert.match(noHost.stderr, /--expect-host is missing or does not match/);
+  assert.match(noHost.stderr, /Nothing was contacted/);
+
+  const wrongHost = run('--expect-host', 'some-other-host.invalid', '--non-production');
+  assert.equal(wrongHost.status, 1);
+  assert.match(wrongHost.stderr, /does not match/);
+  assert.ok(!/staging-host\.invalid|secret/.test(wrongHost.stdout + wrongHost.stderr), 'the refusal never prints the host or the password');
+
+  const noFlag = run('--expect-host', 'staging-host.invalid');
+  assert.equal(noFlag.status, 1);
+  assert.match(noFlag.stderr, /pass --non-production/);
+  assert.match(noFlag.stderr, /Nothing was contacted/);
+});

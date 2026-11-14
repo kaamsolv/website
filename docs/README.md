@@ -31,7 +31,7 @@ Decision log: [`DECISIONS.md`](DECISIONS.md). Analytics: [`ANALYTICS.md`](ANALYT
 | HRA Calculator (`/hra-calculator`) | Built locally 2026-11-04 — [`products/hra-calculator.md`](products/hra-calculator.md) |
 | Gratuity Calculator (`/gratuity-calculator`) | **Live** (2026-10-27; rules and FAQ reviewed by the owner) — [`products/gratuity-calculator.md`](products/gratuity-calculator.md) |
 | Rent Receipt Generator (`/rent-receipt-generator`) | Built, **not deployed** — [`products/rent-receipt.md`](products/rent-receipt.md) |
-| Affiliate Manager, Phases 1-2 (merchant foundation, branded portal at `/affiliate/{slug}`, affiliate registration and manual approval) | Phase 1 committed on `feat/affiliate-phase1`; Phase 2 built on `feat/affiliate-phase2`, **uncommitted, not deployed**; migrations 0018-0021 not applied to Neon; launch safeguards built, staging verification prepared — [`products/affiliate-manager.md`](products/affiliate-manager.md) |
+| Affiliate Manager, Phases 1-2 (merchant foundation, branded portal at `/affiliate/{slug}`, affiliate registration and manual approval) | Phase 1 committed on `feat/affiliate-phase1`; Phase 2 built on `feat/affiliate-phase2`, **uncommitted, not deployed**; launch safeguards built; migrations 0018-0021 verified on staging Neon 2026-11-14 (12/12), not applied to production — [`products/affiliate-manager.md`](products/affiliate-manager.md) |
 | Everything else in the catalogue | Planned (36 tools marked live, `status` in `app/lib/catalogue.ts`) — [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) |
 
 ## Stack
@@ -79,7 +79,7 @@ Local development needs **no** database configured — the absence of
 | [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) | Production design-system standards |
 | [`kaamsolv-tool-catalogue.md`](kaamsolv-tool-catalogue.md) | The tool catalogue, locked categories, build order |
 | [`products/`](products/) | Per-product specs (QR, tracked QR, image kit, PDF tools, URL Shortener, Invoice Generator, accounts) |
-| [`infra/affiliate-staging-verification.md`](infra/affiliate-staging-verification.md) | Runbook: verify the affiliate migrations on a staging Neon database (prepared, not run) |
+| [`infra/affiliate-staging-verification.md`](infra/affiliate-staging-verification.md) | Runbook: verify the affiliate migrations on a staging Neon database (run 2026-11-14, 12 of 12) |
 | [`kaamsolv-design-system.html`](kaamsolv-design-system.html) | Original visual reference prototype (not production code) |
 
 ## Development process

@@ -34,10 +34,11 @@ import type { Db } from './links.ts';
 installSafeErrorOutput();
 process.exitCode = await main(process.argv.slice(2));
 
-const argValue = (args: string[], name: string) => {
+// A function declaration, so it is available to main() above it (a const defined after the call would not be).
+function argValue(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
-};
+}
 
 async function report(db: Db, confirmed: boolean, where: string): Promise<number> {
   const guard = await onlyTestAccounts(db);
