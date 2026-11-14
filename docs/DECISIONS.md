@@ -5,7 +5,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
-## 2026-11-15 — Notice Period Calculator (Career; built on feat/notice-period-calculator, not deployed)
+## 2026-11-15 — Notice Period Calculator (Career; deployed 2026-11-15, version 11c87958)
 
 **Decided by:** product owner (kickoff and design approved in chat; the three choices below approved with it). Opens the Career category (it had nothing live). Two questions in one tool: "I know when I'll resign" gives the last working day; "I know when the new job starts" gives the latest day to resign. **Defaults:** calendar days, notice starting the day after you resign (the most common reading across the Indian calculators and guides reviewed; they disagree on the first day, on weekends and on the buyout divisor, so every choice is switchable and the rule used is always said back in words). Notice in **days or months** (months run to the day before the same date next month, or the last day of a short month). **Share:** WhatsApp and copy carry text only, never a date in a link. **Left out on purpose:** GST on a buyout (one benchmark adds 18%; unverified here, so not added), salary breakups, company holiday lists, per-company notice tables, any sign-up or contact gate. Optional extras live under "More": move a weekend last day to the working day before, leave at the end of notice (shows the last day in the office; the official day does not move), and a rough buyout (monthly pay ÷ 30 or ÷ 26 × days short, labelled an estimate). Browser-only; nothing is saved or sent. Detail: [`products/notice-period-calculator.md`](./products/notice-period-calculator.md).
 
