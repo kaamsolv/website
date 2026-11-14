@@ -1,11 +1,11 @@
 # PDF tools
 
 **Routes:** `/pdf-tools` (hub), `/compress-pdf`, `/merge-pdf`, `/split-pdf`,
-`/pdf-to-jpg`, `/jpg-to-pdf`, `/pdf-to-word`, and, added in the PDF suite completion
-(built locally on `feature/pdf-suite-completion`, **not deployed**): `/rotate-pdf`,
-`/delete-pdf-pages`, `/rearrange-pdf-pages`, `/add-page-numbers-to-pdf`, `/pdf-to-png`,
-`/pdf-to-text`, `/watermark-pdf`, `/protect-pdf` · **Category:** Documents · **Status:** Stage 1
-(free tools) **live** since 2026-10-25. Decisions: [`DECISIONS.md`](../DECISIONS.md)
+`/pdf-to-jpg`, `/jpg-to-pdf`, `/pdf-to-word`, and, added in the PDF suite completion:
+`/rotate-pdf`, `/delete-pdf-pages`, `/rearrange-pdf-pages`, `/add-page-numbers-to-pdf`,
+`/pdf-to-png`, `/pdf-to-text`, `/watermark-pdf`, `/protect-pdf` · **Category:** Documents ·
+**Status:** all **live** — Stage 1 since 2026-10-25, PDF to Word since 2026-10-27, the suite
+completion since 2026-11-13 (PR #2). Decisions: [`DECISIONS.md`](../DECISIONS.md)
 (2026-10-25 and 2026-11-05 entries).
 
 ## What it is
