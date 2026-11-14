@@ -209,7 +209,7 @@ export const TOOLS: Tool[] = [
   // Career
   { name: 'Resume Builder', slug: 'resume-builder', url: '/generators/resume-builder', category: 'Career', blurb: 'A guided, step-by-step build for your resume.', keywords: ['resume', 'cv', 'builder', 'job'], status: 'planned' },
   { name: 'Cover Letter Generator', slug: 'cover-letter-generator', url: '/generators/cover-letter-generator', category: 'Career', blurb: 'A solid first draft you can make your own.', keywords: ['cover letter', 'application', 'job'], status: 'planned' },
-  { name: 'Notice Period Calculator', slug: 'notice-period-calculator', url: '/calculators/notice-period-calculator', category: 'Career', blurb: 'Your last working day from the date you resign.', keywords: ['notice period', 'last day', 'resignation', 'lwd'], status: 'planned' },
+  { name: 'Notice Period Calculator', slug: 'notice-period-calculator', url: '/notice-period-calculator', category: 'Career', blurb: 'Your last working day from the date you resign, or when to resign for a new job.', keywords: ['notice period', 'last day', 'last working day', 'resignation', 'lwd', 'relieving date', 'notice buyout', 'serving notice', 'when to resign'], status: 'live' },
   { name: 'Experience Calculator', slug: 'experience-calculator', url: '/calculators/experience-calculator', category: 'Career', blurb: 'Total years and months across every job.', keywords: ['work experience', 'total experience', 'tenure'], status: 'planned' },
   { name: 'LinkedIn Bio Generator', slug: 'linkedin-bio-generator', url: '/generators/linkedin-bio-generator', category: 'Career', blurb: 'A headline and About section that sound like you.', keywords: ['linkedin', 'bio', 'headline', 'about', 'profile'], status: 'planned' },
 

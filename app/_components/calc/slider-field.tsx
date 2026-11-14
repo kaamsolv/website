@@ -70,7 +70,7 @@ export function SliderField({
             placeholder={placeholder}
             aria-invalid={invalid || undefined}
             aria-describedby={invalid ? `${id}-err` : undefined}
-            className={`${FIELD} !h-10 !text-right !text-sm ${prefix ? '!pl-7' : ''} ${suffix ? '!pr-9' : ''}`}
+            className={`${FIELD} !h-10 !text-right !text-sm ${prefix ? '!pl-7' : ''} ${suffix ? (suffix.length > 3 ? '!pr-14' : '!pr-9') : ''}`}
           />
           {suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted">{suffix}</span>}
         </div>
