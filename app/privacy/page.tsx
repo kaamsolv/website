@@ -184,6 +184,16 @@ export default function PrivacyPage() {
         applicants and your decisions. That page is public to anyone who has its address. You write it, not KaamSolv.
       </p>
       <p>
+        Once you&apos;re approved you get a referral link, like kaamsolv.com/their-address/your-code. When someone opens
+        it, we send them on to the business&apos;s store and record the click: the time, the website they came from
+        (the address only, not the whole link), their country, and a rough type of device (phone, computer and so on).
+        We don&apos;t store their IP address, and we don&apos;t use cookies or any visitor ID for this, so we can&apos;t tell
+        who clicked or whether two clicks came from the same person. Previews that apps fetch when a link is pasted are
+        skipped where we can tell them apart. You see the number of recorded clicks on your link, and the business sees
+        the number for each of its affiliates. The business also sees <code>?ref=your-code</code> arrive on its own
+        site; what it does with that is up to it.
+      </p>
+      <p>
         We send emails about applications: to the business owner when someone applies, and to the applicant when an
         application is approved or not, with the business&apos;s reason if it gave one. We also keep a short history of
         what happened (applied, approved, suspended and so on, with the date and which account did it) as a record. It
@@ -294,7 +304,8 @@ export default function PrivacyPage() {
         <li>Short links and their click counts: for as long as the link exists.</li>
         <li>Reports: as long as we need them to deal with the link.</li>
         <li>
-          Affiliate profiles, applications, programme pages and their history: until you delete your account. If a
+          Affiliate profiles, applications, referral links and their recorded clicks, programme pages and their
+          history: until you delete your account. If a
           business&apos;s account is deleted, its programme and the applications to it go with it.
         </li>
         <li>Reports of programme pages: as long as we need them to review the page.</li>

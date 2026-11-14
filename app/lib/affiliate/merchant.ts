@@ -6,6 +6,8 @@
  * `kaamsolv.com/affiliate/{slug}` (paths, not subdomains: DECISIONS 2026-10-22).
  */
 
+import { isReservedCode } from '../reserved-routes.ts';
+
 export const PORTAL_PREFIX = '/affiliate/';
 export const PORTAL_HOST = 'kaamsolv.com';
 
@@ -25,6 +27,8 @@ export const RESERVED_MERCHANT_SLUGS: ReadonlySet<string> = new Set([
   'admin', 'api', 'app', 'account', 'settings', 'billing', 'dashboard', 'help', 'support', 'status',
   'terms', 'privacy', 'about', 'contact', 'marketplace', 'discover', 'programmes', 'programs',
   'kaamsolv', 'kaamkit', 'official', 'www', 'static', 'assets',
+  // Files the app serves from its root (robots.txt, sitemap.xml, icon.svg …), kept so a business can't share their names.
+  'robots', 'sitemap', 'icon', 'manifest', 'favicon',
 ]);
 
 export const MERCHANT_STATUSES = ['active', 'suspended'] as const;
@@ -76,7 +80,8 @@ export function checkSlug(input: unknown): SlugCheck {
   if (!SLUG_RE.test(slug) || slug.includes('--')) {
     return { ok: false, error: 'slug_invalid', message: 'Use 3 to 40 letters, numbers or single hyphens, starting and ending with a letter or number.' };
   }
-  if (RESERVED_MERCHANT_SLUGS.has(slug)) {
+  // Referral links are kaamsolv.com/{slug}/{code}: an address that is also a real top-level page would be shadowed.
+  if (RESERVED_MERCHANT_SLUGS.has(slug) || isReservedCode(slug)) {
     return { ok: false, error: 'slug_reserved', message: 'That address is kept for KaamSolv. Try another.' };
   }
   if (BLOCKED_SLUG_BRANDS.some((b) => slug.includes(b)) || slug.split('-').some((w) => BLOCKED_SLUG_WORDS.has(w))) {

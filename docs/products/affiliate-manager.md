@@ -138,9 +138,30 @@ The PRD says to use PostgreSQL transactions for state changes. Neon over HTTP ca
 
 **Staging verification: done 2026-11-14.** Migrations 0018 to 0021 were applied to an empty non-production Neon database with the atomic runner, and `npm run affiliate:smoke` passed 12 of 12 through the real Neon HTTP driver (runbook and results: [`../infra/affiliate-staging-verification.md`](../infra/affiliate-staging-verification.md)). **Still true:** nothing has been applied to production, and doing so is a separate approval (take a restore point, migrate first with `db:migrate:atomic`, then deploy). The smoke test does not cover sending real email through Resend, the routes running on the deployed Worker, or the pages on a real phone; those are checked after the production deploy. Portals stay `noindex` and unlinked from the public site until the owner decides to launch.
 
-## Not in Phase 1 or 2 (on purpose)
+## Phase 3A: referral links and recorded clicks (built 2026-11-14, on `feat/affiliate-phase2`, not deployed)
 
-Referral links, click attribution, coupons mapping, WooCommerce connector, commissions, ledger, payouts, subscriptions and entitlement keys, notifications, marketplace, custom domains, a platform super-admin.
+Migration **0022** (additive): `programmes.destination_url`, `affiliate_links`, `affiliate_clicks`, and two event actions (`link_created`, `destination_saved`). Apply it after 0021, never alone, with the atomic runner.
+
+| Piece | What it does |
+|---|---|
+| **Link shape** | `kaamsolv.com/{business-slug}/{code}`. The route is `app/[shortCode]/[code]/route.ts` (Next.js allows one dynamic name per level, so `shortCode` is the business address there). The code is 8 random base62 characters, case-sensitive, unique within a business. One link per approved membership, made the first time the affiliate opens Joined (`ensureLinks`: idempotent, one statement, so existing members need no backfill). |
+| **Destination** | Stored per programme (`programmes.destination_url`), set by the business under Portal settings ("Where affiliate links lead", with an "i" and an "Open it to check it works" link; no server fetch). https only; no passwords, private or local hosts, KaamSolv addresses or open URL shorteners (`cleanDestination`, reusing `validateDestinationUrl` and `checkDestinationPolicy`). Saving it never opens registration (it makes the programme row, closed, if none exists). A link can't be pointed anywhere else. |
+| **Redirect** | Unknown business, suspended business or unknown code: 404 (the same for all). Membership paused: 302 to the destination **without `?ref=`**, nothing recorded. No destination yet: 302 to the programme page (a relative `Location`). Otherwise 302 to `destination?ref=CODE` (existing query and `#fragment` kept, an existing `ref` replaced) and, after the response, one recorded click. Always `no-store` and `noindex`. HEAD, prefetch and link previews (device class `bot`) record nothing. |
+| **Recorded clicks** | `affiliate_clicks` holds only: when, referrer **host**, a two-letter country and a device bucket. No IP, no User-Agent, no full referrer, no cookie, no visitor id. The UI says **"Recorded clicks"** (7 days, 30 days, all time) with an "i" that says it is not a count of people or of different visitors. The business sees recorded clicks per approved affiliate (30 days and all time) in Applications. |
+| **Business addresses** | A business address must not be a real top-level path, or its links would be shadowed. `checkSlug` now also refuses everything in `app/lib/reserved-routes.ts` plus the root files (`robots`, `sitemap`, `icon`, `manifest`, `favicon`). `test/affiliate-link-routes.test.mts` reads the real `app/` folders (route groups included) and fails if any routable top-level path could be taken as an address, so a new page added later can't silently collide. Addresses made before this change aren't re-checked: look at existing portals when deploying. |
+| **Isolation** | Only `db/affiliate-links.ts`, the scope files and the operator/smoke modules touch the new tables (`test/affiliate-isolation.test.mts` guard). A code resolves only under its own business. |
+| **Privacy and terms** | Updated in the same change: what a click records, who sees the counts, retention, and that the store behind the link and the click numbers are not KaamSolv's responsibility. **Needs the owner's read before release.** |
+
+**Tests:** `test/affiliate-link.test.mts` (rules), `test/affiliate-link-routes.test.mts` (route collisions), `test/affiliate-links.test.mts` (real Postgres: links, resolving, clicks, paused and suspended, isolation, cascade), the extended smoke test (`test/affiliate-smoke.test.mts`, including the redirect checks against a stub app) and `tests/e2e/affiliate-links.spec.ts` (9: destination validation, link appears only after approval, 302 with `?ref=`, the post-response click is counted, previews and unknown codes, paused and reinstated, no destination, 360 and 320 px in light and dark, keyboard).
+
+**Still to do before release (each its own approval, nothing has been run against any external database):**
+1. **Staging (Neon HTTP driver):** use a fresh non-production database and apply the whole journal in order (`db:migrate:atomic`, ending with 0022; 0022 can't skip 0020 and 0021, the runner applies pending migrations in journal order). Then `npm run affiliate:smoke -- --expect-host <host> --non-production --confirm`.
+2. **OpenNext preview with the redirect check:** `npm run cf:build`, `npm run cf:preview` pointed at that same staging database (a Worker has no PGlite, so the preview can't run DB routes without a Neon `DATABASE_URL`), then `… affiliate:smoke … --confirm --redirect-base-url http://localhost:8787`. This requests a real link and polls the database until the click written after the response appears, so it proves the `after()` write persists on Workers.
+3. Production: restore point, migrate with the atomic runner, deploy, check a real link. Not the live Wandernest Tales store until the owner says so.
+
+## Not in Phase 1, 2 or 3A (on purpose)
+
+Sales and order tracking, attribution cookies, coupons mapping, the WooCommerce connector, commissions, ledger, payouts, subscriptions and entitlement keys, notifications, marketplace, custom domains, a platform super-admin. (Referral links and recorded clicks are Phase 3A, above; sales tracking is 3B.) No custom link names, no unique-visitor or fraud scoring, no click export yet.
 
 ## Tests
 

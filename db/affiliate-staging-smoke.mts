@@ -10,6 +10,11 @@
  *       Runs the checks. Creates rows tagged smoke-<id>-…@example.test and removes them (and their queued emails) at
  *       the end, whether or not the checks pass. Prints one line per check, and exits 1 if any failed.
  *
+ *   … --expect-host <host> --non-production --confirm --redirect-base-url <address>
+ *       As above, and also requests a real referral link from a running copy of the app that uses the SAME database
+ *       (the OpenNext preview, http://localhost:8787, or a staging deployment) and waits for the click written after the
+ *       response to appear in the database. Needed to prove the post-response write persists on Workers.
+ *
  *   npm run affiliate:smoke -- --local --confirm
  *       The same checks on in-memory PGlite: a self-check that needs no database.
  *
@@ -28,7 +33,7 @@
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { installSafeErrorOutput } from './atomic-migration.ts';
-import { onlyTestAccounts, runAffiliateSmoke } from './affiliate-smoke.ts';
+import { onlyTestAccounts, runAffiliateSmoke, type SmokeOptions } from './affiliate-smoke.ts';
 import type { Db } from './links.ts';
 
 installSafeErrorOutput();
@@ -40,7 +45,7 @@ function argValue(args: string[], name: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 
-async function report(db: Db, confirmed: boolean, where: string): Promise<number> {
+async function report(db: Db, confirmed: boolean, where: string, options: SmokeOptions = {}): Promise<number> {
   const guard = await onlyTestAccounts(db);
   if (!guard.ok) {
     console.error('Refusing: this database holds accounts that are not throwaway @example.test addresses, so it looks like a real database. Nothing was changed.');
@@ -52,7 +57,7 @@ async function report(db: Db, confirmed: boolean, where: string): Promise<number
     return 0;
   }
   const tag = randomBytes(4).toString('hex');
-  const results = await runAffiliateSmoke(db, tag);
+  const results = await runAffiliateSmoke(db, tag, options);
   for (const r of results) console.log(`${r.ok ? '  ✔' : '  ✖'} ${r.name}${r.ok ? '' : `\n      ${r.detail}`}`);
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n${results.length - failed} of ${results.length} checks passed${failed ? `; ${failed} FAILED.` : '.'}`);
@@ -75,6 +80,7 @@ async function main(args: string[]): Promise<number> {
     return code;
   }
 
+  const redirectBase = argValue(args, '--redirect-base-url');
   const url = process.env.DATABASE_URL?.trim();
   if (!url || !/^postgres(ql)?:\/\//i.test(url)) {
     console.error('Refusing: DATABASE_URL must be set, in this command’s environment, to a postgres:// connection string. Nothing was contacted.');
@@ -100,5 +106,5 @@ async function main(args: string[]): Promise<number> {
   const { drizzle } = await import('drizzle-orm/neon-http');
   const schema = await import('./schema.ts');
   const db = drizzle(neon(url), { schema }) as unknown as Db;
-  return report(db, confirmed, `Target ${host}`);
+  return report(db, confirmed, `Target ${host}`, { redirectBaseUrl: redirectBase });
 }

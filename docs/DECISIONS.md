@@ -5,6 +5,12 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-11-14 — Affiliate Phase 3A: referral links and recorded clicks (built, not deployed)
+
+**Decided by:** product owner. Scope today is 3A only; sales tracking through WooCommerce (3B) needs code on the store's WordPress site and is a separate approval. Link shape `kaamsolv.com/{business-slug}/{code}`, built inside the existing root dynamic folder, with a guard test over the real top-level paths so a new page can't silently collide with a business address. The destination URL is stored per programme and labelled as where affiliate links lead. A paused affiliate's link still opens the store, without `?ref=`, and records nothing; a suspended business and an unknown code are 404. The UI says **recorded clicks** and never claims people or unique visitors. Click data stays limited to time, referrer host, country and device bucket, with no IP, and the privacy and terms pages were updated in the same change. Migration 0022 follows 0021 (the runner applies pending migrations in journal order, so a staging test of the sequence applies the whole journal ending in 0022). **No staging or production database has been touched, and nothing is deployed;** the staging run, the OpenNext preview check with the redirect smoke test, and the release are each their own approval. See [`products/affiliate-manager.md`](./products/affiliate-manager.md).
+
+---
+
 ## 2026-11-14 — Affiliate Manager Phases 1 and 2 released to production
 
 **Decided by:** product owner (each step approved in chat). Migrations 0018 to 0021 were applied to the production Neon database in one transaction after a restore-point branch, then the Worker was deployed (version `8a6bde62`). The first merchant (Wandernest Tales) holds plan `affiliate_manager`, granted by hand. A real apply and approve test sent all three emails. The production database password was rotated afterwards because it had been shown in a screenshot. **Lessons kept:** a connection string is only ever entered through a hidden prompt, never typed into a command line, and the Worker log (`wrangler tail`) names a bad `DATABASE_URL` plainly. Still pending (owner, not urgent): review of all privacy policies and rate cards, and switching Razorpay to live. Phase 3 (referral tracking and WooCommerce) needs its own plan.

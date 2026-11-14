@@ -137,6 +137,9 @@ export type ApplicationForReview = {
   membership: MembershipStatus | null;
   /** The merchant's reason for pausing access, if they gave one. */
   suspendNote: string;
+  /** Clicks recorded on this affiliate's link (0 for anyone without one): the last 30 days, and all time. Not people, not unique visitors. */
+  clicks30: number;
+  clicksAll: number;
 };
 
 /** Reads and writes for exactly one merchant. Every statement below names `merchantId` in its WHERE clause. */
@@ -199,6 +202,27 @@ export function merchantScope(db: Db, merchantId: string) {
         select ${merchantId}::uuid, ${actorUserId}::uuid, ${action} from p
       `);
     },
+    /** Where this programme's links send visitors ('' until set). */
+    async destination(): Promise<string> {
+      const rows = rowsOf<{ destination_url: string }>(await db.execute(sql`select destination_url from programmes where merchant_id = ${merchantId}::uuid`));
+      return rows[0]?.destination_url ?? '';
+    },
+    /**
+     * Saves the destination (making the programme row, closed to applications, if registration has never been opened)
+     * and records `destination_saved`, in one statement. Saving the same value again writes nothing.
+     */
+    async saveDestination(url: string, actorUserId: string): Promise<void> {
+      await db.execute(sql`
+        with p as (
+          insert into programmes (merchant_id, status, destination_url) values (${merchantId}::uuid, 'closed', ${url})
+          on conflict (merchant_id) do update set destination_url = excluded.destination_url, updated_at = now()
+            where programmes.destination_url <> excluded.destination_url
+          returning id
+        )
+        insert into affiliate_events (merchant_id, actor_user_id, action)
+        select ${merchantId}::uuid, ${actorUserId}::uuid, 'destination_saved' from p
+      `);
+    },
     async pendingCount(): Promise<number> {
       const rows = rowsOf<{ n: number | string }>(
         await db.execute(sql`select count(*)::int as n from programme_applications where merchant_id = ${merchantId}::uuid and status = 'pending'`),
@@ -219,7 +243,11 @@ export function merchantScope(db: Db, merchantId: string) {
         await db.execute(sql`
           select a.id, a.status, a.message, a.decision_note, a.created_at, a.decided_at, a.category, a.channel, a.country,
                  coalesce(p.display_name, '') as display_name, coalesce(p.website, '') as website, u.email,
-                 ms.status as membership, coalesce(ms.status_note, '') as suspend_note
+                 ms.status as membership, coalesce(ms.status_note, '') as suspend_note,
+                 (select count(*)::int from affiliate_clicks c join affiliate_links l on l.id = c.link_id
+                   where l.membership_id = ms.id and l.merchant_id = ${merchantId}::uuid and c.occurred_at > now() - interval '30 days') as clicks_30,
+                 (select count(*)::int from affiliate_clicks c join affiliate_links l on l.id = c.link_id
+                   where l.membership_id = ms.id and l.merchant_id = ${merchantId}::uuid) as clicks_all
           from programme_applications a
           join auth_users u on u.id = a.affiliate_user_id
           left join affiliate_profiles p on p.user_id = a.affiliate_user_id
@@ -244,6 +272,8 @@ export function merchantScope(db: Db, merchantId: string) {
         country: String(r.country),
         membership: (r.membership as MembershipStatus | null) ?? null,
         suspendNote: String(r.suspend_note),
+        clicks30: Number(r.clicks_30 ?? 0),
+        clicksAll: Number(r.clicks_all ?? 0),
       }));
     },
     /**

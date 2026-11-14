@@ -42,6 +42,7 @@ import { DEVICE_CLASSES } from '../app/lib/click-meta.ts';
 import { MAX_REPORT_DETAILS, REPORT_REASONS } from '../app/lib/report.ts';
 import { MERCHANT_LIMITS, MERCHANT_LOGO_MAX_CHARS, MERCHANT_STATUSES, SUSPENDED_REASON_MAX } from '../app/lib/affiliate/merchant.ts';
 import { PORTAL_REPORT_DETAILS_MAX, PORTAL_REPORT_REASONS, PORTAL_REPORT_STATUSES } from '../app/lib/affiliate/report.ts';
+import { LINK_DESTINATION_MAX } from '../app/lib/affiliate/link.ts';
 import {
   AFFILIATE_EVENT_ACTIONS,
   AFFILIATE_LIMITS,
@@ -1130,12 +1131,15 @@ export const programmes = pgTable(
       .notNull()
       .references(() => merchants.id, { onDelete: 'cascade' }),
     status: text('status').notNull().default('open'),
+    /** Where an affiliate's link sends visitors (migration 0022). Blank until the business sets it; https only. */
+    destinationUrl: text('destination_url').notNull().default(''),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex('programmes_merchant_id_key').on(table.merchantId),
     check('programmes_status', sql`${table.status} in (${inList(PROGRAMME_STATUSES)})`),
+    check('programmes_destination_len', sql`char_length(${table.destinationUrl}) <= ${sql.raw(String(LINK_DESTINATION_MAX))}`),
   ],
 );
 
@@ -1259,5 +1263,68 @@ export const portalReports = pgTable(
     check('portal_reports_reason', sql`${table.reason} in (${inList(PORTAL_REPORT_REASONS)})`),
     check('portal_reports_status', sql`${table.status} in (${inList(PORTAL_REPORT_STATUSES)})`),
     check('portal_reports_details_len', sql`char_length(${table.details}) <= ${sql.raw(String(PORTAL_REPORT_DETAILS_MAX))}`),
+  ],
+);
+
+// ─── Affiliate Manager, Phase 3A (migration 0022) ────────────────────────────
+//
+// Referral links and recorded clicks. Reached only through db/affiliate-links.ts (and the merchant and affiliate scopes'
+// own reads); test/affiliate-isolation.test.mts fails if any other file uses these tables.
+
+/**
+ * An approved affiliate's link: `kaamsolv.com/{merchant slug}/{code}`. One per membership, made the first time the
+ * affiliate opens their programmes. The code is random and unique within the merchant. Removing the membership, the
+ * merchant or the account removes the link and its clicks.
+ */
+export const affiliateLinks = pgTable(
+  'affiliate_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    membershipId: uuid('membership_id')
+      .notNull()
+      .references(() => programmeMemberships.id, { onDelete: 'cascade' }),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    affiliateUserId: uuid('affiliate_user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    code: text('code').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('affiliate_links_membership_key').on(table.membershipId),
+    uniqueIndex('affiliate_links_merchant_code_key').on(table.merchantId, table.code),
+    index('affiliate_links_affiliate_idx').on(table.affiliateUserId),
+    check('affiliate_links_code_shape', sql`${table.code} ~ '^[0-9A-Za-z]{6,12}$'`),
+  ],
+);
+
+/**
+ * One row per recorded click on an affiliate link. Holds only what the shortener's clicks hold: when, the referring
+ * host, a two-letter country and a device bucket. No IP, no User-Agent, no full referrer, no cookie, no visitor id.
+ * Link previews fetched by apps are not recorded when they can be told apart. This is a count of recorded clicks,
+ * not of people or of different visitors.
+ */
+export const affiliateClicks = pgTable(
+  'affiliate_clicks',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => affiliateLinks.id, { onDelete: 'cascade' }),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    referrerHost: text('referrer_host'),
+    country: text('country'),
+    deviceClass: deviceClass('device_class').notNull().default('unknown'),
+  },
+  (table) => [
+    index('affiliate_clicks_link_idx').on(table.linkId, table.occurredAt),
+    index('affiliate_clicks_merchant_idx').on(table.merchantId, table.occurredAt),
+    check('affiliate_clicks_country_iso2', sql`${table.country} ~ '^[A-Z]{2}$'`),
+    check('affiliate_clicks_referrer_host_len', sql`char_length(${table.referrerHost}) <= 253`),
   ],
 );

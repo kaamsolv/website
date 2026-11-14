@@ -73,3 +73,11 @@ Not part of the staging go-ahead. When the staging run is clean and the owner ap
 5. Check on production: a portal page, the report page, `/app/affiliate` signed in, and `npm run affiliate:merchant -- list` against production (read-only).
 
 Rollback is `npx wrangler rollback` for the Worker; the schema changes are additive and the previous Worker ignores them. The release gates in `docs/products/affiliate-manager.md` must all be met first.
+
+## Phase 3A (referral links and recorded clicks): staging steps, not yet run
+
+Migration 0022 follows 0021. The atomic runner applies pending migrations **in journal order**, so a staging test of "0018, 0019 and 0022" is really the whole journal, ending in 0022 (0022 can't be applied without 0020 and 0021 in between). Use a **fresh, non-production** Neon database (creating or touching one is the owner's approval) and the same safeguards as above (`DATABASE_URL` in that one command, `--expect-host` typed by the owner, `--non-production`).
+
+1. `npm run db:migrate:atomic -- --expect-host <host> --non-production` (dry run), then with `--confirm`. Expect the journal to read 23 rows.
+2. `npm run affiliate:smoke -- --expect-host <host> --non-production --confirm`. Expect 14 of 14 (checks 13 and 14 are the link and click checks, through the real Neon HTTP driver).
+3. The post-response write, on Workers: `npm run cf:build`, then run the preview against the same database (`.dev.vars` with that `DATABASE_URL`, or `npx wrangler dev --var`; a Worker has no PGlite, so the preview cannot run database routes without it) and run `npm run affiliate:smoke -- --expect-host <host> --non-production --confirm --redirect-base-url http://localhost:8787`. Three more checks run: the real 302 with `?ref=`, **the click written after the response appearing in the database** (polled for up to 10 s), and previews and paused affiliates recording nothing. Delete `.dev.vars` afterwards.

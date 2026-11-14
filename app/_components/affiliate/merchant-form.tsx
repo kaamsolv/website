@@ -19,6 +19,7 @@ import {
   slugFromName,
   type MerchantBrand,
 } from '@/app/lib/affiliate/merchant';
+import { DestinationField } from './destination-field';
 import { PortalView } from './portal-view';
 
 type Saved = { slug: string; name: string; brand: MerchantBrand; portalPath: string; status?: 'active' | 'suspended'; suspendedReason?: string };
@@ -139,6 +140,7 @@ export function MerchantForm() {
         </Notice>
       )}
       <div className="grid gap-8 lg:grid-cols-2">
+      <div className="min-w-0 space-y-6">
       <form onSubmit={onSave} className="space-y-5" noValidate>
         <div>
           <label htmlFor="m-name" className={label}>
@@ -246,6 +248,9 @@ export function MerchantForm() {
           {state === 'saving' ? 'Saving…' : saved ? 'Save changes' : 'Create my portal'}
         </button>
       </form>
+
+      {saved && <DestinationField disabled={suspended} />}
+      </div>
 
       <section aria-label="Preview of your portal" className="min-w-0">
         <p className="mb-2 text-sm font-bold text-ink">Preview</p>

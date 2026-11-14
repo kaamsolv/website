@@ -24,6 +24,8 @@ type Row = {
   country: string;
   membership: 'active' | 'suspended' | null;
   suspendNote: string;
+  clicks30: number;
+  clicksAll: number;
 };
 type Door = { status: 'open' | 'closed' | null; pending: number; slug: string; suspended: boolean; suspendedReason: string };
 
@@ -201,6 +203,12 @@ export function ApplicationsPanel({ initialFilter = 'pending' }: { initialFilter
                 <p className="mt-2 text-xs text-muted">Applied {day(r.createdAt)}</p>
                 {r.decisionNote && <p className="mt-2 break-words text-sm text-muted">Your note: “{r.decisionNote}”</p>}
                 {r.membership === 'suspended' && r.suspendNote && <p className="mt-1 break-words text-sm text-muted">Reason for pausing: “{r.suspendNote}”</p>}
+                {r.status === 'approved' && (
+                  <p className="mt-2 text-sm text-strong" data-testid="recorded-clicks">
+                    Recorded clicks on their link: <span className="font-bold tabular-nums text-ink">{r.clicks30.toLocaleString('en-IN')}</span> in the last 30 days,{' '}
+                    <span className="font-bold tabular-nums text-ink">{r.clicksAll.toLocaleString('en-IN')}</span> in all.
+                  </p>
+                )}
 
                 {r.status === 'pending' && (
                   <div className="mt-3">

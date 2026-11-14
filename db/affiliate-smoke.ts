@@ -3,10 +3,12 @@
  * driver. It is driver-free (takes a `db`), so it is proved on PGlite in the unit tests and then run against a
  * staging Neon database by `npm run affiliate:smoke` (db/affiliate-staging-smoke.mts) through the real Neon HTTP driver.
  *
- * What it checks: that the migrations (0018 to 0021) are in; one merchant per owner and taken slugs (the unique-violation
+ * What it checks: that the migrations (0018 to 0022) are in; one merchant per owner and taken slugs (the unique-violation
  * handling, which has only run on PGlite); the one-statement writes that use data-modifying CTEs, typed parameters and
  * `pg_trigger_depth()`; apply, approve, suspend and reinstate; the append-only history; the emails queued with each
- * change (once); reports and operator suspension; the plan entitlement; cross-merchant isolation; and that removing the
+ * change (once); referral links (made once, resolved, `?ref=` added) and recorded clicks (written, counted, and skipped for
+ * previews and paused affiliates); optionally the real redirect over HTTP, including that the click written *after* the
+ * response persists; reports and operator suspension; the plan entitlement; cross-merchant isolation; and that removing the
  * test accounts removes everything they made.
  *
  * It only ever creates rows tagged `smoke-<tag>-…@example.test` and removes them (and their outbox jobs) at the end,
@@ -21,11 +23,13 @@ import { getEntitlements } from './entitlements.ts';
 import type { Db } from './links.ts';
 import { createMerchant, merchantForOwner, merchantScope, portalRegistration, publicMerchantBySlug } from './merchant-scope.ts';
 import { createPortalReport, listPortalReports } from './portal-reports.ts';
+import { ensureLinks, linksForAffiliate, recordAffiliateClick, resolveAffiliateLink } from './affiliate-links.ts';
+import { withRef } from '../app/lib/affiliate/link.ts';
 import { authUsers } from './schema.ts';
 
 export type SmokeResult = { name: string; ok: boolean; detail: string };
 
-const TABLES = ['merchants', 'merchant_brand_settings', 'programmes', 'programme_applications', 'programme_memberships', 'affiliate_profiles', 'affiliate_events', 'portal_reports'];
+const TABLES = ['merchants', 'merchant_brand_settings', 'programmes', 'programme_applications', 'programme_memberships', 'affiliate_profiles', 'affiliate_events', 'portal_reports', 'affiliate_links', 'affiliate_clicks'];
 const rows = <T,>(r: unknown) => (r as { rows: T[] }).rows;
 const brand = { logo: null, brandColour: '#FE6336', programmeName: 'Smoke Partners', programmeDescription: '', terms: '' };
 
@@ -37,7 +41,22 @@ export async function onlyTestAccounts(db: Db): Promise<{ ok: boolean; total: nu
   return { ok: r.real === 0, total: r.total };
 }
 
-export async function runAffiliateSmoke(db: Db, tag: string): Promise<SmokeResult[]> {
+export type SmokeOptions = {
+  /**
+   * The address of a running copy of the app that uses THIS database (for example the OpenNext preview on
+   * http://localhost:8787, or a staging deployment). When given, the smoke test also requests a real referral link
+   * and waits for the click that is written after the response to appear in the database.
+   */
+  redirectBaseUrl?: string;
+  /** How long to wait for that click to appear. */
+  waitMs?: number;
+};
+
+const HUMAN_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const BOT_UA = 'WhatsApp/2.23.20.0';
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export async function runAffiliateSmoke(db: Db, tag: string, options: SmokeOptions = {}): Promise<SmokeResult[]>{
   const results: SmokeResult[] = [];
   const email = (n: string) => `smoke-${tag}-${n}@example.test`;
   const check = async (name: string, fn: () => Promise<string | void>) => {
@@ -63,10 +82,12 @@ export async function runAffiliateSmoke(db: Db, tag: string): Promise<SmokeResul
 
   const slugA = `smoke-a-${tag}`;
   const slugB = `smoke-b-${tag}`;
-  const ids: { ownerA?: string; ownerB?: string; aff?: string; ma?: string; mb?: string; app?: string } = {};
+  const ids: { ownerA?: string; ownerB?: string; aff?: string; ma?: string; mb?: string; app?: string; link?: string; code?: string; before?: number } = {};
+  const destination = 'https://smoke-store.example/shop';
+  const clicksOf = async (linkId: string) => Number(rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from affiliate_clicks where link_id = ${linkId}::uuid`))[0].n);
 
   try {
-    await check('migrations 0018 to 0021 are applied (tables and columns exist)', async () => {
+    await check('migrations 0018 to 0022 are applied (tables and columns exist)', async () => {
       for (const t of TABLES) {
         const r = rows<{ ok: boolean }>(await db.execute(sql`select to_regclass(${`public.${t}`}) is not null as ok`))[0];
         must(r.ok, `table ${t} is missing`);
@@ -75,6 +96,8 @@ export async function runAffiliateSmoke(db: Db, tag: string): Promise<SmokeResul
         await db.execute(sql`select column_name from information_schema.columns where table_name = 'merchants' and column_name in ('status', 'suspended_reason')`),
       );
       must(cols.length === 2, 'merchants.status / suspended_reason are missing (is 0021 applied?)');
+      const dest = rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from information_schema.columns where table_name = 'programmes' and column_name = 'destination_url'`))[0].n;
+      must(dest === 1, 'programmes.destination_url is missing (is 0022 applied?)');
       const plan = rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from plan_features where plan_key = 'affiliate_manager' and feature_key = 'affiliate_programme'`))[0];
       must(plan.n === 1, 'the affiliate_manager plan is not seeded');
     });
@@ -145,11 +168,86 @@ export async function runAffiliateSmoke(db: Db, tag: string): Promise<SmokeResul
       must(await scope.setMembership(ids.app!, 'active', ids.ownerA!, ''), 'reinstate failed');
     });
 
+
+    await check('save the destination; each membership gets one link, made once; the link resolves and gets ?ref=', async () => {
+      await merchantScope(db, ids.ma!).saveDestination(destination, ids.ownerA!);
+      must((await merchantScope(db, ids.ma!).destination()) === destination, 'the destination was not saved');
+      must((await ensureLinks(db, ids.aff!)) === 1, 'the first call did not make exactly one link');
+      must((await ensureLinks(db, ids.aff!)) === 0, 'a second call made another link');
+      const [mine] = await linksForAffiliate(db, ids.aff!);
+      must(mine && /^[0-9A-Za-z]{8}$/.test(mine.code) && mine.hasDestination && !mine.paused, 'the link is not as expected');
+      ids.code = mine.code;
+      const r = await resolveAffiliateLink(db, slugA, mine.code);
+      must(r.outcome === 'ok' && r.destination === destination, 'the link did not resolve to the destination');
+      ids.link = (r as { linkId: string }).linkId;
+      must((await resolveAffiliateLink(db, slugB, mine.code)).outcome === 'not_found', 'the code resolved under another business');
+      must(withRef(destination, mine.code) === `${destination}?ref=${mine.code}`, 'the ?ref= address is wrong');
+    });
+
+    await check('a click is written and counted; a preview and a paused affiliate record nothing; reinstated, it records again', async () => {
+      const human = { deviceClass: 'mobile', referrerHost: 'web.whatsapp.com', country: 'IN' } as const;
+      must(await recordAffiliateClick(db, ids.link!, human), 'a click was not written');
+      must(!(await recordAffiliateClick(db, ids.link!, { deviceClass: 'bot', referrerHost: null, country: null })), 'a preview was recorded');
+      must((await clicksOf(ids.link!)) === 1, 'expected exactly 1 recorded click');
+      const scope = merchantScope(db, ids.ma!);
+      must(await scope.setMembership(ids.app!, 'suspended', ids.ownerA!, 'Test'), 'pause failed');
+      must(!(await recordAffiliateClick(db, ids.link!, human)), 'a paused affiliate’s click was recorded');
+      must(await scope.setMembership(ids.app!, 'active', ids.ownerA!, ''), 'reinstate failed');
+      must(await recordAffiliateClick(db, ids.link!, human), 'a reinstated affiliate’s click was not recorded');
+      const [mine] = await linksForAffiliate(db, ids.aff!);
+      must(mine.clicks.all === 2 && mine.clicks.days7 === 2, `the affiliate sees ${mine.clicks.all} click(s), expected 2`);
+      const [row] = await scope.listApplications('approved');
+      must(row.clicksAll === 2, `the business sees ${row.clicksAll} click(s), expected 2`);
+    });
+
+    if (options.redirectBaseUrl) {
+      const base = options.redirectBaseUrl.replace(/\/+$/, '');
+      const waitMs = options.waitMs ?? 10_000;
+      const get = (path: string, ua: string) => fetch(`${base}${path}`, { redirect: 'manual', headers: { 'user-agent': ua } });
+      const waitFor = async (want: number) => {
+        const until = Date.now() + waitMs;
+        while (Date.now() < until) {
+          if ((await clicksOf(ids.link!)) >= want) return true;
+          await sleep(250);
+        }
+        return (await clicksOf(ids.link!)) >= want;
+      };
+      await check('the real redirect: 302 to the destination with ?ref=, no-store, noindex; unknown code is 404', async () => {
+        const before = await clicksOf(ids.link!);
+        const res = await get(`/${slugA}/${ids.code}`, HUMAN_UA);
+        must(res.status === 302, `expected 302, got ${res.status}`);
+        must(res.headers.get('location') === withRef(destination, ids.code!), `Location was ${res.headers.get('location')}`);
+        must(/no-store/.test(res.headers.get('cache-control') ?? ''), 'the redirect is cacheable');
+        must(/noindex/.test(res.headers.get('x-robots-tag') ?? ''), 'the redirect is indexable');
+        must((await get(`/${slugA}/NoSuchCd`, HUMAN_UA)).status === 404, 'an unknown code was not 404');
+        must((await get(`/nobody-${tag}/${ids.code}`, HUMAN_UA)).status === 404, 'an unknown business was not 404');
+        ids.before = before;
+      });
+      await check('the click written AFTER the response persisted (polled in the database)', async () => {
+        const want = (ids.before ?? 0) + 1;
+        must(await waitFor(want), `no new click appeared within ${waitMs} ms: the post-response write did not persist (is this app using the same database?)`);
+        return `appeared and counted ${await clicksOf(ids.link!)}`;
+      });
+      await check('over HTTP: a link preview records nothing; a paused affiliate goes to the store without ?ref= and records nothing', async () => {
+        const settled = await clicksOf(ids.link!);
+        must((await get(`/${slugA}/${ids.code}`, BOT_UA)).status === 302, 'a preview request was not redirected');
+        await sleep(1500);
+        must((await clicksOf(ids.link!)) === settled, 'a preview was recorded');
+        const scope = merchantScope(db, ids.ma!);
+        must(await scope.setMembership(ids.app!, 'suspended', ids.ownerA!, 'Test'), 'pause failed');
+        const res = await get(`/${slugA}/${ids.code}`, HUMAN_UA);
+        must(res.status === 302 && res.headers.get('location') === destination, `a paused link went to ${res.headers.get('location')}`);
+        await sleep(1500);
+        must((await clicksOf(ids.link!)) === settled, 'a paused affiliate’s click was recorded');
+        must(await scope.setMembership(ids.app!, 'active', ids.ownerA!, ''), 'reinstate failed');
+      });
+    }
+
     await check('the history is append-only: update and delete are refused', async () => {
       must(await refused(sql`update affiliate_events set action = 'approved' where merchant_id = ${ids.ma!}::uuid`, /append-only/), 'an event row could be updated');
       must(await refused(sql`delete from affiliate_events where merchant_id = ${ids.ma!}::uuid`, /append-only/), 'an event row could be deleted directly');
       const ev = rows<{ action: string }>(await db.execute(sql`select action from affiliate_events where merchant_id = ${ids.ma!}::uuid order by id`)).map((r) => r.action);
-      for (const a of ['portal_created', 'programme_opened', 'applied', 'approved', 'suspended', 'reinstated']) must(ev.includes(a), `event ${a} missing`);
+      for (const a of ['portal_created', 'programme_opened', 'applied', 'approved', 'suspended', 'reinstated', 'destination_saved', 'link_created']) must(ev.includes(a), `event ${a} missing`);
     });
 
     await check('report a portal (live: stored; unknown: dropped); operator suspend hides it and reinstate restores it', async () => {
@@ -179,6 +277,7 @@ export async function runAffiliateSmoke(db: Db, tag: string): Promise<SmokeResul
           select (select count(*) from merchants where slug in (${slugA}, ${slugB}))::int
                + (select count(*) from auth_users where email like ${`smoke-${tag}-%`})::int
                + (select count(*) from outbox where payload->>'applicationId' = ${ids.app ?? ''})::int
+               + (select count(*) from affiliate_links where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int
                + (select count(*) from affiliate_events where merchant_id in (${ids.ma ?? '00000000-0000-0000-0000-000000000000'}::uuid, ${ids.mb ?? '00000000-0000-0000-0000-000000000000'}::uuid))::int as n`),
       )[0].n;
       must(left === 0, `${left} test row(s) are still there`);

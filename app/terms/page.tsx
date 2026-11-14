@@ -73,6 +73,11 @@ export default function TermsPage() {
         arrangement between a business and its affiliates. For now we handle applications and approvals only: we
         don&apos;t track sales, and we don&apos;t hold or pay any money.
       </p>
+      <p>
+        A referral link sends people to the business&apos;s own store or page, which KaamSolv doesn&apos;t run or check.
+        The click counts we show are the clicks we recorded. They aren&apos;t a count of people, of different visitors or of
+        sales, and we don&apos;t promise they match anyone else&apos;s numbers.
+      </p>
       <p>Don&apos;t use a programme page to:</p>
       <ul>
         <li>pretend to be another business, a bank, a payment provider or an official body;</li>
