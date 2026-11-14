@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Sora, Inter, Caveat } from 'next/font/google';
 import './globals.css';
 import { Analytics } from './_components/analytics';
+import { RECENT_BAR_SCRIPT } from './lib/recent-tools';
 
 // Self-hosted at build time by next/font — no runtime request to
 // fonts.googleapis.com, same as Tailwind no longer calling its CDN.
@@ -84,6 +85,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Reserves the space of the "recent tools" bar before first paint, so the page does not jump when it appears. */}
+        <script dangerouslySetInnerHTML={{ __html: RECENT_BAR_SCRIPT }} />
         {/* Before the page, so the GA setup runs before any tool event. Renders nothing without NEXT_PUBLIC_GA_ID. */}
         <Analytics />
         {children}

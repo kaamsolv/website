@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Icon } from './icons';
 import { liveFirst, searchTools, TOOLS, toolHref, type Tool } from '../lib/catalogue';
 import { actionOf, SUGGESTED_TASKS } from '../lib/search-actions';
+import { recentList } from '../lib/recent-tools';
+import { useRecentTools } from './recent/use-recent-tools';
 
 type Variant = 'hero' | 'compact';
 
@@ -40,7 +42,19 @@ export function ToolSearch({
   const trimmed = query.trim();
   const matches = useMemo(() => (trimmed ? liveFirst(searchTools(trimmed)) : []), [trimmed]);
   const suggested = useMemo(() => SUGGESTED_TASKS.map((slug) => TOOLS.find((t) => t.slug === slug)).filter((t): t is Tool => !!t && t.status === 'live'), []);
-  const showing: Tool[] = trimmed ? matches : suggested;
+  // With an empty field, tools this device opened lately come first (kept on the device, never sent anywhere); the usual suggestions fill the rest.
+  const history = useRecentTools();
+  const recents = useMemo(() => recentList(history, 3).map((e) => TOOLS.find((t) => t.slug === e.slug)).filter((t): t is Tool => !!t && t.status === 'live'), [history]);
+  const suggestedRest = useMemo(() => suggested.filter((t) => !recents.some((r) => r.slug === t.slug)).slice(0, Math.max(0, 6 - recents.length)), [suggested, recents]);
+  const groups: { key: string; label: string; tools: Tool[] }[] = trimmed
+    ? [{ key: 'match', label: 'Best matches', tools: matches }]
+    : recents.length > 0
+      ? [
+          { key: 'recent', label: 'Recent', tools: recents },
+          { key: 'try', label: 'Try one of these', tools: suggestedRest },
+        ]
+      : [{ key: 'try', label: 'Try one of these', tools: suggested }];
+  const showing: Tool[] = groups.flatMap((g) => g.tools);
   const noResults = trimmed.length > 0 && matches.length === 0;
 
   useEffect(() => {
@@ -90,6 +104,29 @@ export function ToolSearch({
 
   const big = variant === 'hero';
   const activeId = active >= 0 && showing[active] ? `${listId}-opt-${active}` : undefined;
+
+  const option = (tool: Tool, i: number) => (
+    <li key={tool.slug} id={`${listId}-opt-${i}`} role="option" aria-selected={i === active}>
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => go(tool)}
+        onMouseEnter={() => setActive(i)}
+        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left ${i === active ? 'bg-wash' : ''}`}
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-chip text-strong">
+          <Icon name="search" className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-ink">{actionOf(tool.slug) ?? tool.name}</span>
+          <span className="block truncate text-xs text-muted">{actionOf(tool.slug) ? `${tool.name} · ${tool.blurb}` : tool.blurb}</span>
+        </span>
+        <span className="shrink-0 rounded-full bg-chip px-2 py-0.5 text-[11px] font-medium text-strong">{tool.status === 'live' ? tool.category : 'Soon'}</span>
+      </button>
+    </li>
+  );
+  const LABEL = 'px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted';
+  let offset = 0;
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
@@ -158,47 +195,34 @@ export function ToolSearch({
           // keep focus in the input when a result is tapped
           onMouseDown={(e) => e.preventDefault()}
         >
-          {showing.length > 0 && (
-            <>
-              <p
-                id={autoId}
-                className="border-b border-hair px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted"
-              >
-                {trimmed ? 'Best matches' : 'Try one of these'}
-              </p>
-              <ul id={listId} role="listbox" aria-labelledby={autoId} className="max-h-80 overflow-y-auto py-1">
-                {showing.map((tool, i) => (
-                  <li
-                    key={tool.slug}
-                    id={`${listId}-opt-${i}`}
-                    role="option"
-                    aria-selected={i === active}
-                  >
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => go(tool)}
-                      onMouseEnter={() => setActive(i)}
-                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left ${
-                        i === active ? 'bg-wash' : ''
-                      }`}
-                    >
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-chip text-strong">
-                        <Icon name="search" className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-ink">{actionOf(tool.slug) ?? tool.name}</span>
-                        <span className="block truncate text-xs text-muted">{actionOf(tool.slug) ? `${tool.name} · ${tool.blurb}` : tool.blurb}</span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-chip px-2 py-0.5 text-[11px] font-medium text-strong">
-                        {tool.status === 'live' ? tool.category : 'Soon'}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+          {showing.length > 0 &&
+            (groups.length === 1 ? (
+              <>
+                <p id={autoId} className={`border-b border-hair ${LABEL}`}>
+                  {groups[0].label}
+                </p>
+                <ul id={listId} role="listbox" aria-labelledby={autoId} className="max-h-80 overflow-y-auto py-1">
+                  {showing.map(option)}
+                </ul>
+              </>
+            ) : (
+              <ul id={listId} role="listbox" aria-label="Recent and suggested tools" className="max-h-80 overflow-y-auto pb-1">
+                {groups.map((g, gi) => {
+                  const start = offset;
+                  offset += g.tools.length;
+                  return (
+                    <li key={g.key} role="presentation">
+                      <p id={`${listId}-${g.key}`} className={`border-hair ${gi === 0 ? 'border-b' : 'border-y'} ${LABEL}`}>
+                        {g.label}
+                      </p>
+                      <ul role="group" aria-labelledby={`${listId}-${g.key}`} className="py-1">
+                        {g.tools.map((tool, j) => option(tool, start + j))}
+                      </ul>
+                    </li>
+                  );
+                })}
               </ul>
-            </>
-          )}
+            ))}
 
           {noResults && (
             <div className="px-4 py-4 text-sm">

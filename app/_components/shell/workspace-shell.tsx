@@ -1,5 +1,6 @@
 import AdSlot from '@/app/components/AdSlot';
 import { WorkspaceChrome } from './workspace-chrome';
+import { RecentFromPath } from '../recent/recent-recorder';
 
 /**
  * WorkspaceShell: the frame for a full-screen application (invoice management, QR management, and any
@@ -43,6 +44,7 @@ export function WorkspaceShell({
         />
       }
     >
+      <RecentFromPath />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>

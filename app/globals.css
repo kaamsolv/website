@@ -267,3 +267,13 @@ body {
   header, footer, nav, [data-print-hide], [data-testid="share-tool"], details { display: none !important; }
   body { background: #fff !important; }
 }
+
+/* The slim "recent tools" bar under the header (app/_components/recent/recent-bar.tsx). A script before first paint marks the page
+   data-recent="1" when the bar will show, so its space is reserved and nothing jumps; the bar then fills it. If it turns out the bar
+   is not needed (nothing valid stored, or hidden for now) the slot closes up. Heights match the bar's: 2.75rem, and 3.25rem on touch. */
+.recent-slot { display: none; }
+html[data-recent="1"] .recent-slot:not([data-open="false"]) { display: block; min-height: 2.75rem; }
+.recent-slot[data-open="true"] { display: block; min-height: 2.75rem; }
+@media (pointer: coarse) {
+  html[data-recent="1"] .recent-slot:not([data-open="false"]), .recent-slot[data-open="true"] { min-height: 3.25rem; }
+}
