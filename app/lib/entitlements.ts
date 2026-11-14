@@ -40,6 +40,8 @@ export const ENTITLEMENT_KEYS = [
   'qr_breakdowns',
   /** CSV export of QR codes and scans (QR Pro). */
   'qr_export',
+  /** Run an affiliate programme: make the portal and open registration. Held by the Affiliate Manager plan (manual grant until it is on sale). */
+  'affiliate_programme',
   // PDF tools (docs/products/pdf-tools.md). Nobody holds these yet: the Pro
   // features behind them ship in PDF Stage 2. Limits live in app/lib/pdf/limits.ts.
   /** Compress several PDFs at once, plus the "strong" level. */

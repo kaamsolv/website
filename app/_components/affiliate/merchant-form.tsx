@@ -5,12 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from '@/app/_components/account/account-shell';
 import { Notice } from '@/app/_components/notice';
 import { Skeleton } from '@/app/_components/skeleton';
+import { useEntitlements } from '@/app/lib/me-client';
 import { LOGO_TYPES } from '@/app/lib/invoice/limits';
 import { readLogo } from '@/app/lib/invoice/logo';
 import {
   BRAND_COLOUR_RE,
   DEFAULT_BRAND_COLOUR,
   MERCHANT_LIMITS,
+  NOT_ALLOWED_MESSAGE,
+  SUSPENDED_OWNER_MESSAGE,
   checkSlug,
   portalLabel,
   slugFromName,
@@ -18,13 +21,14 @@ import {
 } from '@/app/lib/affiliate/merchant';
 import { PortalView } from './portal-view';
 
-type Saved = { slug: string; name: string; brand: MerchantBrand; portalPath: string };
+type Saved = { slug: string; name: string; brand: MerchantBrand; portalPath: string; status?: 'active' | 'suspended'; suspendedReason?: string };
 
 const label = 'block text-sm font-bold text-ink';
 const hint = 'mt-1 text-xs text-muted';
 
 /** Set up the programme and its branded portal (/app/affiliate/portal). Creates it once, then edits it. */
 export function MerchantForm() {
+  const plan = useEntitlements();
   const [loaded, setLoaded] = useState<'loading' | 'error' | 'ready'>('loading');
   const [saved, setSaved] = useState<Saved | null>(null);
   const [name, setName] = useState('');
@@ -55,6 +59,18 @@ export function MerchantForm() {
 
   if (loaded === 'loading') return <Skeleton className="h-96" />;
   if (loaded === 'error') return <Notice role="alert">Couldn’t load your programme. Refresh to try again.</Notice>;
+  // Making a first programme needs the Affiliate Manager plan (manual grant until it is on sale).
+  if (!saved && !plan.loading && !plan.can('affiliate_programme')) {
+    return (
+      <Notice tone="info" role="status" >
+        {NOT_ALLOWED_MESSAGE}{' '}
+        <Link href="/contact" className="font-bold underline">
+          Contact us
+        </Link>
+      </Notice>
+    );
+  }
+  const suspended = saved?.status === 'suspended';
 
   const touch = () => {
     setState('idle');
@@ -115,7 +131,14 @@ export function MerchantForm() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
+    <div className="space-y-6">
+      {suspended && (
+        <Notice role="alert">
+          {SUSPENDED_OWNER_MESSAGE}
+          {saved?.suspendedReason ? ` Reason: ${saved.suspendedReason}` : ''}
+        </Notice>
+      )}
+      <div className="grid gap-8 lg:grid-cols-2">
       <form onSubmit={onSave} className="space-y-5" noValidate>
         <div>
           <label htmlFor="m-name" className={label}>
@@ -219,7 +242,7 @@ export function MerchantForm() {
           </Notice>
         )}
 
-        <button type="submit" className={PRIMARY} disabled={state === 'saving'}>
+        <button type="submit" className={PRIMARY} disabled={state === 'saving' || suspended}>
           {state === 'saving' ? 'Saving…' : saved ? 'Save changes' : 'Create my portal'}
         </button>
       </form>
@@ -230,6 +253,7 @@ export function MerchantForm() {
           <PortalView name={name.trim() || 'Your business'} brand={brand} />
         </div>
       </section>
+      </div>
     </div>
   );
 }

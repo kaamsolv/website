@@ -24,7 +24,11 @@ export async function GET(req: Request) {
     if (!m) return json({ ok: true, joined, created: null });
     const scope = merchantScope(db, m.id);
     const [counts, status] = await Promise.all([scope.applicationCounts(), scope.programmeStatus()]);
-    return json({ ok: true, joined, created: { slug: m.slug, name: m.name, registration: status === 'open' ? 'open' : 'closed', counts } });
+    return json({
+      ok: true,
+      joined,
+      created: { slug: m.slug, name: m.name, registration: status === 'open' ? 'open' : 'closed', counts, suspended: m.status === 'suspended', suspendedReason: m.suspendedReason },
+    });
   } catch (e) {
     console.error('[api/affiliate/nav]', formatErrorForLog(e));
     return fail(500, 'server_error', 'Couldn’t load that.');

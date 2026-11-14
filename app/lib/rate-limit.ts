@@ -59,6 +59,11 @@ export const ANONYMOUS_LIMITS = {
     { limit: 20, windowSeconds: 60 * 60, window: '1h' },
     { limit: 100, windowSeconds: 24 * 60 * 60, window: '1d' },
   ],
+  /** Reporting a merchant's portal, per caller (salted IP hash). Open to anyone, so tighter than a signed-in action. */
+  affiliatePortalReport: [
+    { limit: 5, windowSeconds: 60 * 60, window: '1h' },
+    { limit: 20, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
   /** Approving or rejecting applications, per signed-in user. */
   affiliateDecide: [
     { limit: 120, windowSeconds: 60 * 60, window: '1h' },

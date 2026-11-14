@@ -78,7 +78,7 @@ export function affiliateScope(db: Db, userId: string) {
                  exists (select 1 from programme_applications a where a.programme_id = pr.id and a.affiliate_user_id = ${userId}::uuid and a.status = 'rejected'
                            and a.decided_at > now() - ${REAPPLY_COOLDOWN_DAYS} * interval '1 day') as cooling
           from merchants m left join programmes pr on pr.merchant_id = m.id
-          where m.slug = ${slug}
+          where m.slug = ${slug} and m.status = 'active'
         `),
       );
       const r = rows[0];
@@ -104,7 +104,7 @@ export function affiliateScope(db: Db, userId: string) {
             with p as (
               select pr.id as programme_id, pr.merchant_id
               from programmes pr join merchants m on m.id = pr.merchant_id
-              where m.slug = ${slug} and pr.status = 'open' and m.owner_user_id <> ${userId}::uuid
+              where m.slug = ${slug} and m.status = 'active' and pr.status = 'open' and m.owner_user_id <> ${userId}::uuid
             ),
             blocked as (
               select 1 from programme_memberships ms join p on p.programme_id = ms.programme_id

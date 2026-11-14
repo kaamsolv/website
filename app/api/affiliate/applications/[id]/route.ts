@@ -7,6 +7,7 @@
 
 import { after } from 'next/server';
 import { cleanNote } from '@/app/lib/affiliate/application';
+import { SUSPENDED_OWNER_MESSAGE } from '@/app/lib/affiliate/merchant';
 import { overLimit } from '@/app/lib/affiliate/server';
 import { fail, isUuid, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { DRAIN_AFTER_REQUEST, drainOutbox } from '@/app/lib/billing/jobs';
@@ -39,6 +40,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const db = await getDb();
     const m = await merchantForOwner(db, user.id);
     if (!m) return fail(404, 'not_found', 'We couldn’t find that application.');
+    if (m.status === 'suspended' && (decision === 'approved' || decision === 'reinstated')) return fail(403, 'suspended', SUSPENDED_OWNER_MESSAGE);
     const limited = await overLimit(db, [{ action: 'affiliateDecide', who: user.id }], 'That’s a lot of decisions. Try again in a little while.');
     if (limited) return limited;
     const scope = merchantScope(db, m.id);

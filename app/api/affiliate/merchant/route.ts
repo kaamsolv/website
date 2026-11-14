@@ -7,8 +7,8 @@
  * read and write goes through db/merchant-scope.ts. The slug is fixed once created.
  */
 
-import { checkSlug, cleanMerchantInput, portalPath, type MerchantView } from '@/app/lib/affiliate/merchant';
-import { overLimit } from '@/app/lib/affiliate/server';
+import { NOT_ALLOWED_MESSAGE, SUSPENDED_OWNER_MESSAGE, checkSlug, cleanMerchantInput, portalPath, type MerchantView } from '@/app/lib/affiliate/merchant';
+import { canRunProgramme, overLimit } from '@/app/lib/affiliate/server';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
@@ -17,7 +17,7 @@ import { createMerchant, merchantForOwner, merchantScope, type OwnerMerchant } f
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const shape = ({ id: _id, ...m }: OwnerMerchant): MerchantView & { portalPath: string } => ({ ...m, portalPath: portalPath(m.slug) });
+const shape = ({ id: _id, ...m }: OwnerMerchant): Omit<OwnerMerchant, 'id'> & { portalPath: string } => ({ ...m, portalPath: portalPath(m.slug) });
 
 export async function GET(req: Request) {
   const user = await requireUser(req);
@@ -50,6 +50,8 @@ export async function PUT(req: Request) {
     const limited = await overLimit(db, [{ action: 'affiliateMerchantEdit', who: user.id }], 'That’s a lot of changes. Try again in a little while.');
     if (limited) return limited;
     const current = await merchantForOwner(db, user.id);
+    if (!current && !(await canRunProgramme(db, user.id))) return fail(403, 'not_allowed', NOT_ALLOWED_MESSAGE);
+    if (current?.status === 'suspended') return fail(403, 'suspended', SUSPENDED_OWNER_MESSAGE);
     if (!current) {
       const slug = checkSlug(body.slug);
       if (!slug.ok) return fail(400, slug.error, slug.message);

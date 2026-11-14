@@ -9,7 +9,7 @@ export type AffiliateNav = {
   /** My applications to other people's programmes, by status. */
   joined: StatusCounts;
   /** My own programme, or null if I haven't made one. */
-  created: null | { slug: string; name: string; registration: 'open' | 'closed'; counts: StatusCounts };
+  created: null | { slug: string; name: string; registration: 'open' | 'closed'; counts: StatusCounts; suspended: boolean; suspendedReason: string };
 };
 
 /** The totals the sidebar and the Affiliate page both show. `null` while loading or if it couldn't load. */

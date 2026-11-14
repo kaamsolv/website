@@ -148,6 +148,13 @@
       "when": 1794601681688,
       "tag": "0020_spicy_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794622562183,
+      "tag": "0021_volatile_scrambler",
+      "breakpoints": true
     }
   ]
 }

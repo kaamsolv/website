@@ -40,7 +40,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { DEVICE_CLASSES } from '../app/lib/click-meta.ts';
 import { MAX_REPORT_DETAILS, REPORT_REASONS } from '../app/lib/report.ts';
-import { MERCHANT_LIMITS, MERCHANT_LOGO_MAX_CHARS } from '../app/lib/affiliate/merchant.ts';
+import { MERCHANT_LIMITS, MERCHANT_LOGO_MAX_CHARS, MERCHANT_STATUSES, SUSPENDED_REASON_MAX } from '../app/lib/affiliate/merchant.ts';
+import { PORTAL_REPORT_DETAILS_MAX, PORTAL_REPORT_REASONS, PORTAL_REPORT_STATUSES } from '../app/lib/affiliate/report.ts';
 import {
   AFFILIATE_EVENT_ACTIONS,
   AFFILIATE_LIMITS,
@@ -1044,6 +1045,8 @@ export type QrCodeRow = typeof qrCodes.$inferSelect;
 // Only db/merchant-scope.ts may import these two tables (test/affiliate-isolation.test.mts fails otherwise), so
 // every read and write is tied to one merchant. docs/products/affiliate-manager.md.
 
+const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
+
 /** A business running an affiliate programme. One per owner; the slug is fixed at creation so shared links keep working. */
 export const merchants = pgTable(
   'merchants',
@@ -1054,10 +1057,17 @@ export const merchants = pgTable(
       .references(() => authUsers.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull(),
     name: text('name').notNull(),
+    /** active, or suspended by an operator (npm run affiliate:merchant): the portal answers 404 and registration is shut. */
+    status: text('status').notNull().default('active'),
+    suspendedAt: timestamp('suspended_at', { withTimezone: true }),
+    /** Shown to the owner. */
+    suspendedReason: text('suspended_reason').notNull().default(''),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    check('merchants_status', sql`${table.status} in (${inList(MERCHANT_STATUSES)})`),
+    check('merchants_suspended_reason_len', sql`char_length(${table.suspendedReason}) <= ${sql.raw(String(SUSPENDED_REASON_MAX))}`),
     uniqueIndex('merchants_owner_user_id_key').on(table.ownerUserId),
     uniqueIndex('merchants_slug_key').on(table.slug),
     check('merchants_slug_shape', sql`${table.slug} ~ '^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$'`),
@@ -1092,7 +1102,6 @@ export const merchantBrandSettings = pgTable(
 //
 // Registration and approval. Reachable only through db/merchant-scope.ts (merchant side) and db/affiliate-scope.ts
 // (an affiliate's own rows); test/affiliate-isolation.test.mts fails if any other file uses these tables.
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /** A person's affiliate profile: one per KaamSolv account, shared by every programme they join. No payout details yet. */
 export const affiliateProfiles = pgTable(
@@ -1221,5 +1230,34 @@ export const affiliateEvents = pgTable(
     index('affiliate_events_merchant_idx').on(table.merchantId, table.at.desc()),
     index('affiliate_events_affiliate_idx').on(table.affiliateUserId, table.at.desc()),
     check('affiliate_events_action', sql`${table.action} in (${inList(AFFILIATE_EVENT_ACTIONS)})`),
+  ],
+);
+
+/**
+ * Reports of a merchant's portal (migration 0021): impersonation, scams, misleading promises. Anyone may report; only
+ * reports of portals that exist are stored (an unknown address is accepted and discarded, so the form can't be used to
+ * find which addresses exist). A report changes nothing by itself: an operator reads it (npm run affiliate:reports)
+ * and decides. Holds a salted hash of the caller, never an address.
+ */
+export const portalReports = pgTable(
+  'portal_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    reason: text('reason').notNull(),
+    details: text('details').notNull().default(''),
+    reporterIpHash: text('reporter_ip_hash'),
+    status: text('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    handledAt: timestamp('handled_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('portal_reports_merchant_idx').on(table.merchantId, table.createdAt.desc()),
+    index('portal_reports_status_idx').on(table.status, table.createdAt.desc()),
+    check('portal_reports_reason', sql`${table.reason} in (${inList(PORTAL_REPORT_REASONS)})`),
+    check('portal_reports_status', sql`${table.status} in (${inList(PORTAL_REPORT_STATUSES)})`),
+    check('portal_reports_details_len', sql`char_length(${table.details}) <= ${sql.raw(String(PORTAL_REPORT_DETAILS_MAX))}`),
   ],
 );

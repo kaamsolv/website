@@ -11,7 +11,8 @@ const BASE = process.env.KK_E2E_BASE ?? 'http://localhost:3000';
 const SECRET = process.env.KK_E2E_SECRET ?? '';
 const SHOTS = 'test-results/screenshots';
 const tag = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
-const email = (t: string) => `${t}-${tag}@example.test`;
+// "affpro-" accounts hold the Affiliate Manager plan in the throwaway e2e database (tests/e2e/start-server.mts).
+const email = (t: string) => `affpro-${t}-${tag}@example.test`;
 
 async function person(browser: Browser, address: string): Promise<Page> {
   const ctx = await browser.newContext({ baseURL: BASE });

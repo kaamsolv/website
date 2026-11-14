@@ -6,8 +6,10 @@ import { useState } from 'react';
 import { INPUT, PRIMARY, SECONDARY } from '@/app/_components/account/account-shell';
 import { ACCENT } from '@/app/_components/accent';
 import { Icon } from '@/app/_components/icons';
+import { Notice } from '@/app/_components/notice';
 import { Skeleton } from '@/app/_components/skeleton';
-import { portalLabel, programmeSlugFromInput } from '@/app/lib/affiliate/merchant';
+import { NOT_ALLOWED_MESSAGE, SUSPENDED_OWNER_MESSAGE, portalLabel, programmeSlugFromInput } from '@/app/lib/affiliate/merchant';
+import { useEntitlements } from '@/app/lib/me-client';
 import { useAffiliateNav, type StatusCounts } from '@/app/lib/affiliate/use-affiliate-nav';
 import { ShareLinks } from './share-links';
 
@@ -37,6 +39,7 @@ const STEPS = [
  */
 export function AffiliateOverview() {
   const nav = useAffiliateNav();
+  const plan = useEntitlements();
   const router = useRouter();
   const [pasted, setPasted] = useState('');
   const [pasteError, setPasteError] = useState<string | null>(null);
@@ -162,6 +165,12 @@ export function AffiliateOverview() {
             <Skeleton className="mt-5 h-24" />
           ) : created ? (
             <>
+              {created.suspended && (
+                <Notice role="alert" className="mt-5">
+                  {SUSPENDED_OWNER_MESSAGE}
+                  {created.suspendedReason ? ` Reason: ${created.suspendedReason}` : ''}
+                </Notice>
+              )}
               <div className="mt-5 rounded-lg border border-hair bg-wash px-4 py-3">
                 <p className="break-words font-semibold text-ink">{created.name}</p>
                 <p className="mt-0.5 break-all text-sm text-muted">{portalLabel(created.slug)}</p>
@@ -170,7 +179,7 @@ export function AffiliateOverview() {
                   {created.registration === 'closed' ? '. Open it from Applications when you’re ready.' : '.'}
                 </p>
               </div>
-              <ShareLinks slug={created.slug} className="mt-4" />
+              {!created.suspended && <ShareLinks slug={created.slug} className="mt-4" />}
               <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3" aria-label="Applications to your programme">
                 <Figure n={created.counts.pending} label="To review" href="/app/affiliate/applications?status=pending" testid="figure-to-review" hot={created.counts.pending > 0} />
                 <Figure n={created.counts.approved} label="Approved" href="/app/affiliate/applications?status=approved" testid="figure-created-approved" />
@@ -183,9 +192,11 @@ export function AffiliateOverview() {
                 <Link href="/app/affiliate/portal" className={SECONDARY}>
                   Portal settings
                 </Link>
-                <Link href={`/affiliate/${created.slug}`} target="_blank" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-2">
-                  View my portal
-                </Link>
+                {!created.suspended && (
+                  <Link href={`/affiliate/${created.slug}`} target="_blank" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-2">
+                    View my portal
+                  </Link>
+                )}
               </div>
             </>
           ) : (
@@ -195,11 +206,20 @@ export function AffiliateOverview() {
                 <li>Open registration and share your programme link.</li>
                 <li>Approve or decline each application. Applicants only join when you say so.</li>
               </ul>
-              <div className="mt-auto pt-5">
-                <Link href="/app/affiliate/portal" className={PRIMARY} data-testid="create-programme">
-                  Create my programme
-                </Link>
-              </div>
+              {plan.loading || plan.can('affiliate_programme') ? (
+                <div className="mt-auto pt-5">
+                  <Link href="/app/affiliate/portal" className={PRIMARY} data-testid="create-programme">
+                    Create my programme
+                  </Link>
+                </div>
+              ) : (
+                <Notice tone="info" role="status" className="mt-5">
+                  <span data-testid="programme-not-allowed">{NOT_ALLOWED_MESSAGE}</span>{' '}
+                  <Link href="/contact" className="font-bold underline">
+                    Contact us
+                  </Link>
+                </Notice>
+              )}
             </>
           )}
         </section>

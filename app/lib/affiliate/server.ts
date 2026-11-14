@@ -5,6 +5,7 @@
 import { fail } from '@/app/lib/api-response';
 import { hashIp, resolveIpHashSalt } from '@/app/lib/ip-hash';
 import { rateLimitChecks, retryAfterSeconds, type RateLimitAction, type RateLimitCheck } from '@/app/lib/rate-limit';
+import { getEntitlements } from '@/db/entitlements';
 import type { Db } from '@/db/links';
 import { consumeRateLimits } from '@/db/rate-limits';
 
@@ -18,4 +19,9 @@ export async function overLimit(db: Db, checks: { action: RateLimitAction; who: 
   const res = fail(429, 'rate_limited', message);
   res.headers.set('Retry-After', String(retryAfterSeconds(rate.resetAt)));
   return res;
+}
+
+/** Does this account hold the Affiliate Manager plan (the `affiliate_programme` entitlement)? Read fresh from the plans, never cached. */
+export async function canRunProgramme(db: Db, userId: string): Promise<boolean> {
+  return (await getEntitlements(db, userId)).keys.includes('affiliate_programme');
 }

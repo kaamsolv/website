@@ -54,7 +54,10 @@ export default async function MerchantPortal({ params }: { params: Promise<{ mer
         <Link href="/" className="font-semibold underline">
           KaamSolv
         </Link>
-        .
+        .{' '}
+        <Link href={`/affiliate/${m.slug}/report`} className="font-semibold underline" data-testid="report-link">
+          Report this page
+        </Link>
       </footer>
     </main>
   );

@@ -27,6 +27,23 @@ export const RESERVED_MERCHANT_SLUGS: ReadonlySet<string> = new Set([
   'kaamsolv', 'kaamkit', 'official', 'www', 'static', 'assets',
 ]);
 
+export const MERCHANT_STATUSES = ['active', 'suspended'] as const;
+export type MerchantStatus = (typeof MERCHANT_STATUSES)[number];
+export const SUSPENDED_REASON_MAX = 300;
+
+/** What an owner is told when an action needs a live programme, or the plan that holds one. */
+export const SUSPENDED_OWNER_MESSAGE = 'Your programme is suspended, so this isn’t available right now. Contact us if you think that’s a mistake.';
+export const NOT_ALLOWED_MESSAGE = 'Running an affiliate programme isn’t open to every account yet. Contact us and we’ll set you up.';
+
+/**
+ * Names a business page must not take, because they would pass for KaamSolv, an official body or a payment provider.
+ * Brand names are matched anywhere in the address (nobody has them by accident); the plain words only as a whole word
+ * between hyphens, so "riverbank-travel" is fine and "bank-offers" is not. A small list, not a promise: an operator can
+ * suspend a look-alike that gets through (npm run affiliate:merchant).
+ */
+export const BLOCKED_SLUG_BRANDS: readonly string[] = ['kaamsolv', 'kaamkit', 'razorpay', 'paytm', 'phonepe', 'googlepay', 'npci', 'incometax', 'aadhaar', 'uidai'];
+export const BLOCKED_SLUG_WORDS: ReadonlySet<string> = new Set(['bank', 'govt', 'gov', 'government', 'official', 'verified', 'secure', 'helpdesk', 'customercare', 'refund', 'rbi', 'sebi', 'upi']);
+
 export type MerchantBrand = {
   logo: string | null;
   brandColour: string;
@@ -52,7 +69,7 @@ export function slugFromName(name: string): string {
   return s.length >= 3 ? s : '';
 }
 
-export type SlugCheck = { ok: true; slug: string } | { ok: false; error: 'slug_invalid' | 'slug_reserved'; message: string };
+export type SlugCheck = { ok: true; slug: string } | { ok: false; error: 'slug_invalid' | 'slug_reserved' | 'slug_blocked'; message: string };
 
 export function checkSlug(input: unknown): SlugCheck {
   const slug = typeof input === 'string' ? input.trim().toLowerCase() : '';
@@ -61,6 +78,9 @@ export function checkSlug(input: unknown): SlugCheck {
   }
   if (RESERVED_MERCHANT_SLUGS.has(slug)) {
     return { ok: false, error: 'slug_reserved', message: 'That address is kept for KaamSolv. Try another.' };
+  }
+  if (BLOCKED_SLUG_BRANDS.some((b) => slug.includes(b)) || slug.split('-').some((w) => BLOCKED_SLUG_WORDS.has(w))) {
+    return { ok: false, error: 'slug_blocked', message: 'That address looks like an official, financial or KaamSolv name, so it isn’t available. Try your business name.' };
   }
   return { ok: true, slug };
 }

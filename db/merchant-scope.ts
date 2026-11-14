@@ -10,18 +10,21 @@
  * Neon over HTTP can't hold a transaction, so creating a merchant and its brand row is one SQL statement.
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { ApplicationStatus, MembershipStatus, ProgrammeStatus } from '../app/lib/affiliate/application.ts';
-import { DEFAULT_BRAND_COLOUR, type MerchantBrand, type MerchantView } from '../app/lib/affiliate/merchant.ts';
+import { DEFAULT_BRAND_COLOUR, type MerchantBrand, type MerchantStatus, type MerchantView } from '../app/lib/affiliate/merchant.ts';
 import { isUniqueViolation, type Db } from './links.ts';
 import { merchantBrandSettings, merchants } from './schema.ts';
 
-export type OwnerMerchant = MerchantView & { id: string };
+/** The owner's own view of their merchant: the public view plus its id and whether an operator has suspended it. */
+export type OwnerMerchant = MerchantView & { id: string; status: MerchantStatus; suspendedReason: string };
 
 const columns = {
   id: merchants.id,
   slug: merchants.slug,
   name: merchants.name,
+  status: merchants.status,
+  suspendedReason: merchants.suspendedReason,
   logo: merchantBrandSettings.logo,
   brandColour: merchantBrandSettings.brandColour,
   programmeName: merchantBrandSettings.programmeName,
@@ -33,6 +36,8 @@ type Joined = {
   id: string;
   slug: string;
   name: string;
+  status: string;
+  suspendedReason: string;
   logo: string | null;
   brandColour: string | null;
   programmeName: string | null;
@@ -45,6 +50,8 @@ function toView(r: Joined): OwnerMerchant {
     id: r.id,
     slug: r.slug,
     name: r.name,
+    status: r.status === 'suspended' ? 'suspended' : 'active',
+    suspendedReason: r.suspendedReason,
     brand: {
       logo: r.logo ?? null,
       brandColour: r.brandColour ?? DEFAULT_BRAND_COLOUR,
@@ -65,11 +72,11 @@ export async function merchantForOwner(db: Db, ownerId: string): Promise<OwnerMe
   return rows[0] ? toView(rows[0]) : null;
 }
 
-/** The public portal's data. Same shape minus the internal id. */
+/** The public portal's data: no internal id, no status. A suspended merchant has no public portal: it reads as not found. */
 export async function publicMerchantBySlug(db: Db, slug: string): Promise<MerchantView | null> {
-  const rows = await select(db).where(eq(merchants.slug, slug)).limit(1);
+  const rows = await select(db).where(and(eq(merchants.slug, slug), eq(merchants.status, 'active'))).limit(1);
   if (!rows[0]) return null;
-  const { id: _id, ...view } = toView(rows[0]);
+  const { id: _id, status: _status, suspendedReason: _reason, ...view } = toView(rows[0]);
   return view;
 }
 
@@ -106,7 +113,7 @@ const iso = (v: unknown): string | null => (v == null ? null : v instanceof Date
 /** The public face of a programme's door: open, or not. Anything else (no programme yet) reads as closed. */
 export async function portalRegistration(db: Db, slug: string): Promise<ProgrammeStatus> {
   const rows = rowsOf<{ status: string }>(
-    await db.execute(sql`select p.status from programmes p join merchants m on m.id = p.merchant_id where m.slug = ${slug}`),
+    await db.execute(sql`select p.status from programmes p join merchants m on m.id = p.merchant_id where m.slug = ${slug} and m.status = 'active'`),
   );
   return rows[0]?.status === 'open' ? 'open' : 'closed';
 }

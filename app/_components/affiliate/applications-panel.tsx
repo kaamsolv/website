@@ -6,6 +6,7 @@ import { INPUT, PRIMARY, SECONDARY } from '@/app/_components/account/account-she
 import { Notice } from '@/app/_components/notice';
 import { Skeleton } from '@/app/_components/skeleton';
 import { AFFILIATE_LIMITS, categoryLabel, channelLabel, type ApplicationStatus } from '@/app/lib/affiliate/application';
+import { SUSPENDED_OWNER_MESSAGE } from '@/app/lib/affiliate/merchant';
 import { ShareLinks } from './share-links';
 
 type Row = {
@@ -24,7 +25,7 @@ type Row = {
   membership: 'active' | 'suspended' | null;
   suspendNote: string;
 };
-type Door = { status: 'open' | 'closed' | null; pending: number; slug: string };
+type Door = { status: 'open' | 'closed' | null; pending: number; slug: string; suspended: boolean; suspendedReason: string };
 
 const FILTERS: { key: ApplicationStatus | 'all'; label: string }[] = [
   { key: 'pending', label: 'To review' },
@@ -51,7 +52,7 @@ export function ApplicationsPanel({ initialFilter = 'pending' }: { initialFilter
     const res = await fetch('/api/affiliate/programme', { credentials: 'same-origin', cache: 'no-store' });
     if (res.status === 404) return setDoor('none');
     const b = (await res.json()) as Door;
-    setDoor({ status: b.status, pending: b.pending, slug: b.slug });
+    setDoor({ status: b.status, pending: b.pending, slug: b.slug, suspended: b.suspended, suspendedReason: b.suspendedReason });
   }, []);
   const loadRows = useCallback(async (f: ApplicationStatus | 'all') => {
     const res = await fetch(`/api/affiliate/applications${f === 'all' ? '' : `?status=${f}`}`, { credentials: 'same-origin', cache: 'no-store' });
@@ -107,6 +108,12 @@ export function ApplicationsPanel({ initialFilter = 'pending' }: { initialFilter
   const open = door.status === 'open';
   return (
     <div className="space-y-6">
+      {door.suspended && (
+        <Notice role="alert" >
+          {SUSPENDED_OWNER_MESSAGE}
+          {door.suspendedReason ? ` Reason: ${door.suspendedReason}` : ''}
+        </Notice>
+      )}
       <section aria-labelledby="door-title" className="rounded-xl2 border border-hair bg-surface p-4 sm:p-5">
         <h2 id="door-title" className="font-display text-lg font-extrabold text-ink">
           Registration is {open ? 'open' : 'closed'}
@@ -115,16 +122,20 @@ export function ApplicationsPanel({ initialFilter = 'pending' }: { initialFilter
           {open ? 'People can apply from your portal. Nobody joins until you approve them.' : 'Your portal says applications are closed. Open it when you’re ready for people to apply.'}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button type="button" className={open ? SECONDARY : PRIMARY} disabled={busy === 'door'} onClick={() => toggle(open ? 'closed' : 'open')}>
+          <button type="button" className={open ? SECONDARY : PRIMARY} disabled={busy === 'door' || (door.suspended && !open)} onClick={() => toggle(open ? 'closed' : 'open')}>
             {open ? 'Close registration' : 'Open registration'}
           </button>
-          <Link href={`/affiliate/${door.slug}`} target="_blank" className="text-sm font-semibold underline">
-            View my portal
-          </Link>
+          {!door.suspended && (
+            <Link href={`/affiliate/${door.slug}`} target="_blank" className="text-sm font-semibold underline">
+              View my portal
+            </Link>
+          )}
         </div>
-        <div className="mt-4 border-t border-hair pt-4">
-          <ShareLinks slug={door.slug} />
-        </div>
+        {!door.suspended && (
+          <div className="mt-4 border-t border-hair pt-4">
+            <ShareLinks slug={door.slug} />
+          </div>
+        )}
       </section>
 
       {error && <Notice role="alert">{error}</Notice>}

@@ -88,7 +88,10 @@ export default async function RegisterPage({ params }: { params: Promise<{ merch
           <Link href="/" className="font-semibold underline">
             KaamSolv
           </Link>
-          .
+          .{' '}
+          <Link href={`/affiliate/${view.slug}/report`} className="font-semibold underline">
+            Report this page
+          </Link>
         </p>
       </div>
     </main>
