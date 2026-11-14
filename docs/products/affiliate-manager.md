@@ -138,7 +138,7 @@ The PRD says to use PostgreSQL transactions for state changes. Neon over HTTP ca
 
 **Staging verification: done 2026-11-14.** Migrations 0018 to 0021 were applied to an empty non-production Neon database with the atomic runner, and `npm run affiliate:smoke` passed 12 of 12 through the real Neon HTTP driver (runbook and results: [`../infra/affiliate-staging-verification.md`](../infra/affiliate-staging-verification.md)). **Still true:** nothing has been applied to production, and doing so is a separate approval (take a restore point, migrate first with `db:migrate:atomic`, then deploy). The smoke test does not cover sending real email through Resend, the routes running on the deployed Worker, or the pages on a real phone; those are checked after the production deploy. Portals stay `noindex` and unlinked from the public site until the owner decides to launch.
 
-## Phase 3A: referral links and recorded clicks (built 2026-11-14, on `feat/affiliate-phase2`, not deployed)
+## Phase 3A: referral links and recorded clicks (live 2026-11-14, version `6722de5b`)
 
 Migration **0022** (additive): `programmes.destination_url`, `affiliate_links`, `affiliate_clicks`, and two event actions (`link_created`, `destination_saved`). Apply it after 0021, never alone, with the atomic runner.
 
