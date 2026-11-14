@@ -66,6 +66,7 @@ export const TOOL_ACTIONS: Record<string, ToolAction> = {
   'indian-number-to-words': { action: 'Write an amount in words', also: ['rupees in words', 'cheque amount', 'lakh crore'] },
   'salary-calculator': { action: 'Work out take-home salary', also: ['ctc to in hand', 'in hand salary', 'net pay'] },
   'gratuity-calculator': { action: 'Calculate gratuity', also: ['end of service', 'resignation payout'] },
+  'notice-period-calculator': { action: 'Find my last working day', also: ['notice period', 'when do i resign', 'resignation date', 'relieving date', 'notice buyout', 'serving notice'] },
   'hra-calculator': { action: 'Work out your HRA exemption', also: ['tax free hra', 'house rent allowance'] },
 };
 

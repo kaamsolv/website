@@ -28,6 +28,8 @@ type Props<T> = {
   legend: string;
   /** Visually hide the legend when a visible label already sits above. */
   hideLegend?: boolean;
+  /** `Segmented` only: stretch to the full width at every size, with equal parts whose text wraps (for longer labels in a narrow column). */
+  fill?: boolean;
   options: ChoiceOption<T>[];
   value: T | undefined;
   onChange: (value: T) => void;
@@ -38,14 +40,14 @@ type Props<T> = {
 const LEGEND = 'mb-2 text-sm font-semibold text-ink';
 const FOCUS = 'peer-focus-visible:ring-2 peer-focus-visible:ring-coral-500 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface';
 
-export function Segmented<T>({ legend, hideLegend, options, value, onChange, disabled, className = '' }: Props<T>) {
+export function Segmented<T>({ legend, hideLegend, options, value, onChange, disabled, className = '', fill = false }: Props<T>) {
   const name = useId();
   return (
     <fieldset disabled={disabled} className={className}>
       <legend className={hideLegend ? 'sr-only' : LEGEND}>{legend}</legend>
-      <div className="flex w-full rounded-full border border-hair bg-wash p-1 sm:inline-flex sm:w-auto">
+      <div className={`flex w-full rounded-full border border-hair bg-wash p-1 ${fill ? '' : 'sm:inline-flex sm:w-auto'}`}>
         {options.map((o, i) => (
-          <label key={i} className="relative min-w-0 flex-1 sm:flex-none">
+          <label key={i} className={`relative min-w-0 flex-1 ${fill ? '' : 'sm:flex-none'}`}>
             <input
               type="radio"
               name={name}
