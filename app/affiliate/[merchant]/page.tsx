@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { PortalView } from '@/app/_components/affiliate/portal-view';
+import { PortalView, type PortalRegistration } from '@/app/_components/affiliate/portal-view';
 import type { MerchantView } from '@/app/lib/affiliate/merchant';
 import { formatErrorForLog } from '@/app/lib/log-error';
+import { getCurrentUser } from '@/app/lib/session';
+import { affiliateScope } from '@/db/affiliate-scope';
 import { getDb } from '@/db/client';
-import { publicMerchantBySlug } from '@/db/merchant-scope';
+import { portalRegistration, publicMerchantBySlug } from '@/db/merchant-scope';
 
 /**
  * A merchant's branded affiliate portal (/affiliate/{slug}). Public, drawn per request (branding comes from the
@@ -35,9 +38,17 @@ export default async function MerchantPortal({ params }: { params: Promise<{ mer
   const { merchant } = await params;
   const m = await load(merchant);
   if (!m) notFound();
+  // Everyone sees open or closed; a signed-in visitor sees where they stand (applied, approved, their own page).
+  let state: PortalRegistration['state'] = await portalRegistration(await getDb(), merchant).catch(() => 'closed' as const);
+  try {
+    const user = await getCurrentUser(await headers());
+    if (user) state = (await affiliateScope(await getDb(), user.id).registrationState(merchant)) ?? state;
+  } catch (e) {
+    console.error('[affiliate/portal state]', formatErrorForLog(e));
+  }
   return (
     <main id="main" className="min-h-screen bg-canvas">
-      <PortalView name={m.name} brand={m.brand} />
+      <PortalView name={m.name} brand={m.brand} registration={{ state, href: `/affiliate/${m.slug}/register` }} />
       <footer className="mx-auto max-w-2xl px-4 pb-10 text-xs text-muted sm:px-0">
         Affiliate programme run on{' '}
         <Link href="/" className="font-semibold underline">

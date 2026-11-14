@@ -134,6 +134,20 @@
       "when": 1794588332701,
       "tag": "0018_fixed_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794590634048,
+      "tag": "0019_green_lizard",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794601681688,
+      "tag": "0020_spicy_korvac",
+      "breakpoints": true
     }
   ]
 }

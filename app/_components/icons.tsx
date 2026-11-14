@@ -28,6 +28,8 @@ type IconName =
   | 'check'
   | 'external-link'
   | 'chevron-right'
+  | 'chevron-down'
+  | 'affiliate'
   | 'alert-triangle'
   | 'flag'
   | 'mail'
@@ -164,6 +166,15 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   'chevron-right': <path d="m9 6 6 6-6 6" />,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
+  // Two people joined by a bridge: a business and the people who promote it.
+  affiliate: (
+    <>
+      <circle cx="7" cy="8" r="3" />
+      <circle cx="17" cy="8" r="3" />
+      <path d="M2 20c0-3 2.2-5 5-5M22 20c0-3-2.2-5-5-5M10 17h4" />
+    </>
+  ),
   'alert-triangle': (
     <>
       <path d="M12 3 2.5 20h19L12 3Z" />

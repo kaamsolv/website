@@ -20,6 +20,7 @@ import { summaryJob } from '../notify/summary-job';
 import { reminderJob } from '../notify/reminder-job';
 import { recurringJob } from '../notify/recurring-job';
 import { accountantPackJob } from '../notify/accountant-job';
+import { affiliateDecisionJob, affiliateReceivedJob } from '../affiliate/mail-jobs';
 import { invoiceEmail } from './email';
 
 /** The public address of an invoice link. */
@@ -77,5 +78,5 @@ export const DRAIN_SCHEDULED = 3;
 /** Runs whatever is due. Called right after a webhook (the fast path) and by the scheduled retry. */
 export async function drainOutbox(limit = DRAIN_SCHEDULED) {
   const db = await getDb();
-  return runDue(db, { billing_invoice: (job) => billingInvoiceJob(db, job), receivables_summary: (job) => summaryJob(db, job), invoice_reminder: (job) => reminderJob(db, job), recurring_invoice: (job) => recurringJob(db, job), accountant_pack: (job) => accountantPackJob(db, job) }, limit);
+  return runDue(db, { billing_invoice: (job) => billingInvoiceJob(db, job), receivables_summary: (job) => summaryJob(db, job), invoice_reminder: (job) => reminderJob(db, job), recurring_invoice: (job) => recurringJob(db, job), accountant_pack: (job) => accountantPackJob(db, job), affiliate_received: (job) => affiliateReceivedJob(db, job), affiliate_decision: (job) => affiliateDecisionJob(db, job) }, limit);
 }

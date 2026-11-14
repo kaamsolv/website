@@ -9,6 +9,7 @@ import { useEntitlements, useMe } from '@/app/lib/me-client';
 import { Skeleton } from '@/app/_components/skeleton';
 import { PRODUCTS, productPageHref } from '@/app/lib/products';
 import { CARD, CARD_QUIET, PRIMARY, SECONDARY } from '@/app/lib/ui-classes';
+import { AffiliateHubCard } from '../affiliate/hub-card';
 import { ProductChip } from './product-chip';
 
 /**
@@ -74,6 +75,8 @@ export function Hub() {
           </li>
         ))}
       </ul>
+
+      <AffiliateHubCard />
 
       <section aria-labelledby="shared-h" className={CARD_QUIET}>
         <h2 id="shared-h" className="font-display text-lg font-bold text-ink">

@@ -41,6 +41,15 @@ import {
 import { DEVICE_CLASSES } from '../app/lib/click-meta.ts';
 import { MAX_REPORT_DETAILS, REPORT_REASONS } from '../app/lib/report.ts';
 import { MERCHANT_LIMITS, MERCHANT_LOGO_MAX_CHARS } from '../app/lib/affiliate/merchant.ts';
+import {
+  AFFILIATE_EVENT_ACTIONS,
+  AFFILIATE_LIMITS,
+  APPLICATION_STATUSES,
+  CATEGORY_KEYS,
+  CHANNEL_KEYS,
+  MEMBERSHIP_STATUSES,
+  PROGRAMME_STATUSES,
+} from '../app/lib/affiliate/application.ts';
 
 /** Redirect behaviour for a link. `expired` is derived from `expiresAt`, not stored. */
 export const linkStatus = pgEnum('link_status', ['active', 'disabled']);
@@ -1076,5 +1085,141 @@ export const merchantBrandSettings = pgTable(
     check('merchant_brand_programme_name_len', sql`char_length(${table.programmeName}) <= ${sql.raw(String(MERCHANT_LIMITS.programmeName))}`),
     check('merchant_brand_description_len', sql`char_length(${table.programmeDescription}) <= ${sql.raw(String(MERCHANT_LIMITS.programmeDescription))}`),
     check('merchant_brand_terms_len', sql`char_length(${table.terms}) <= ${sql.raw(String(MERCHANT_LIMITS.terms))}`),
+  ],
+);
+
+// ─── Affiliate Manager, Phase 2 (migration 0019) ─────────────────────────────
+//
+// Registration and approval. Reachable only through db/merchant-scope.ts (merchant side) and db/affiliate-scope.ts
+// (an affiliate's own rows); test/affiliate-isolation.test.mts fails if any other file uses these tables.
+const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
+
+/** A person's affiliate profile: one per KaamSolv account, shared by every programme they join. No payout details yet. */
+export const affiliateProfiles = pgTable(
+  'affiliate_profiles',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    displayName: text('display_name').notNull(),
+    website: text('website').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('affiliate_profiles_name_len', sql`char_length(${table.displayName}) between 1 and ${sql.raw(String(AFFILIATE_LIMITS.displayName))}`),
+    check('affiliate_profiles_website_len', sql`char_length(${table.website}) <= ${sql.raw(String(AFFILIATE_LIMITS.website))}`),
+  ],
+);
+
+/** A merchant's affiliate programme. One per merchant; made when the owner first opens registration. */
+export const programmes = pgTable(
+  'programmes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('programmes_merchant_id_key').on(table.merchantId),
+    check('programmes_status', sql`${table.status} in (${inList(PROGRAMME_STATUSES)})`),
+  ],
+);
+
+/** An affiliate asking to join. `merchant_id` is kept here so every merchant-side query can filter on it directly. */
+export const programmeApplications = pgTable(
+  'programme_applications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    programmeId: uuid('programme_id')
+      .notNull()
+      .references(() => programmes.id, { onDelete: 'cascade' }),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    affiliateUserId: uuid('affiliate_user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'),
+    message: text('message').notNull().default(''),
+    /** Optional answers from the form: keys from AFFILIATE_CATEGORIES / AFFILIATE_CHANNELS, and a free-text country. */
+    category: text('category').notNull().default(''),
+    channel: text('channel').notNull().default(''),
+    country: text('country').notNull().default(''),
+    decisionNote: text('decision_note').notNull().default(''),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One open application at a time per affiliate and programme.
+    uniqueIndex('programme_applications_one_pending_idx').on(table.programmeId, table.affiliateUserId).where(sql`${table.status} = 'pending'`),
+    index('programme_applications_merchant_idx').on(table.merchantId, table.status, table.createdAt.desc()),
+    index('programme_applications_affiliate_idx').on(table.affiliateUserId, table.createdAt.desc()),
+    check('programme_applications_status', sql`${table.status} in (${inList(APPLICATION_STATUSES)})`),
+    check('programme_applications_message_len', sql`char_length(${table.message}) <= ${sql.raw(String(AFFILIATE_LIMITS.message))}`),
+    check('programme_applications_category', sql`${table.category} = '' or ${table.category} in (${inList(CATEGORY_KEYS)})`),
+    check('programme_applications_channel', sql`${table.channel} = '' or ${table.channel} in (${inList(CHANNEL_KEYS)})`),
+    check('programme_applications_country_len', sql`char_length(${table.country}) <= ${sql.raw(String(AFFILIATE_LIMITS.country))}`),
+    check('programme_applications_note_len', sql`char_length(${table.decisionNote}) <= ${sql.raw(String(AFFILIATE_LIMITS.note))}`),
+  ],
+);
+
+/** An approved affiliate in a programme. Made by the approval statement, never by hand. */
+export const programmeMemberships = pgTable(
+  'programme_memberships',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    programmeId: uuid('programme_id')
+      .notNull()
+      .references(() => programmes.id, { onDelete: 'cascade' }),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    affiliateUserId: uuid('affiliate_user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    /** active, or suspended by the merchant (the application stays approved; this is what pauses access). */
+    status: text('status').notNull().default('active'),
+    /** The merchant's optional reason for the last suspension. */
+    statusNote: text('status_note').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('programme_memberships_programme_affiliate_key').on(table.programmeId, table.affiliateUserId),
+    index('programme_memberships_affiliate_idx').on(table.affiliateUserId),
+    index('programme_memberships_merchant_idx').on(table.merchantId),
+    check('programme_memberships_status', sql`${table.status} in (${inList(MEMBERSHIP_STATUSES)})`),
+    check('programme_memberships_note_len', sql`char_length(${table.statusNote}) <= ${sql.raw(String(AFFILIATE_LIMITS.note))}`),
+  ],
+);
+
+/**
+ * What happened, append-only (a trigger in migration 0019 refuses UPDATE, and refuses a direct DELETE; only the
+ * cascade from removing a merchant or an account may delete rows). `actor_user_id` has no foreign key on purpose:
+ * it must survive, untouched, if that account is later deleted. Holds ids and a short code, never personal data.
+ */
+export const affiliateEvents = pgTable(
+  'affiliate_events',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    affiliateUserId: uuid('affiliate_user_id').references(() => authUsers.id, { onDelete: 'cascade' }),
+    actorUserId: uuid('actor_user_id'),
+    applicationId: uuid('application_id'),
+    action: text('action').notNull(),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('affiliate_events_merchant_idx').on(table.merchantId, table.at.desc()),
+    index('affiliate_events_affiliate_idx').on(table.affiliateUserId, table.at.desc()),
+    check('affiliate_events_action', sql`${table.action} in (${inList(AFFILIATE_EVENT_ACTIONS)})`),
   ],
 );

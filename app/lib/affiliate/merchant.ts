@@ -119,3 +119,16 @@ export function cleanMerchantInput(body: unknown): CleanResult {
 
   return { ok: true, value: { name, brand: { logo, brandColour: colour.toUpperCase(), programmeName, programmeDescription, terms } } };
 }
+
+/**
+ * A programme address from what someone pastes: a full link ("https://kaamsolv.com/affiliate/their-name?x=1"), a
+ * path ("/affiliate/their-name/register"), or just the name ("their-name"). null if it isn't one.
+ */
+export function programmeSlugFromInput(input: unknown): string | null {
+  const text = typeof input === 'string' ? input.trim() : '';
+  if (!text) return null;
+  const inLink = /\/affiliate\/([a-z0-9-]+)/i.exec(text);
+  const candidate = inLink ? inLink[1] : /^[a-z0-9-]+$/i.test(text) ? text : '';
+  const checked = checkSlug(candidate);
+  return checked.ok ? checked.slug : null;
+}

@@ -155,15 +155,17 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-test('GUARD: only db/merchant-scope.ts (and the schema) touch the merchant tables', () => {
+test('GUARD: only the two scope files, the mail loader and the schema touch the affiliate tables', () => {
   const root = resolve(import.meta.dirname, '..');
-  const allowed = new Set(['db/merchant-scope.ts', 'db/schema.ts']);
+  const allowed = new Set(['db/merchant-scope.ts', 'db/affiliate-scope.ts', 'db/affiliate-mail.ts', 'db/schema.ts']);
+  const tables =
+    /\b(merchants|merchantBrandSettings|affiliateProfiles|programmeApplications|programmeMemberships|affiliateEvents|merchant_brand_settings|affiliate_profiles|programme_applications|programme_memberships|affiliate_events)\b|\b(from|join|into|update)\s+(programmes|merchants)\b|import\s*\{[^}]*\bprogrammes\b[^}]*\}/;
   const offenders: string[] = [];
   for (const dir of ['app', 'db', 'worker']) {
     for (const file of sourceFiles(join(root, dir))) {
-      const rel = relative(root, file).replaceAll('\\', '/');
+      const rel = relative(root, file).replaceAll(String.fromCharCode(92), '/');
       if (allowed.has(rel)) continue;
-      if (/\b(merchants|merchantBrandSettings)\b/.test(readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))) offenders.push(rel);
+      if (tables.test(readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))) offenders.push(rel);
     }
   }
   assert.deepEqual(offenders, []);

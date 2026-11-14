@@ -25,8 +25,8 @@ test('owner creates a branded portal; the public page shows it', async ({ browse
   await mkdir(SHOTS, { recursive: true });
   const slug = `wt-${tag}`;
   const page = await person(browser, email('owner'));
-  await page.goto('/app/affiliate');
-  await expect(page.getByRole('heading', { name: 'Affiliate programme', level: 1 })).toBeVisible();
+  await page.goto('/app/affiliate/portal');
+  await expect(page.getByRole('heading', { name: 'Portal settings', level: 1 })).toBeVisible();
 
   await page.getByLabel('Business name').fill('Wandernest Tales');
   await page.getByLabel('Portal address').fill(slug);
@@ -43,17 +43,26 @@ test('owner creates a branded portal; the public page shows it', async ({ browse
   await expect(visitor.getByRole('heading', { name: 'Wandernest Partners', level: 1 })).toBeVisible();
   await expect(visitor.getByText('Earn when your readers book.')).toBeVisible();
   await expect(visitor.getByText('Payouts are monthly.')).toBeVisible();
-  await expect(visitor.getByText('Registration opens soon')).toBeVisible();
+  await expect(visitor.getByText('Applications are closed right now')).toBeVisible();
   await expect(visitor.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
   expect(await visitor.content()).not.toContain('example.test');
 
   // The address can't change; an edit keeps it.
   await page.reload();
-  await page.getByLabel('Programme name').fill('Wandernest Partners 2');
-  await page.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByText(/Your portal is live at/)).toBeVisible();
-  await visitor.reload();
-  await expect(visitor.getByRole('heading', { name: 'Wandernest Partners 2', level: 1 })).toBeVisible();
+  // A dev server that is still compiling other routes can reload the page under the test and wipe what was typed, so
+  // the edit, the save and the check on the public page are one step that is retried as a whole.
+  await expect(async () => {
+    const input = page.getByLabel('Programme name');
+    await input.fill('Wandernest Partners 2');
+    await expect(input).toHaveValue('Wandernest Partners 2');
+    const saved = page.waitForResponse((r) => r.url().includes('/api/affiliate/merchant') && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    const res = await saved;
+    expect(res.status(), await res.text()).toBe(200);
+    await expect(page.getByText(/Your portal is live at/)).toBeVisible();
+    await visitor.reload();
+    await expect(visitor.getByRole('heading', { name: 'Wandernest Partners 2', level: 1 })).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 30_000 });
 });
 
 test('a second owner sees nothing of the first, and cannot take the address', async ({ browser }) => {
@@ -104,12 +113,12 @@ for (const width of [375, 360, 320]) {
       });
       expect(made.status(), await made.text()).toBe(200);
 
-      for (const path of [`/affiliate/${slug}`, '/app/affiliate']) {
+      for (const path of [`/affiliate/${slug}`, '/app/affiliate/portal', '/app/affiliate']) {
         await page.goto(path);
         await page.waitForLoadState('networkidle');
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow, `${path} sideways scroll`).toBeLessThanOrEqual(0);
-        await page.screenshot({ path: `${SHOTS}/affiliate-${path.startsWith('/app') ? 'editor' : 'portal'}-${width}-${scheme}.png`, fullPage: true });
+        await page.screenshot({ path: `${SHOTS}/affiliate-${path === '/app/affiliate' ? 'overview' : path.startsWith('/app') ? 'editor' : 'portal'}-${width}-${scheme}.png`, fullPage: true });
       }
     });
   }

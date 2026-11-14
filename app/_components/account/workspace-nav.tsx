@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { ACCENT } from '../accent';
+import { AffiliateNavSection } from '../affiliate/nav-section';
 import { Icon } from '../icons';
 import type { EntitlementKey } from '@/app/lib/entitlements';
 import { useEntitlements } from '@/app/lib/me-client';
@@ -150,6 +151,8 @@ export function WorkspaceNav(_props: { stacked?: boolean } = {}) {
             })}
           </ul>
         </li>
+
+        <AffiliateNavSection />
 
         <li>
           <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">Shared</p>

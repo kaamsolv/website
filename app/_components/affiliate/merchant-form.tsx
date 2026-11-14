@@ -23,7 +23,7 @@ type Saved = { slug: string; name: string; brand: MerchantBrand; portalPath: str
 const label = 'block text-sm font-bold text-ink';
 const hint = 'mt-1 text-xs text-muted';
 
-/** Set up the programme and its branded portal (/app/affiliate). Creates it once, then edits it. */
+/** Set up the programme and its branded portal (/app/affiliate/portal). Creates it once, then edits it. */
 export function MerchantForm() {
   const [loaded, setLoaded] = useState<'loading' | 'error' | 'ready'>('loading');
   const [saved, setSaved] = useState<Saved | null>(null);

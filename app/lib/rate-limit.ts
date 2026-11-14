@@ -39,6 +39,31 @@ export const ANONYMOUS_LIMITS = {
     { limit: 5, windowSeconds: 10 * 60, window: '10m' },
     { limit: 20, windowSeconds: 24 * 60 * 60, window: '1d' },
   ],
+  /** Applying to an affiliate programme, per signed-in user. */
+  affiliateApplyUser: [
+    { limit: 3, windowSeconds: 60 * 60, window: '1h' },
+    { limit: 10, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
+  /** Applying to an affiliate programme, per caller (salted IP hash) — one device making many accounts. */
+  affiliateApplyIp: [
+    { limit: 10, windowSeconds: 60 * 60, window: '1h' },
+    { limit: 30, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
+  /** Applications one programme receives, per merchant (salted hash of the merchant id) — a flood can't bury the owner. */
+  affiliateApplyMerchant: [
+    { limit: 20, windowSeconds: 60 * 60, window: '1h' },
+    { limit: 100, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
+  /** A merchant changing its portal or opening/closing registration, per signed-in user. */
+  affiliateMerchantEdit: [
+    { limit: 20, windowSeconds: 60 * 60, window: '1h' },
+    { limit: 100, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
+  /** Approving or rejecting applications, per signed-in user. */
+  affiliateDecide: [
+    { limit: 120, windowSeconds: 60 * 60, window: '1h' },
+    { limit: 500, windowSeconds: 24 * 60 * 60, window: '1d' },
+  ],
   /** Sign-in link emails, per address (salted hash of the email) — stops mail-bombing one inbox. */
   signInLinkEmail: [
     { limit: 3, windowSeconds: 10 * 60, window: '10m' },

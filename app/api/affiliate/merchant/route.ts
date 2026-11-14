@@ -8,6 +8,7 @@
  */
 
 import { checkSlug, cleanMerchantInput, portalPath, type MerchantView } from '@/app/lib/affiliate/merchant';
+import { overLimit } from '@/app/lib/affiliate/server';
 import { fail, json, readJson, requireUser, sameOrigin } from '@/app/lib/api-response';
 import { formatErrorForLog } from '@/app/lib/log-error';
 import { getDb } from '@/db/client';
@@ -46,6 +47,8 @@ export async function PUT(req: Request) {
 
   try {
     const db = await getDb();
+    const limited = await overLimit(db, [{ action: 'affiliateMerchantEdit', who: user.id }], 'That’s a lot of changes. Try again in a little while.');
+    if (limited) return limited;
     const current = await merchantForOwner(db, user.id);
     if (!current) {
       const slug = checkSlug(body.slug);
@@ -60,9 +63,7 @@ export async function PUT(req: Request) {
       if (typeof body.slug === 'string' && body.slug.trim().toLowerCase() !== current.slug) {
         return fail(400, 'slug_locked', 'The address can’t change once it’s made, so links you’ve shared keep working.');
       }
-      const scope = merchantScope(db, current.id);
-      await scope.saveName(clean.value.name);
-      await scope.saveBrand(clean.value.brand);
+      await merchantScope(db, current.id).savePortal(clean.value.name, clean.value.brand, user.id);
     }
     const saved = await merchantForOwner(db, user.id);
     return json({ ok: true, merchant: saved ? shape(saved) : null });

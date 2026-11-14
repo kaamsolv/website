@@ -102,3 +102,18 @@ test('input: colour is upper-cased and CRLF becomes LF', () => {
     assert.equal(r.value.brand.terms, 'one\ntwo');
   }
 });
+
+test('pasted programme link: a full link, a path, or a bare name all give the address; anything else gives null', async () => {
+  const { programmeSlugFromInput } = await import('../app/lib/affiliate/merchant.ts');
+  for (const ok of [
+    'https://kaamsolv.com/affiliate/wandernest-tales',
+    'kaamsolv.com/affiliate/wandernest-tales/register?utm=x#top',
+    '/affiliate/Wandernest-Tales',
+    '  wandernest-tales  ',
+  ]) {
+    assert.equal(programmeSlugFromInput(ok), 'wandernest-tales', ok);
+  }
+  for (const bad of ['', '   ', 'hello there', 'https://example.com/other/path', 'register', 'a', '/affiliate/', 'x'.repeat(41), null, 42]) {
+    assert.equal(programmeSlugFromInput(bad), null, String(bad));
+  }
+});
