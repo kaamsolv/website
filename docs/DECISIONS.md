@@ -5,6 +5,12 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
+## 2026-11-14 — Release sanity check: main merged in; privacy and terms cover affiliate programmes
+
+**Decided by:** product owner ("please fix all of above"). A pre-release check found: `main` had moved (the Recent tools deploy), so it was merged into `feat/affiliate-phase2` (one conflict, in this log, kept both entries; the branch now contains `origin/main`, which the deploy guard requires); the Privacy and Terms pages said nothing about affiliate programmes, so each gained an "Affiliate programmes" section (see [`products/affiliate-manager.md`](./products/affiliate-manager.md); owner to read the wording before release); and the deployment doc's line that the atomic migration runner was "not yet confirmed against Neon" was corrected (confirmed on staging 2026-11-14, not yet on production). Also checked and fine: nothing sensitive in the commits, the new pages are `noindex` and not in the sitemap, every route that changes anything checks origin and sign-in (the report route is open on purpose and rate-limited), and the billing, hub and account pages cope with an account holding the new plan.
+
+---
+
 ## 2026-11-14 — Affiliate migrations 0018 to 0021 verified on a staging Neon database
 
 **Decided by:** product owner (created the empty non-production project and ran the steps in their own terminal; the connection string never went into the repo or a file). **Result:** the rehearsal builder applied 0000 to 0017, the atomic runner committed 0018 to 0021 in one transaction (journal 22 of 22), and `npm run affiliate:smoke` passed **12 of 12** through the real Neon HTTP driver: the unique-violation handling, the one-statement writes, the append-only trigger, queued emails, reports, operator suspension, the plan entitlement and isolation. **Not done, and still gated:** production. Applying 0018 to 0021 there needs its own explicit approval, in this order: restore point, migrate first, then deploy. The staging project is disposable and is deleted after the run. Detail: [`infra/affiliate-staging-verification.md`](./infra/affiliate-staging-verification.md).

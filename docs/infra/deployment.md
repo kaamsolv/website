@@ -273,7 +273,7 @@ After the SQL above, invoices keep the `status` the ledger last gave them (a ful
 
 ### Applying a migration to production (atomic runner)
 
-**Why not `npm run db:migrate`.** Production uses Neon's HTTP driver, which has no multi-statement transactions, and drizzle's `neon-http`
+**Why not `npm run db:migrate`.** Production uses Neon's HTTP driver, which can send a fixed batch as one transaction but cannot hold an interactive one, and drizzle's `neon-http`
 migrator sends **every statement as its own request and writes the journal row only after all of them have run**. Migration 0010 is 23
 statements (tables, five plpgsql functions, four triggers, a seed). If one fails, or the connection drops, the earlier statements stay
 committed, there is no journal row, and a re-run stops at the first `CREATE TABLE … already exists` — leaving a half-applied ledger to clean up
@@ -282,7 +282,7 @@ by hand. (`test/atomic-migration.test.mts` reproduces exactly this.)
 **`npm run db:migrate:atomic`** (`db/migrate-atomic.mts`; logic and tests in `db/atomic-migration.ts` / `test/atomic-migration.test.mts`) sends the
 pending migrations' statements **and their journal rows as one Neon HTTP transaction**. If the database reports an error, the whole transaction rolls back; if the
 connection is lost before an answer arrives, whether it committed is **unknown** and the tool says so. That atomicity is Postgres's and
-Neon's batch behaviour: it is demonstrated on PGlite (below) and **has not yet been confirmed against Neon** — step 4 is where it is. It reads the same
+Neon's batch behaviour: it is demonstrated on PGlite (below) and was **confirmed against a staging Neon database on 2026-11-14**, when migrations 0018 to 0021 were committed in one transaction and the journal read 22 of 22 (docs/infra/affiliate-staging-verification.md). It has not yet been run against production. It reads the same
 files, splits them the same way, writes the same journal row (`hash`, `created_at`) as drizzle, so `db:migrate` afterwards sees an up-to-date database
 (proved on PGlite for 0010 and for a from-scratch build). It refuses to run on a database whose journal doesn't match the checkout (a different journal time, or different content). A row whose hash matches this file with LF or with CRLF line endings counts as the same migration, with a note — git on Windows changes line endings between checkouts, and drizzle itself ignores the hash — but any other difference stops it. Without `--confirm`
 it is a **read-only dry run**; applying also needs `--confirm --restore-point-taken`. **It never chooses a target for you:** `DATABASE_URL` must be set in the environment of

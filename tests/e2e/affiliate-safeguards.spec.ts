@@ -167,3 +167,56 @@ for (const width of [375, 320]) {
     }
   });
 }
+
+test('shared pages cope with an account that holds the Affiliate Manager plan: billing, hub, account, and what /api/me says', async ({ browser }) => {
+  const p = await person(browser, addr('affpro', 'shared'));
+  const me = (await (await p.request.get('/api/me')).json()) as { entitlements: { keys: string[]; limits: Record<string, number | null> } };
+  expect(me.entitlements.keys).toContain('affiliate_programme');
+  expect(me.entitlements.limits.affiliate_programme).toBe(1);
+
+  const status = await (await p.request.get('/api/billing/status')).json();
+  expect(status.subscriptions.map((s: { name: string }) => s.name)).toContain('Affiliate Manager');
+
+  await p.goto('/app/billing');
+  await expect(p.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(p.getByText('Affiliate Manager').first()).toBeVisible();
+  await expect(p.getByText(/Something went wrong|couldn’t load/i)).toHaveCount(0);
+  await p.goto('/app');
+  await expect(p.getByRole('heading', { name: 'Your KaamSolv', level: 1 })).toBeVisible();
+  await p.goto('/app/account');
+  await expect(p.getByRole('heading', { level: 1 })).toBeVisible();
+
+  // A free account is unaffected: no such entitlement, and no such plan in its list.
+  const free = await person(browser, addr('free', 'shared'));
+  const meFree = (await (await free.request.get('/api/me')).json()) as { entitlements: { keys: string[] } };
+  expect(meFree.entitlements.keys).not.toContain('affiliate_programme');
+  expect((await (await free.request.get('/api/billing/status')).json()).subscriptions).toHaveLength(0);
+});
+
+for (const width of [1280, 375, 320]) {
+  test(`privacy and terms explain affiliate programmes, and hold at ${width}px`, async ({ browser }) => {
+    const ctx = await browser.newContext({ baseURL: origin.origin, viewport: { width, height: 800 } });
+    const page = await ctx.newPage();
+
+    await page.goto('/privacy');
+    const privacy = page.locator('#affiliate');
+    await expect(privacy).toHaveText('Affiliate programmes');
+    const body = page.locator('main');
+    await expect(body).toContainText('Your sign-in email address');
+    await expect(body).toContainText('Once a business has seen your application it may have kept its own copy');
+    await expect(body).toContainText("We don't tell the business who reported it");
+    await expect(body).toContainText('Affiliate profiles, applications, programme pages and their history');
+    await expect(body).toContainText('and your affiliate profile, your applications and any programme you run');
+    await expect(page.getByText('Last updated', { exact: false }).first()).toContainText('14 November 2026');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'privacy sideways scroll').toBeLessThanOrEqual(0);
+    if (width !== 375) await page.screenshot({ path: `${SHOTS}/affiliate-p2-privacy-${width}.png`, fullPage: true });
+
+    await page.goto('/terms');
+    await expect(page.locator('#affiliate')).toHaveText('Affiliate programmes');
+    await expect(page.locator('main')).toContainText("isn't a party to the arrangement between a business and its affiliates");
+    await expect(page.locator('main')).toContainText("we don't hold or pay any money");
+    await expect(page.locator('main')).toContainText('Use “Report this page” at the bottom of it');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'terms sideways scroll').toBeLessThanOrEqual(0);
+    if (width !== 375) await page.screenshot({ path: `${SHOTS}/affiliate-p2-terms-${width}.png`, fullPage: true });
+  });
+}

@@ -100,7 +100,7 @@ test('0009 on a database that already has QR codes, links and scans: nothing exi
   await assert.rejects(client.query(`insert into qr_campaigns (user_id, name) values ($1, 'HOLI')`, [user]));
 
   // ─── The rollback SQL from the docs ───────────────────────────────────────
-  const doc = readFileSync(resolve(import.meta.dirname, '../docs/infra/deployment.md'), 'utf8');
+  const doc = readFileSync(resolve(import.meta.dirname, '../docs/infra/deployment.md'), 'utf8').replaceAll(String.fromCharCode(13, 10), String.fromCharCode(10));
   const block = /\*\*Rolling back 0009\*\*[^`]*```sql\n([\s\S]*?)```/.exec(doc)?.[1];
   assert.ok(block, 'the rollback block is in the deployment doc');
   assert.match(block, /DROP TRIGGER qr_codes_enforce_limit/);

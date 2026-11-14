@@ -12,7 +12,7 @@ export default function TermsPage() {
     <TextPage
       title="Terms"
       intro="The rules for using KaamSolv. They're short — please read them."
-      updated="2026-10-28"
+      updated="2026-11-14"
     >
       <h2>Using KaamSolv</h2>
       <p>
@@ -64,6 +64,26 @@ export default function TermsPage() {
       </p>
       <p>
         Found a bad link? <a href="/report-link">Report it</a>.
+      </p>
+
+      <h2 id="affiliate">Affiliate programmes</h2>
+      <p>
+        A business that runs a programme on KaamSolv is responsible for its page, its terms, who it approves, and
+        anything it promises or pays its affiliates. KaamSolv provides the tools and isn&apos;t a party to the
+        arrangement between a business and its affiliates. For now we handle applications and approvals only: we
+        don&apos;t track sales, and we don&apos;t hold or pay any money.
+      </p>
+      <p>Don&apos;t use a programme page to:</p>
+      <ul>
+        <li>pretend to be another business, a bank, a payment provider or an official body;</li>
+        <li>ask people for money or sensitive details;</li>
+        <li>promise earnings that aren&apos;t real;</li>
+        <li>do anything on the Short links list above.</li>
+      </ul>
+      <p>
+        We may suspend or remove a programme page at any time, without notice, especially if it&apos;s reported or
+        breaks these rules. Running a programme is part of a paid plan that we set up for you for now. Applying to a
+        programme as an affiliate needs only an account. Found a bad page? Use “Report this page” at the bottom of it.
       </p>
 
       <h2>Your files and content</h2>

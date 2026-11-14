@@ -19,7 +19,7 @@ export default function PrivacyPage() {
     <TextPage
       title="Privacy"
       intro="The short version: most KaamSolv tools run entirely in your browser and send us nothing. You don't need an account. If you create one, we keep only what you save and what signing in needs."
-      updated="2026-10-26"
+      updated="2026-11-14"
     >
       <h2>Who we are</h2>
       <p>
@@ -159,6 +159,42 @@ export default function PrivacyPage() {
         links.
       </p>
 
+      <h2 id="affiliate">Affiliate programmes</h2>
+      <p>
+        A business can run an affiliate programme on KaamSolv, and any account can apply to one. We don&apos;t track
+        sales or pay anyone through this yet. What we handle today is who applies and who is approved.
+      </p>
+      <p>If you apply to a programme, we store, and share with that business:</p>
+      <ul>
+        <li>
+          <strong>What you type on the form</strong>: your name, the category and channel you pick, your link, your
+          country and your note. Everything except your name is optional.
+        </li>
+        <li>
+          <strong>Your sign-in email address</strong>, so the business can reach you.
+        </li>
+      </ul>
+      <p>
+        The business sees only its own applicants, and nobody else sees your application. We keep your affiliate
+        profile (your name and link), your applications, and what the business decided, including any reason it gave.
+        Once a business has seen your application it may have kept its own copy, which we can&apos;t take back.
+      </p>
+      <p>
+        If you run a programme, we store the page you write (name, logo, colour, description and terms), your
+        applicants and your decisions. That page is public to anyone who has its address. You write it, not KaamSolv.
+      </p>
+      <p>
+        We send emails about applications: to the business owner when someone applies, and to the applicant when an
+        application is approved or not, with the business&apos;s reason if it gave one. We also keep a short history of
+        what happened (applied, approved, suspended and so on, with the date and which account did it) as a record. It
+        holds no message text.
+      </p>
+      <p>
+        If you report a programme page (the link is at the bottom of every programme page), we store which page, the
+        reason, anything you write in the details box, and the same one-way IP code as above. We don&apos;t tell the
+        business who reported it. We use reports only to review a page and, if needed, suspend it.
+      </p>
+
       <h2>Limits and abuse protection</h2>
       <p>
         To stop misuse we count requests per IP code over short periods (for example, how many links were
@@ -257,6 +293,11 @@ export default function PrivacyPage() {
       <ul>
         <li>Short links and their click counts: for as long as the link exists.</li>
         <li>Reports: as long as we need them to deal with the link.</li>
+        <li>
+          Affiliate profiles, applications, programme pages and their history: until you delete your account. If a
+          business&apos;s account is deleted, its programme and the applications to it go with it.
+        </li>
+        <li>Reports of programme pages: as long as we need them to review the page.</li>
         <li>Abuse-protection counters: they reset within minutes to a day.</li>
         <li>
           Your account, saved invoices (with their recorded payments and payment history), customers, items, tracked
@@ -272,7 +313,7 @@ export default function PrivacyPage() {
       <p>
         If you have an account, you can delete any saved invoice yourself, and delete your whole account at{' '}
         <a href="/app/account">Account → Delete my account</a>. That removes your account, invoices, recorded payments and their history, customers, items and business
-        details.
+        details, and your affiliate profile, your applications and any programme you run.
       </p>
       <p>
         You can also ask us what data we hold about you, ask us to correct it, or ask us to delete it. Because short
