@@ -1,14 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ImageDropzone } from './image-dropzone';
-import { ImageFileCard } from './image-file-card';
-import { ImageResultCard } from './image-result-card';
 import { FormatSelectors } from './format-selectors';
 import { ConversionOptions, hasValidResizeOptions } from './conversion-options';
-import { ConversionProgress } from './conversion-progress';
-import { OnDeviceNote } from './on-device-note';
-import { convertImage, suggestedDownloadName, terminateConversionWorker } from '@/app/lib/image/worker-client';
+import { BatchPanel, QuotaNote, downloadBatchZip, useZipping } from './batch-panel';
+import { useImageBatch, type ConvertOutcome } from './use-image-batch';
+import { convertImage, suggestedDownloadName } from '@/app/lib/image/worker-client';
 import { downloadBlob } from '@/app/lib/image/export';
 import { trackToolError, trackToolSuccess } from '@/app/lib/analytics';
 import { slugForPair } from '@/app/lib/image/routes';
@@ -16,19 +14,31 @@ import {
   canConvert,
   defaultOutputForInput,
   getEncodableFormats,
+  getFormat,
   labelForFormatId,
 } from '@/app/lib/image/registry/capabilities';
 import type { FormatId } from '@/app/lib/image/registry/format-registry';
-import type { ConvertProgress, ImageToolDef, OutputFormat } from '@/app/lib/image/types';
+import type { ConvertProgress, ImageToolDef, OutputFormat, ResizeOptions } from '@/app/lib/image/types';
 import { DEFAULT_CONVERT_OPTIONS, DEFAULT_RESIZE_OPTIONS } from '@/app/lib/image/types';
 import { allInputAcceptString, detectImageFile, labelForFormat } from '@/app/lib/image/validate';
 import { probeImageDimensions } from '@/app/lib/image/probe';
-import { getFormat } from '@/app/lib/image/registry/capabilities';
-
-type Phase = 'empty' | 'ready' | 'converting' | 'done';
+import { BATCH_MAX_FILES, rejectionMessage } from '@/app/lib/image/batch';
+import { readDailyQuota, type DailyQuota } from '@/app/lib/image/quota-client';
 
 type Props = {
   tool: ImageToolDef;
+  /** Title and blurb from the page, shown on the left of the controls on wide screens. */
+  intro: React.ReactNode;
+  /** Address of this tool page, for the share row under the results. */
+  shareUrl: string;
+};
+
+/** Everything a queued file is converted with. Captured when the file is added. */
+type ConverterSettings = {
+  from: FormatId;
+  to: OutputFormat;
+  quality: number;
+  resize: ResizeOptions;
 };
 
 function ensureOutputFormat(format: FormatId): OutputFormat {
@@ -38,85 +48,109 @@ function ensureOutputFormat(format: FormatId): OutputFormat {
   return 'png';
 }
 
-export function ImageConverterWorkspace({ tool }: Props) {
+async function convertFile(
+  file: File,
+  s: ConverterSettings,
+  onProgress: (p: ConvertProgress) => void,
+): Promise<ConvertOutcome> {
+  const res = await convertImage(
+    file,
+    s.from,
+    s.to,
+    { ...DEFAULT_CONVERT_OPTIONS, quality: s.quality, resize: s.resize },
+    onProgress,
+  );
+  if (!res.ok) {
+    trackToolError('convert_failed', 'converter');
+    return { ok: false, message: res.message };
+  }
+  trackToolSuccess('converter', true);
+  return {
+    ok: true,
+    result: {
+      blob: res.blob,
+      name: suggestedDownloadName(file.name, s.to),
+      width: res.width,
+      height: res.height,
+      beforeBytes: res.inputBytes,
+      afterBytes: res.outputBytes,
+      keepOriginal: false,
+    },
+  };
+}
+
+// Each pair URL is its own page; a router navigation would remount the
+// workspace and drop the uploads. replaceState only changes the address
+// (Next.js keeps its router in step), so a refresh or a shared link opens
+// the right converter.
+function syncUrl(nextFrom: FormatId, nextTo: OutputFormat) {
+  const slug = slugForPair(nextFrom, nextTo);
+  if (slug && window.location.pathname !== `/${slug}`) {
+    window.history.replaceState(null, '', `/${slug}`);
+  }
+}
+
+const ACCEPTED_LABELS = ['JPG', 'PNG', 'WebP', 'AVIF', 'HEIC', 'GIF', 'BMP', 'ICO', 'SVG'];
+
+export function ImageConverterWorkspace({ tool, intro, shareUrl }: Props) {
   const [from, setFrom] = useState<FormatId>(tool.from);
   const [to, setTo] = useState<OutputFormat>(ensureOutputFormat(tool.to));
-  const [phase, setPhase] = useState<Phase>('empty');
-  const [file, setFile] = useState<File | null>(null);
-  const [detectedFormat, setDetectedFormat] = useState<FormatId | null>(null);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
-  const [resultMeta, setResultMeta] = useState<{
-    width: number;
-    height: number;
-    inputBytes: number;
-    outputBytes: number;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [quality, setQuality] = useState(DEFAULT_CONVERT_OPTIONS.quality);
   const [resize, setResize] = useState(DEFAULT_RESIZE_OPTIONS);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
-  const [progress, setProgress] = useState<ConvertProgress>({ stage: 'preparing' });
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [quota, setQuota] = useState<DailyQuota | null>(null);
 
-  const previewUrlRef = useRef<string | null>(null);
-  const resultUrlRef = useRef<string | null>(null);
-
-  const revoke = useCallback((url: string | null) => {
-    if (url) URL.revokeObjectURL(url);
-  }, []);
-
-  const clearUrls = useCallback(() => {
-    revoke(previewUrlRef.current);
-    revoke(resultUrlRef.current);
-    previewUrlRef.current = null;
-    resultUrlRef.current = null;
-    setPreviewUrl(null);
-    setResultUrl(null);
-  }, [revoke]);
+  const batch = useImageBatch<ConverterSettings>(convertFile);
+  const zip = useZipping();
+  const current = (): ConverterSettings => ({ from, to, quality, resize });
+  const firstFile = batch.items[0]?.file ?? null;
 
   useEffect(() => {
-    return () => {
-      clearUrls();
-      terminateConversionWorker();
-    };
-  }, [clearUrls]);
-
-  // Each pair URL is its own page; a router navigation would remount the
-  // workspace and drop the upload. replaceState only changes the address
-  // (Next.js keeps its router in step), so a refresh or a shared link opens
-  // the right converter.
-  const syncUrl = useCallback((nextFrom: FormatId, nextTo: OutputFormat) => {
-    const slug = slugForPair(nextFrom, nextTo);
-    if (slug && window.location.pathname !== `/${slug}`) {
-      window.history.replaceState(null, '', `/${slug}`);
-    }
+    void readDailyQuota().then(setQuota);
   }, []);
 
-  const handleFromChange = (nextFrom: FormatId) => {
-    const nextTo = defaultOutputForInput(nextFrom, to) as OutputFormat;
+  // The free count moves with every file, so re-read it once the batch settles.
+  useEffect(() => {
+    if (!batch.working) void readDailyQuota().then(setQuota);
+  }, [batch.working]);
+
+  // Resize limits are checked against the first file's size.
+  useEffect(() => {
+    if (!firstFile) {
+      setDimensions(null);
+      return;
+    }
+    let live = true;
+    probeImageDimensions(firstFile, from)
+      .then((d) => live && setDimensions(d))
+      .catch(() => live && setDimensions(null));
+    return () => {
+      live = false;
+    };
+  }, [firstFile, from]);
+
+  const changePair = (nextFrom: FormatId, nextTo: OutputFormat) => {
     setFrom(nextFrom);
     setTo(nextTo);
-    setError(null);
-    if (phase === 'done') setPhase(file ? 'ready' : 'empty');
+    setNotice(null);
     syncUrl(nextFrom, nextTo);
+    batch.markStale();
+  };
+
+  const handleFromChange = (nextFrom: FormatId) => {
+    changePair(nextFrom, defaultOutputForInput(nextFrom, to) as OutputFormat);
   };
 
   const handleToChange = (nextTo: OutputFormat) => {
     let nextFrom = from;
-    if (nextFrom === nextTo) {
-      nextFrom = nextTo === 'jpeg' ? 'png' : 'jpeg';
-      setFrom(nextFrom);
-    }
+    if (nextFrom === nextTo) nextFrom = nextTo === 'jpeg' ? 'png' : 'jpeg';
     if (!canConvert(nextFrom, nextTo)) {
-      setError('That conversion isn\'t supported yet. Try JPG, PNG, or WebP as output.');
+      setNotice("That conversion isn't supported yet. Try JPG, PNG, or WebP as output.");
       return;
     }
-    setTo(nextTo);
-    setError(null);
-    if (phase === 'done') setPhase(file ? 'ready' : 'empty');
-    syncUrl(nextFrom, nextTo);
+    changePair(nextFrom, nextTo);
   };
 
   const handleSwap = () => {
@@ -124,200 +158,137 @@ export function ImageConverterWorkspace({ tool }: Props) {
     const newFrom = to as FormatId;
     const newTo = ensureOutputFormat(from);
     if (!canConvert(newFrom, newTo)) return;
-    setFrom(newFrom);
-    setTo(newTo);
-    setError(null);
-    if (phase === 'done') setPhase(file ? 'ready' : 'empty');
-    syncUrl(newFrom, newTo);
+    changePair(newFrom, newTo);
   };
 
-  function reset() {
-    clearUrls();
-    setFile(null);
-    setDetectedFormat(null);
-    setDimensions(null);
-    setResultBlob(null);
-    setResultMeta(null);
-    setError(null);
-    setPhase('empty');
-    setQuality(DEFAULT_CONVERT_OPTIONS.quality);
-    setResize(DEFAULT_RESIZE_OPTIONS);
-    setMoreOptionsOpen(false);
-  }
-
-  async function handleFile(next: File) {
-    clearUrls();
-    setResultBlob(null);
-    setResultMeta(null);
-    setError(null);
-
-    const detected = await detectImageFile(next);
-    if (!detected.ok) {
-      setError(detected.message);
-      setPhase('empty');
+  /** Drop or pick files. The first file can set the input format; after that, every file must match it. */
+  async function handleFiles(files: File[]) {
+    if (!hasValidResizeOptions(dimensions, resize)) {
+      setNotice("That size doesn't fit this image. Change it in More options, then add the files again.");
       return;
     }
+    const messages: string[] = [];
+    const accepted: File[] = [];
+    const startEmpty = batch.items.length === 0;
+    let activeFrom = from;
+    let activeTo = to;
+    let adopted = false;
 
-    const url = URL.createObjectURL(next);
-    previewUrlRef.current = url;
-    setPreviewUrl(url);
-    setFile(next);
-    setDetectedFormat(detected.detected.format);
-    setFrom(detected.detected.format);
-    setTo(defaultOutputForInput(detected.detected.format, to) as OutputFormat);
-    setPhase('ready');
-
-    probeImageDimensions(next, detected.detected.format)
-      .then(setDimensions)
-      .catch(() => setDimensions(null));
-  }
-
-  async function convert() {
-    if (!file || !detectedFormat) return;
-    if (!canConvert(from, to)) {
-      setError('That conversion isn\'t supported. Pick a different output format.');
-      return;
-    }
-    setError(null);
-    setPhase('converting');
-    setProgress({ stage: 'preparing' });
-
-    const result = await convertImage(
-      file,
-      from,
-      to,
-      { ...DEFAULT_CONVERT_OPTIONS, quality, resize },
-      setProgress,
-    );
-
-    if (!result.ok) {
-      trackToolError('convert_failed', 'converter');
-      setError(result.message);
-      setPhase('ready');
-      return;
+    for (const file of files) {
+      const detected = await detectImageFile(file);
+      if (!detected.ok) {
+        messages.push(detected.message);
+        continue;
+      }
+      const fmt = detected.detected.format;
+      if (startEmpty && accepted.length === 0 && fmt !== activeFrom) {
+        activeFrom = fmt;
+        activeTo = defaultOutputForInput(fmt, activeTo) as OutputFormat;
+        adopted = true;
+      }
+      if (fmt !== activeFrom) {
+        messages.push(
+          `${file.name} is ${labelForFormat(fmt)}. This page converts ${labelForFormatId(activeFrom)} files, so it was left out.`,
+        );
+        continue;
+      }
+      accepted.push(file);
     }
 
-    revoke(resultUrlRef.current);
-    const url = URL.createObjectURL(result.blob);
-    resultUrlRef.current = url;
-    setResultBlob(result.blob);
-    setResultUrl(url);
-    setResultMeta({
-      width: result.width,
-      height: result.height,
-      inputBytes: result.inputBytes,
-      outputBytes: result.outputBytes,
-    });
-    setPhase('done');
-    trackToolSuccess('converter', true);
+    if (adopted) {
+      setFrom(activeFrom);
+      setTo(activeTo);
+      syncUrl(activeFrom, activeTo);
+    }
+    if (accepted.length > 0) {
+      const rejected = batch.add(accepted, { from: activeFrom, to: activeTo, quality, resize });
+      messages.push(...rejected.map(rejectionMessage));
+    }
+    setNotice(messages.length ? messages.join(' ') : null);
   }
 
-  function handleDownload() {
-    if (!resultBlob || !file) return;
-    downloadBlob(resultBlob, suggestedDownloadName(file.name, to));
-  }
-
-  const resizeValid = hasValidResizeOptions(dimensions, resize);
-  const formatMismatch =
-    file && detectedFormat && detectedFormat !== from
-      ? `This file is ${labelForFormat(detectedFormat)}. Change the input format or pick another file.`
-      : null;
-  const hasTransparency = detectedFormat ? getFormat(detectedFormat).transparency : false;
   const conversionSupported = canConvert(from, to);
-  const downloadName = file ? suggestedDownloadName(file.name, to) : '';
-
-  const decodableLabels = ['JPG', 'PNG', 'WebP', 'AVIF', 'HEIC', 'GIF', 'BMP', 'ICO', 'SVG'];
+  const hasTransparency = getFormat(from).transparency;
+  const exhausted = batch.items.some((i) => i.status === 'blocked');
+  const downloadRule = `${ACCEPTED_LABELS.slice(0, 5).join(', ')} · up to ${BATCH_MAX_FILES} at a time, 25 MB each`;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <header className="text-center">
-        <p className="font-display text-xl font-bold text-ink sm:text-2xl">Convert your image</p>
-        <p className="mt-1 text-sm text-muted">
-          {labelForFormatId(from)} → {labelForFormatId(to)}
-        </p>
-      </header>
-
-      <FormatSelectors
-        from={from}
-        to={to}
-        disabled={phase === 'converting'}
-        onFromChange={handleFromChange}
-        onToChange={handleToChange}
-        onSwap={handleSwap}
-      />
-
-      <ConversionOptions
-        open={moreOptionsOpen}
-        onOpenChange={setMoreOptionsOpen}
-        disabled={phase === 'converting'}
-        outputFormat={to}
-        sourceDimensions={dimensions}
-        resize={resize}
-        onResizeChange={setResize}
-        quality={quality}
-        onQualityChange={setQuality}
-        hasTransparency={hasTransparency}
-      />
-
-      <OnDeviceNote />
-
-      {phase === 'empty' && !file && (
-        <ImageDropzone
-          accept={allInputAcceptString()}
-          extensions={decodableLabels}
-          onFile={handleFile}
-        />
-      )}
-
-      {file && phase !== 'converting' && phase !== 'done' && (
-        <>
-          <ImageFileCard
-            name={file.name}
-            bytes={file.size}
-            format={detectedFormat ?? from}
-            width={dimensions?.width}
-            height={dimensions?.height}
-            previewUrl={previewUrl}
-            transparent={hasTransparency}
-            onRemove={reset}
+    <div className="mx-auto max-w-4xl space-y-5">
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_18rem] md:items-start md:gap-6">
+        <div>{intro}</div>
+        <div className="mt-4 space-y-3 rounded-xl2 border border-hair bg-surface p-3 md:mt-0">
+          <FormatSelectors
+            from={from}
+            to={to}
+            disabled={batch.working}
+            onFromChange={handleFromChange}
+            onToChange={handleToChange}
+            onSwap={handleSwap}
           />
 
-          {(error || formatMismatch) && (
-            <div
+          <ConversionOptions
+            open={moreOptionsOpen}
+            onOpenChange={setMoreOptionsOpen}
+            disabled={batch.working}
+            outputFormat={to}
+            sourceDimensions={dimensions}
+            resize={resize}
+            onResizeChange={(next) => {
+              setResize(next);
+              batch.markStale();
+            }}
+            quality={quality}
+            onQualityChange={(next) => {
+              setQuality(next);
+              batch.markStale();
+            }}
+            hasTransparency={hasTransparency}
+          />
+        </div>
+      </div>
+
+      {conversionSupported && (
+        <>
+          <QuotaNote quota={quota} exhausted={exhausted} />
+
+          <ImageDropzone
+            accept={allInputAcceptString()}
+            extensions={ACCEPTED_LABELS}
+            multiple
+            onFiles={handleFiles}
+            onFile={(file) => void handleFiles([file])}
+            title={batch.items.length > 0 ? 'Add more images' : 'Drop your images here'}
+            detail={downloadRule}
+          />
+
+          {notice && (
+            <p
               className="rounded-xl border border-danger-400 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700"
               role="alert"
             >
-              {formatMismatch ?? error}
-            </div>
-          )}
-
-          {!formatMismatch && conversionSupported && (
-            <button
-              type="button"
-              onClick={convert}
-              disabled={!resizeValid}
-              className="h-12 w-full rounded-full bg-coral-500 text-sm font-semibold text-navy-900 hover:bg-coral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:border disabled:border-hair disabled:bg-chip disabled:text-muted disabled:hover:bg-chip disabled:hover:text-muted"
-            >
-              Convert to {labelForFormatId(to)}
-            </button>
+              {notice}
+            </p>
           )}
         </>
       )}
 
-      {phase === 'converting' && <ConversionProgress progress={progress} />}
-
-      {phase === 'done' && resultUrl && resultMeta && file && (
-        <ImageResultCard
-          filename={downloadName}
-          outputFormat={to}
-          inputBytes={resultMeta.inputBytes}
-          outputBytes={resultMeta.outputBytes}
-          previewUrl={resultUrl}
-          width={resultMeta.width}
-          height={resultMeta.height}
-          transparent={to === 'png'}
-          onDownload={handleDownload}
-          onReset={reset}
+      {batch.items.length > 0 && (
+        <BatchPanel
+          items={batch.items}
+          summary={batch.summary}
+          working={batch.working}
+          staleCount={batch.staleCount}
+          zipping={zip.zipping}
+          againLabel={`Convert again to ${labelForFormatId(to)}`}
+          share={{ name: tool.name, url: shareUrl }}
+          onConvertAgain={() => batch.convertAll(current())}
+          onRetry={(id) => batch.retry(id, current())}
+          onRemove={batch.remove}
+          onClear={batch.clear}
+          onDownload={(item) => item.result && downloadBlob(item.result.blob, item.result.name)}
+          onDownloadAll={() =>
+            void zip.run(() => downloadBatchZip(batch.items, `kaamsolv-${to}-images.zip`))
+          }
         />
       )}
     </div>

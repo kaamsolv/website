@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 const STEPS = [
-  { t: 'Add your image', d: 'Drop a photo or browse. It stays on your device.' },
+  { t: 'Add your images', d: 'Drop up to 20 photos at once, or browse. They stay on your device.' },
   { t: 'Pick how small', d: 'Balanced suits most images. Add a max size for big phone photos.' },
   { t: 'Download', d: 'See how much you saved, then save the smaller file.' },
 ];
@@ -53,7 +53,11 @@ const FAQ = [
   },
   {
     q: 'Is there a size limit?',
-    a: 'Up to 25 MB per image. Very large images can be slow on older phones.',
+    a: 'Up to 25 MB per image, and 20 images at a time. Very large images can be slow on older phones.',
+  },
+  {
+    q: 'Is there a daily limit?',
+    a: 'Yes. You can compress 25 files a day for free. After that, sign in to keep going. The count resets at midnight India time.',
   },
 ];
 
@@ -68,7 +72,7 @@ export default function ImageCompressorPage() {
       faq={FAQ}
       related={['resize-image-in-kb', 'jpg-to-webp', 'heic-to-jpg']}
     >
-      <ImageCompressorWorkspace />
+      <ImageCompressorWorkspace shareUrl={`${SITE_URL}${PATH}`} />
     </ToolPageShell>
   );
 }

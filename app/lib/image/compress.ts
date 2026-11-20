@@ -125,3 +125,12 @@ export function compressedFilename(original: string, extension: string): string 
   const base = (dot > 0 ? original.slice(0, dot) : original).trim() || 'image';
   return `${base}-compressed.${extension}`;
 }
+
+/**
+ * The "Save as" choice for one file in a batch. A batch can mix formats (a
+ * JPG and a PNG), so a choice that doesn't suit this input falls back to that
+ * input's default.
+ */
+export function effectiveCompressOutput(input: FormatId, chosen: OutputFormat): OutputFormat {
+  return compressOutputChoices(input).some((c) => c.format === chosen) ? chosen : defaultCompressOutput(input);
+}

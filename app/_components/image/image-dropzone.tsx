@@ -14,9 +14,11 @@ type Props = {
   title?: string;
   /** Small print under the browse link (defaults to the types and the 25 MB limit). */
   detail?: string;
+  /** Smaller drop area for adding more files under a list. */
+  compact?: boolean;
 };
 
-export function ImageDropzone({ accept, extensions, disabled, onFile, multiple = false, onFiles, title, detail }: Props) {
+export function ImageDropzone({ accept, extensions, disabled, onFile, multiple = false, onFiles, title, detail, compact = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -43,7 +45,7 @@ export function ImageDropzone({ accept, extensions, disabled, onFile, multiple =
 
   return (
     <div
-      className={`dropzone rounded-xl2 border-2 border-dashed border-hair p-10 text-center transition-colors ${
+      className={`dropzone rounded-xl2 border-2 border-dashed border-hair ${compact ? 'p-5' : 'min-h-56 p-10'} text-center transition-colors ${
         dragOver ? 'drag-over' : ''
       } ${disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}
       onDragOver={(e) => {
@@ -64,7 +66,7 @@ export function ImageDropzone({ accept, extensions, disabled, onFile, multiple =
       aria-disabled={disabled}
     >
       <svg
-        className="mx-auto mb-3 h-10 w-10 text-faint"
+        className={`mx-auto ${compact ? 'mb-1 h-6 w-6' : 'mb-3 h-10 w-10'} text-faint`}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

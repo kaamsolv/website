@@ -7,8 +7,6 @@ import { Breadcrumb } from '@/app/_components/breadcrumb';
 import { CATEGORIES, type Accent } from '@/app/lib/catalogue';
 import type { ConverterSlug } from '@/app/lib/image/types';
 import { getImageTool, relatedImageTools } from '@/app/lib/image/tools';
-import { ShareBar } from '@/app/_components/share-bar';
-import { ShareTool } from '@/app/_components/share-tool';
 import { ImageConverterWorkspace } from './image-converter-workspace';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kaamsolv.com';
@@ -22,9 +20,9 @@ const ACCENT: Record<Accent, { tint: string; fg: string; bar: string }> = {
 };
 
 const STEPS = [
-  { n: '1', t: 'Upload your image', d: 'Drop a file or browse — it stays on your device.' },
+  { n: '1', t: 'Upload your images', d: 'Drop up to 20 at once, or browse. They stay on your device.' },
   { n: '2', t: 'Pick formats', d: 'Change input or output anytime. Open More options to resize or adjust quality.' },
-  { n: '3', t: 'Download', d: 'Preview the result, then save it. Convert another anytime.' },
+  { n: '3', t: 'Download', d: 'Save each file, or all of them as one ZIP.' },
 ];
 
 const FAQ = [
@@ -38,7 +36,11 @@ const FAQ = [
   },
   {
     q: 'What is the file size limit?',
-    a: '25 MB per image. Larger files can be slow or fail depending on your device.',
+    a: '25 MB per image, and up to 20 images at a time. Larger files can be slow or fail depending on your device.',
+  },
+  {
+    q: 'Is there a daily limit?',
+    a: 'Yes. You can convert 25 files a day for free. After that, sign in to keep converting. The count resets at midnight India time.',
   },
   {
     q: 'Why does PNG to JPG add a white background?',
@@ -96,17 +98,6 @@ export function ImageToolPage({ slug }: Props) {
           <div className="kk-container py-10 sm:py-14">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Images & Files', href: '/tools#images-files' }, { label: tool.name }]} />
-              <ShareBar name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.path}`} />
-            </div>
-
-            <div className="mt-5 max-w-2xl">
-              <h1
-                id="tool-title"
-                className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
-              >
-                {tool.h1}
-              </h1>
-              <p className="mt-2 text-pretty text-lg text-muted">{tool.blurb}</p>
             </div>
 
             <noscript>
@@ -116,10 +107,21 @@ export function ImageToolPage({ slug }: Props) {
             </noscript>
 
             <div className="mt-6">
-              <ImageConverterWorkspace tool={tool} />
-            </div>
-            <div className="mt-8">
-              <ShareTool name={tool.name} blurb={tool.blurb} url={`${SITE_URL}${tool.path}`} />
+              <ImageConverterWorkspace
+                tool={tool}
+                shareUrl={`${SITE_URL}${tool.path}`}
+                intro={
+                  <>
+                    <h1
+                      id="tool-title"
+                      className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
+                    >
+                      {tool.h1}
+                    </h1>
+                    <p className="mt-2 text-pretty text-lg text-muted">{tool.blurb}</p>
+                  </>
+                }
+              />
             </div>
           </div>
         </section>
