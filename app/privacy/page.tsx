@@ -137,8 +137,9 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>A one-way code made from your IP address</strong>, not the address itself. We mix your IP
-          with a secret value and scramble it, so we can spot abuse and enforce limits without storing who you
-          are.
+          with a secret value and scramble it, so we can spot abuse and enforce limits, such as the free daily
+          count for image tools, without storing who you are. Signed-in accounts get the same kind of code from
+          their account ID. The image itself is never sent to us.
         </li>
         <li>
           <strong>Basic click counts.</strong> When someone opens a short link we record the time, the type of

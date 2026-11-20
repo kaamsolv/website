@@ -58,12 +58,11 @@ for (const { route, label, mime, ext, magic } of [
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
     await page.goto(route);
+    // Conversion starts as soon as the file is added; the row offers the download when it's done.
     await page.locator('input[type="file"]').setInputFiles(PHOTO);
-    await page.getByRole('button', { name: `Convert to ${label}` }).click();
 
-    const download = page.getByRole('button', { name: `Download ${label}` });
+    const download = page.getByRole('button', { name: new RegExp(`^Download photo\.${ext}$`) });
     await expect(download).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText('1024 × 1024').first()).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/heic-to-${ext}-done.png`, fullPage: true });
 
     const [file] = await Promise.all([page.waitForEvent('download'), download.click()]);
@@ -85,12 +84,12 @@ for (const { route, label, mime, ext, magic } of [
     await page
       .locator('input[type="file"]')
       .setInputFiles({ name: 'broken.heic', mimeType: 'image/heic', buffer: brokenHeic() });
-    await page.getByRole('button', { name: `Convert to ${label}` }).click();
 
-    await expect(messages(page)).toContainText(HEIC_ERROR, { timeout: 60_000 });
+    // The error sits on the file's row; the page stays usable.
+    await expect(page.getByText(HEIC_ERROR)).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText(/window is not defined/i)).toHaveCount(0);
-    // The user can still pick another file or try again.
-    await expect(page.getByRole('button', { name: `Convert to ${label}` })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /^Try again/ })).toBeEnabled();
+    await expect(page.locator('input[type="file"]')).toBeEnabled();
     await page.screenshot({ path: `${SHOTS}/heic-to-${ext}-broken.png`, fullPage: true });
   });
 }
@@ -98,11 +97,10 @@ for (const { route, label, mime, ext, magic } of [
 test('Image Compressor: a real HEIC photo compresses', async ({ page }) => {
   await page.goto('/image-compressor');
   await page.locator('input[type="file"]').setInputFiles(PHOTO);
-  await page.getByRole('button', { name: 'Compress image' }).click();
 
-  // Either a result, or "your original is already smaller" — never an error.
+  // Either a download for the row, or "already the smaller file" — never an error.
   await expect(
-    page.getByRole('button', { name: /^Download/ }).or(page.getByText('Your original is already the smaller file.')),
+    page.getByRole('button', { name: /^Download / }).or(page.getByText('Already the smaller file. Keep the original.')),
   ).toBeVisible({ timeout: 60_000 });
   await expect(messages(page)).toHaveCount(0);
 });

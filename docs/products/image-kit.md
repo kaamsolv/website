@@ -44,7 +44,7 @@ resize → encode). Decisions live in `app/lib/image/compress.ts` (tested in
   converter UI still uses `canConvert()`, which doesn't.
 - Measured locally: 4000×3000 JPG 5.8 MB → 2.2 MB (Balanced), → 89.8 KB as
   WebP at 1920 px; transparent PNG 974 KB → 56.5 KB WebP with alpha intact.
-- Not yet: batch (several images at once), target file size ("under 200 KB").
+- Batch: up to 20 images at a time (see "Batch and daily limit" below). Target file size ("under 200 KB") is not yet built.
 
 ## Exact size module (`/resize-image-in-kb`)
 
@@ -69,6 +69,29 @@ Tests: `test/image-target-size.test.mts`.
   ZIP (fflate, stored uncompressed) contains only images that fit.
 - Measured: 6 MB 4000×3000 → 47.5 KB @ 50 KB (scaled to 1244×933);
   → 19.4 KB @ 20 KB; passport 413×531 at 18.5 KB, 300 DPI.
+
+## Batch and daily limit (converters and compressor)
+
+Decided 2026-11-15 (plan approved by the owner): [`DECISIONS.md`](../DECISIONS.md).
+
+- **Batch:** drop or pick up to **20 images** at a time, **25 MB** each, **150 MB** in total.
+  Each file gets its own bar (stage-based, not timed) and its own Download. **Download all
+  (.zip)** packs the finished files as one stored (uncompressed) ZIP, names kept, duplicates numbered.
+- **Conversion starts on drop.** Changing a setting after a file is done marks it "settings
+  changed" and shows **Convert again**; a file is never offered in settings it wasn't made with.
+- **Two at a time** in the worker. Each file asks the daily counter before it starts. Files that
+  didn't convert are given their count back, so a day's count is only files that worked.
+- **Daily limit:** **25 files a day** for a visitor, counted per India calendar day (midnight IST).
+  When it runs out, the rest of the batch waits and the page asks the visitor to **sign in**.
+  Signed-in accounts get **100 a day** (placeholder: the owner to confirm the number).
+- **Counter:** `POST /api/image-quota` with `{op: "use" | "give-back"}`, `GET` for the count.
+  It holds a salted hash of the IP (visitors) or of the user id (signed in) plus the day, in the
+  shared `rate_limits` table. **Only the count is sent. The image never is.** It fails open: if the
+  counter can't be reached, the file converts without being counted.
+- Rules: `app/lib/image/batch.ts` (limits, tally, ZIP) · `app/lib/image/quota-policy.ts` (numbers,
+  day key) · `app/lib/rate-limit.ts` (`imageConvertDay`, `imageConvertDaySignedIn`) ·
+  `app/_components/image/use-image-batch.ts` (queue) · `batch-panel.tsx` (UI).
+- Not covered yet: Resize image to KB (it keeps its own batch of 20 and is not counted).
 
 ## Architecture
 
