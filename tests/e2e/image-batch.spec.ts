@@ -57,6 +57,11 @@ test('three files convert together: a bar for each, and one ZIP with all three',
   for (const bytes of Object.values(entries)) {
     expect(Array.from(bytes.subarray(0, 4))).toEqual([0x89, 0x50, 0x4e, 0x47]);
   }
+
+  // Share lives in the results only: one row there, and no header bar or bottom card.
+  await expect(page.getByTestId('share-bar')).toHaveCount(1);
+  await expect(page.locator('#batch-heading').locator('xpath=ancestor::section').getByTestId('share-bar')).toHaveCount(1);
+  await expect(page.getByTestId('share-tool')).toHaveCount(0);
 });
 
 test('a visitor who is out of free files is asked to sign in, and nothing downloads', async ({ page }) => {

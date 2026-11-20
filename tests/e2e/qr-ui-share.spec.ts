@@ -197,7 +197,8 @@ test.describe('share', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  const WITH_BAR = ['/qr-code-generator', '/url-shortener', '/jpg-to-png', '/image-compressor', '/resize-image-in-kb', '/invoice-generator', '/merge-pdf', '/pdf-to-word'];
+  // The converter pages (/jpg-to-png and the rest) share only from the results panel; see image-batch.spec.ts.
+  const WITH_BAR = ['/qr-code-generator', '/url-shortener', '/image-compressor', '/resize-image-in-kb', '/invoice-generator', '/merge-pdf', '/pdf-to-word'];
   for (const path of WITH_BAR) {
     test(`${path}: one share row and one Pass it on card`, async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 800 });
