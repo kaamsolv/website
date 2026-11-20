@@ -1,6 +1,6 @@
 # Notice Period Calculator
 
-**Status (2026-11-15):** built on `feat/notice-period-calculator`; not committed or deployed until the owner approves. Route `/notice-period-calculator`, Career category. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
+**Status (2026-11-15):** **live** (committed as `3a288fe` on `main`; deployed 2026-11-15, version `11c87958`, from `release/notice-on-affiliate`: see the warning row in `infra/deployment.md`). Route `/notice-period-calculator`, Career category. Decision record: [`../DECISIONS.md`](../DECISIONS.md).
 
 ## What it does
 

@@ -17,7 +17,7 @@ type Props = {
 };
 
 const SELECT_CLASS =
-  'h-11 min-w-[7.5rem] flex-1 appearance-none rounded-lg border border-hair bg-fieldbg px-3 pr-8 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60';
+  'h-11 w-full min-w-0 appearance-none rounded-lg border border-hair bg-fieldbg px-3 pr-8 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500 disabled:opacity-60';
 
 function Chevron() {
   return (
@@ -46,8 +46,8 @@ export function FormatSelectors({
   const outputGroups = getGroupedOutputFormats();
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-      <div className="relative min-w-[8rem] flex-1 sm:max-w-[11rem]">
+    <div className="flex flex-nowrap items-center gap-2">
+      <div className="relative min-w-0 flex-1">
         <label htmlFor="input-format" className="sr-only">Input format</label>
         <select
           id="input-format"
@@ -80,7 +80,7 @@ export function FormatSelectors({
         </svg>
       </button>
 
-      <div className="relative min-w-[8rem] flex-1 sm:max-w-[11rem]">
+      <div className="relative min-w-0 flex-1">
         <label htmlFor="output-format" className="sr-only">Output format</label>
         <select
           id="output-format"

@@ -22,22 +22,25 @@ async function makeJpg(page: Page): Promise<Buffer> {
   return Buffer.from(b64, 'base64');
 }
 
-test('switching format keeps the upload and updates the URL', async ({ page }) => {
+test('switching format keeps the upload, updates the URL, and asks to convert again', async ({ page }) => {
   await page.goto('/jpg-to-png');
   await page
     .locator('input[type="file"]')
     .setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: await makeJpg(page) });
   await expect(page.getByText('photo.jpg')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Convert to PNG' })).toBeVisible();
+  // Conversion starts on drop; the row offers the download when it's done.
+  await expect(page.getByRole('button', { name: 'Download photo.png' })).toBeVisible({ timeout: 60_000 });
 
   await page.locator('#output-format').selectOption('webp');
   await expect(page).toHaveURL(/\/jpg-to-webp$/);
   await expect(page.getByText('photo.jpg')).toBeVisible();
   await expect(page.locator('#output-format')).toHaveValue('webp');
 
-  // The settings survive too, and the conversion runs in the new format.
-  await page.getByRole('button', { name: /^Convert to WebP$/i }).click();
-  const download = page.getByRole('button', { name: /^Download WebP$/i });
+  // A finished file made with the old settings doesn't download until it's converted again.
+  await expect(page.getByRole('button', { name: 'Download photo.png' })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Convert again to WebP$/ }).click();
+
+  const download = page.getByRole('button', { name: 'Download photo.webp' });
   await expect(download).toBeVisible({ timeout: 60_000 });
   const [file] = await Promise.all([page.waitForEvent('download'), download.click()]);
   expect(file.suggestedFilename()).toBe('photo.webp');
@@ -49,5 +52,4 @@ test('switching format keeps the upload and updates the URL', async ({ page }) =
   await page.locator('#output-format').selectOption('png');
   await expect(page).toHaveURL(/\/jpg-to-png$/);
   await expect(page.getByText('photo.jpg')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Convert to PNG' })).toBeVisible();
 });

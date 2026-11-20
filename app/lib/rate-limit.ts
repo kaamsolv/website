@@ -14,6 +14,8 @@
  * can reuse the same limiter later without sharing a counter with this one.
  */
 
+import { FREE_DAILY_IMAGE_LIMIT, SIGNED_IN_DAILY_IMAGE_LIMIT } from './image/quota-policy.ts';
+
 export type RateLimitRule = { limit: number; windowSeconds: number; window: string };
 
 export const ANONYMOUS_LIMITS = {
@@ -74,6 +76,10 @@ export const ANONYMOUS_LIMITS = {
     { limit: 600, windowSeconds: 60, window: '1m' },
     { limit: 20_000, windowSeconds: 60 * 60, window: '1h' },
   ],
+  /** Free image conversions per India calendar day, per caller (salted IP hash + day). */
+  imageConvertDay: [{ limit: FREE_DAILY_IMAGE_LIMIT, windowSeconds: 24 * 60 * 60, window: '1d' }],
+  /** Free image conversions per India day, signed in (salted hash of the user id + day). */
+  imageConvertDaySignedIn: [{ limit: SIGNED_IN_DAILY_IMAGE_LIMIT, windowSeconds: 24 * 60 * 60, window: '1d' }],
   /** Sign-in link emails, per address (salted hash of the email) — stops mail-bombing one inbox. */
   signInLinkEmail: [
     { limit: 3, windowSeconds: 10 * 60, window: '10m' },
