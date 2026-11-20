@@ -5,7 +5,7 @@ infrastructure. Newest first. Detail lives in the linked docs.
 
 ---
 
-## 2026-11-15 — Image batch processing and the free daily limit
+## 2026-11-15 — Image batch processing and the free daily limit (deployed 2026-11-20, version 504d4c13)
 
 **Decided by:** product owner (plan approved, then confirmed item by item).
 
